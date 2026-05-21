@@ -22,6 +22,7 @@ describe("ControlPanel resources", () => {
       smallID: 1,
       gold: 50n,
       resources: { food: 100n, energy: 200n, materials: 300n },
+      resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
     });
     update.updates[GameUpdateType.Player] = [player];
     update.playerNameViewData[player.id] = makeNameViewData();
@@ -37,8 +38,9 @@ describe("ControlPanel resources", () => {
     expect(panel.textContent).toContain("Food");
     expect(panel.textContent).toContain("Energy");
     expect(panel.textContent).toContain("Materials");
-    expect(panel.textContent).toContain("100");
-    expect(panel.textContent).toContain("200");
-    expect(panel.textContent).toContain("300");
+    expect(panel.textContent).toContain("100/1.00K");
+    expect(panel.textContent).toContain("200/2.00K");
+    expect(panel.textContent).toContain("300/3.00K");
+    expect(panel.textContent).toContain("50");
   });
 });

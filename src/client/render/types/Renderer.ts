@@ -63,6 +63,7 @@ export interface PlayerState {
   tilesOwned: number;
   gold: number;
   resources: ResourceState;
+  resourceCapacity: ResourceState;
   troops: number;
   isTraitor: boolean;
   traitorRemainingTicks: number;

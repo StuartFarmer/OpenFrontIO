@@ -166,6 +166,7 @@ export function makePlayerUpdate(
     tilesOwned: 0,
     gold: 0n,
     resources: { food: 0n, energy: 0n, materials: 0n },
+    resourceCapacity: { food: 0n, energy: 0n, materials: 0n },
     troops: 100,
     allies: [],
     embargoes: new Set(),

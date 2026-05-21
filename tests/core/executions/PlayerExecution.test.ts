@@ -33,14 +33,50 @@ describe("PlayerExecution", () => {
 
   test("passive income adds an equal resource payload without accumulating gold", () => {
     player.conquer(game.ref(50, 50));
+    const expectedResources = game.config().resourceIncreaseRate(player);
 
     executeTicks(game, 2);
 
-    expect(player.resources()).toEqual({
-      food: 100n,
-      energy: 100n,
-      materials: 100n,
-    });
+    expect(player.resources()).toEqual(expectedResources);
+    expect(player.gold()).toBe(0n);
+  });
+
+  test("passive resource regen clamps each resource to capacity", () => {
+    player.conquer(game.ref(50, 50));
+    const capacity = game.config().maxResources(player);
+    player.addResources(
+      {
+        food: capacity.food - 1n,
+        energy: capacity.energy - 100n,
+        materials: capacity.materials - 1_000n,
+      },
+      undefined,
+      { updateGold: false },
+    );
+
+    executeTicks(game, 2);
+
+    const resources = player.resources();
+    expect(resources.food).toBe(capacity.food);
+    expect(resources.energy).toBeLessThanOrEqual(capacity.energy);
+    expect(resources.materials).toBeLessThanOrEqual(capacity.materials);
+    expect(resources.energy).toBeGreaterThan(capacity.energy - 100n);
+    expect(resources.materials).toBeGreaterThan(capacity.materials - 1_000n);
+  });
+
+  test("passive resource regen does not increase over-cap resources", () => {
+    player.conquer(game.ref(50, 50));
+    const capacity = game.config().maxResources(player);
+    const overCap = {
+      food: capacity.food + 10n,
+      energy: capacity.energy + 20n,
+      materials: capacity.materials + 30n,
+    };
+    player.addResources(overCap, undefined, { updateGold: false });
+
+    executeTicks(game, 2);
+
+    expect(player.resources()).toEqual(overCap);
     expect(player.gold()).toBe(0n);
   });
 

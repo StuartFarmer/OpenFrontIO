@@ -34,6 +34,7 @@ describe("PlayerView accessors", () => {
         tilesOwned: 42,
         gold: 999n,
         resources: { food: 100n, energy: 200n, materials: 300n },
+        resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
         troops: 250,
       },
     });
@@ -53,6 +54,11 @@ describe("PlayerView accessors", () => {
       food: 100n,
       energy: 200n,
       materials: 300n,
+    });
+    expect(p.resourceCapacity()).toEqual({
+      food: 1000n,
+      energy: 2000n,
+      materials: 3000n,
     });
     expect(p.troops()).toBe(250);
   });

@@ -173,6 +173,7 @@ export class PlayerImpl implements Player {
       tilesOwned: this.numTilesOwned(),
       gold: this._gold,
       resources: this.resources(),
+      resourceCapacity: this.mg.config().maxResources(this),
       troops: this.troops(),
       allies: this.alliances().map((a) => a.other(this).smallID()),
       embargoes: new Set([...this.embargoes.keys()].map((p) => p.toString())),

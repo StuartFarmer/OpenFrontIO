@@ -8,7 +8,6 @@ import {
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { resourcesFromGoldAmount } from "../game/Resources";
 import { calculateBoundingBox, getMode, inscribed, simpleHash } from "../Util";
 
 interface ClusterTraversalState {
@@ -76,17 +75,13 @@ export class PlayerExecution implements Execution {
 
     const troopInc = this.config.troopIncreaseRate(this.player);
     this.player.addTroops(troopInc);
-    const goldFromWorkers = this.config.goldAdditionRate(this.player);
-    this.player.addResources(
-      resourcesFromGoldAmount(goldFromWorkers),
-      undefined,
-      {
-        updateGold: false,
-      },
-    );
+    const resourcesFromWorkers = this.config.resourceIncreaseRate(this.player);
+    this.player.addResources(resourcesFromWorkers, undefined, {
+      updateGold: false,
+    });
 
     // Record stats
-    this.mg.stats().goldWork(this.player, goldFromWorkers);
+    this.mg.stats().goldWork(this.player, resourcesFromWorkers.food);
 
     for (const alliance of this.player.alliances()) {
       if (alliance.expiresAt() <= this.mg.ticks()) {

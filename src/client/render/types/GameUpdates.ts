@@ -92,6 +92,7 @@ export interface PlayerEventUpdate {
   troops: number;
   gold: bigint;
   resources?: ResourceEventStockpile;
+  resourceCapacity?: ResourceEventStockpile;
   tilesOwned: number;
   outgoingAttacks?: AttackEventUpdate[];
   incomingAttacks?: AttackEventUpdate[];

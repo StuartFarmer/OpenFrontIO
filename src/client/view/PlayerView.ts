@@ -83,6 +83,11 @@ function stateFromUpdate(pu: PlayerUpdate): PlayerState {
       energy: Number(pu.resources!.energy),
       materials: Number(pu.resources!.materials),
     },
+    resourceCapacity: {
+      food: Number(pu.resourceCapacity!.food),
+      energy: Number(pu.resourceCapacity!.energy),
+      materials: Number(pu.resourceCapacity!.materials),
+    },
     troops: pu.troops!,
     isTraitor: pu.isTraitor!,
     traitorRemainingTicks: Math.max(0, pu.traitorRemainingTicks ?? 0),
@@ -447,6 +452,14 @@ export class PlayerView {
       food: BigInt(this.state.resources.food),
       energy: BigInt(this.state.resources.energy),
       materials: BigInt(this.state.resources.materials),
+    };
+  }
+
+  resourceCapacity(): ResourceStockpile {
+    return {
+      food: BigInt(this.state.resourceCapacity.food),
+      energy: BigInt(this.state.resourceCapacity.energy),
+      materials: BigInt(this.state.resourceCapacity.materials),
     };
   }
 

@@ -37,7 +37,14 @@ export function diffPlayerUpdate(
   setIfDifferent("isDisconnected", prev.isDisconnected === next.isDisconnected);
   setIfDifferent("tilesOwned", prev.tilesOwned === next.tilesOwned);
   setIfDifferent("gold", prev.gold === next.gold);
-  setIfDifferent("resources", resourceStockpileEqual(prev.resources, next.resources));
+  setIfDifferent(
+    "resources",
+    resourceStockpileEqual(prev.resources, next.resources),
+  );
+  setIfDifferent(
+    "resourceCapacity",
+    resourceStockpileEqual(prev.resourceCapacity, next.resourceCapacity),
+  );
   setIfDifferent("troops", prev.troops === next.troops);
   setIfDifferent("isTraitor", prev.isTraitor === next.isTraitor);
   setIfDifferent(
@@ -100,6 +107,13 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
       materials: Number(pu.resources.materials),
     };
   }
+  if (pu.resourceCapacity !== undefined) {
+    target.resourceCapacity = {
+      food: Number(pu.resourceCapacity.food),
+      energy: Number(pu.resourceCapacity.energy),
+      materials: Number(pu.resourceCapacity.materials),
+    };
+  }
   if (pu.troops !== undefined) target.troops = pu.troops;
   if (pu.isTraitor !== undefined) target.isTraitor = pu.isTraitor;
   if (pu.traitorRemainingTicks !== undefined) {
@@ -160,9 +174,7 @@ function resourceStockpileEqual(
   if (a === b) return true;
   if (!a || !b) return false;
   return (
-    a.food === b.food &&
-    a.energy === b.energy &&
-    a.materials === b.materials
+    a.food === b.food && a.energy === b.energy && a.materials === b.materials
   );
 }
 

@@ -1,5 +1,4 @@
 import { AllPlayersStats, ClientID, Winner } from "../Schemas";
-import type { ResourceStockpile } from "./Resources";
 import {
   EmojiMessage,
   GameUpdates,
@@ -16,6 +15,7 @@ import {
   WarshipState,
 } from "./Game";
 import { TileRef } from "./GameMap";
+import type { ResourceStockpile } from "./Resources";
 
 export interface GameUpdateViewData {
   tick: number;
@@ -188,6 +188,7 @@ export interface PlayerUpdate {
   tilesOwned?: number;
   gold?: Gold;
   resources?: ResourceStockpile;
+  resourceCapacity?: ResourceStockpile;
   troops?: number;
   allies?: number[];
   embargoes?: Set<PlayerID>;

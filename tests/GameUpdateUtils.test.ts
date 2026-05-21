@@ -16,6 +16,7 @@ function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
     tilesOwned: 0,
     gold: 0,
     resources: { food: 0, energy: 0, materials: 0 },
+    resourceCapacity: { food: 0, energy: 0, materials: 0 },
     troops: 100,
     isTraitor: false,
     traitorRemainingTicks: 0,
@@ -74,6 +75,21 @@ describe("diffPlayerUpdate", () => {
       type: GameUpdateType.Player,
       id: "player-a",
       resources: { food: 100n, energy: 125n, materials: 100n },
+    });
+  });
+
+  it("detects resource capacity changes without JSON bigint comparison", () => {
+    const prev = makePlayerUpdate({
+      resourceCapacity: { food: 1000n, energy: 1000n, materials: 1000n },
+    });
+    const next = makePlayerUpdate({
+      resourceCapacity: { food: 1000n, energy: 1250n, materials: 1000n },
+    });
+    const diff = diffPlayerUpdate(prev, next);
+    expect(diff).toEqual({
+      type: GameUpdateType.Player,
+      id: "player-a",
+      resourceCapacity: { food: 1000n, energy: 1250n, materials: 1000n },
     });
   });
 
@@ -173,6 +189,7 @@ describe("applyStateUpdate", () => {
     const pu = makePlayerUpdate({
       gold: 500n,
       resources: { food: 500n, energy: 500n, materials: 500n },
+      resourceCapacity: { food: 1000n, energy: 1000n, materials: 1000n },
       troops: 999,
       tilesOwned: 42,
       allies: [7, 8],
@@ -191,6 +208,11 @@ describe("applyStateUpdate", () => {
       food: 500,
       energy: 500,
       materials: 500,
+    });
+    expect(target.resourceCapacity).toEqual({
+      food: 1000,
+      energy: 1000,
+      materials: 1000,
     });
     expect(target.troops).toBe(999);
     expect(target.tilesOwned).toBe(42);
@@ -234,6 +256,25 @@ describe("applyStateUpdate", () => {
     expect(typeof target.resources.food).toBe("number");
   });
 
+  it("converts bigint resource capacity to renderer number state", () => {
+    const target = makePlayerState();
+    applyStateUpdate(target, {
+      type: GameUpdateType.Player,
+      id: "p",
+      resourceCapacity: {
+        food: 9_999_999_999n,
+        energy: 123n,
+        materials: 456n,
+      },
+    });
+    expect(target.resourceCapacity).toEqual({
+      food: 9_999_999_999,
+      energy: 123,
+      materials: 456,
+    });
+    expect(typeof target.resourceCapacity.food).toBe("number");
+  });
+
   it("clamps negative traitorRemainingTicks to zero", () => {
     const target = makePlayerState({ traitorRemainingTicks: 5 });
     applyStateUpdate(target, {
@@ -246,9 +287,11 @@ describe("applyStateUpdate", () => {
 
   it("only mutates fields present on the partial update", () => {
     const originalResources = { food: 1, energy: 2, materials: 3 };
+    const originalResourceCapacity = { food: 10, energy: 20, materials: 30 };
     const target = makePlayerState({
       gold: 100,
       resources: originalResources,
+      resourceCapacity: originalResourceCapacity,
       troops: 50,
       tilesOwned: 7,
     });
@@ -260,6 +303,7 @@ describe("applyStateUpdate", () => {
     applyStateUpdate(target, partial);
     expect(target.gold).toBe(200);
     expect(target.resources).toBe(originalResources);
+    expect(target.resourceCapacity).toBe(originalResourceCapacity);
     expect(target.troops).toBe(50);
     expect(target.tilesOwned).toBe(7);
   });
@@ -327,6 +371,7 @@ describe("diff + apply round-trip", () => {
     const v0 = makePlayerUpdate({
       gold: 0n,
       resources: { food: 0n, energy: 0n, materials: 0n },
+      resourceCapacity: { food: 1000n, energy: 1000n, materials: 1000n },
       troops: 100,
       tilesOwned: 0,
       allies: [],
@@ -334,6 +379,7 @@ describe("diff + apply round-trip", () => {
     const v1 = makePlayerUpdate({
       gold: 200n,
       resources: { food: 200n, energy: 200n, materials: 200n },
+      resourceCapacity: { food: 1500n, energy: 1500n, materials: 1500n },
       troops: 150,
       tilesOwned: 5,
       allies: [2],
@@ -353,6 +399,11 @@ describe("diff + apply round-trip", () => {
       food: 200,
       energy: 200,
       materials: 200,
+    });
+    expect(target.resourceCapacity).toEqual({
+      food: 1500,
+      energy: 1500,
+      materials: 1500,
     });
     expect(target.troops).toBe(150);
     expect(target.tilesOwned).toBe(5);

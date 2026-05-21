@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
@@ -45,6 +45,9 @@ export class ControlPanel extends LitElement implements Controller {
 
   @state()
   private _resources: ResourceStockpile = createZeroResources();
+
+  @state()
+  private _resourceCapacity: ResourceStockpile = createZeroResources();
 
   @state()
   private _attackingTroops: number = 0;
@@ -97,6 +100,7 @@ export class ControlPanel extends LitElement implements Controller {
     this._maxTroops = this.game.config().maxTroops(player);
     this._gold = player.gold();
     this._resources = player.resources();
+    this._resourceCapacity = player.resourceCapacity();
     this._troops = player.troops();
     this._attackingTroops = player
       .outgoingAttacks()
@@ -261,6 +265,7 @@ export class ControlPanel extends LitElement implements Controller {
   private renderResourcePill(
     label: string,
     value: Gold,
+    capacity: Gold,
     borderClass: string,
     textClass: string,
   ) {
@@ -270,7 +275,9 @@ export class ControlPanel extends LitElement implements Controller {
         translate="no"
       >
         <span class="shrink-0">${label}</span>
-        <span class="min-w-0 truncate tabular-nums">${renderNumber(value)}</span>
+        <span class="min-w-0 truncate tabular-nums"
+          >${renderNumber(value)}/${renderNumber(capacity)}</span
+        >
       </div>
     `;
   }
@@ -281,18 +288,21 @@ export class ControlPanel extends LitElement implements Controller {
         ${this.renderResourcePill(
           "Food",
           this._resources.food,
+          this._resourceCapacity.food,
           "border-green-400/80",
           "text-green-300",
         )}
         ${this.renderResourcePill(
           "Energy",
           this._resources.energy,
+          this._resourceCapacity.energy,
           "border-cyan-400/80",
           "text-cyan-300",
         )}
         ${this.renderResourcePill(
           "Materials",
           this._resources.materials,
+          this._resourceCapacity.materials,
           "border-stone-300/80",
           "text-stone-200",
         )}

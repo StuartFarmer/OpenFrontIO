@@ -30,6 +30,7 @@ function ps(overrides: Partial<PlayerState> = {}): PlayerState {
     tilesOwned: 0,
     gold: 0,
     resources: { food: 0, energy: 0, materials: 0 },
+    resourceCapacity: { food: 0, energy: 0, materials: 0 },
     troops: 0,
     isTraitor: false,
     traitorRemainingTicks: 0,

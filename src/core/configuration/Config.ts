@@ -17,6 +17,7 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
+import { resourceRegenDelta, resourcesFromGoldAmount } from "../game/Resources";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
@@ -131,6 +132,10 @@ export class Config {
 
   cityTroopIncrease(): number {
     return 250_000;
+  }
+
+  factoryResourceCapacityIncrease(): bigint {
+    return 250_000n;
   }
 
   falloutDefenseModifier(falloutRatio: number): number {
@@ -785,6 +790,21 @@ export class Config {
     }
   }
 
+  maxResources(player: Player | PlayerView) {
+    const factoryLevels = player
+      .units(UnitType.Factory)
+      .filter((u) => !u.isUnderConstruction())
+      .map((factory) => factory.level())
+      .reduce((a, b) => a + b, 0);
+    const baseCapacity =
+      2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
+      factoryLevels * Number(this.factoryResourceCapacityIncrease());
+
+    return resourcesFromGoldAmount(
+      BigInt(Math.floor(this.capacityMultiplierFor(player, baseCapacity))),
+    );
+  }
+
   troopIncreaseRate(player: Player | PlayerView): number {
     const max = this.maxTroops(player);
 
@@ -817,6 +837,63 @@ export class Config {
     }
 
     return Math.min(player.troops() + toAdd, max) - player.troops();
+  }
+
+  resourceIncreaseRate(player: Player | PlayerView) {
+    return resourceRegenDelta(
+      player.resources(),
+      this.maxResources(player),
+      this.resourceRegenMultiplierFor(player),
+    );
+  }
+
+  private capacityMultiplierFor(
+    player: Player | PlayerView,
+    capacity: number,
+  ): number {
+    if (player.type() === PlayerType.Bot) {
+      return capacity / 3;
+    }
+
+    if (player.type() === PlayerType.Human) {
+      return capacity;
+    }
+
+    switch (this._gameConfig.difficulty) {
+      case Difficulty.Easy:
+        return capacity * 0.5;
+      case Difficulty.Medium:
+        return capacity * 0.75;
+      case Difficulty.Hard:
+        return capacity * 1;
+      case Difficulty.Impossible:
+        return capacity * 1.25;
+      default:
+        assertNever(this._gameConfig.difficulty);
+    }
+  }
+
+  private resourceRegenMultiplierFor(player: Player | PlayerView): number {
+    if (player.type() === PlayerType.Bot) {
+      return 0.5;
+    }
+
+    if (player.type() !== PlayerType.Nation) {
+      return 1;
+    }
+
+    switch (this._gameConfig.difficulty) {
+      case Difficulty.Easy:
+        return 0.9;
+      case Difficulty.Medium:
+        return 0.95;
+      case Difficulty.Hard:
+        return 1;
+      case Difficulty.Impossible:
+        return 1.05;
+      default:
+        assertNever(this._gameConfig.difficulty);
+    }
   }
 
   goldAdditionRate(player: Player | PlayerView): Gold {
