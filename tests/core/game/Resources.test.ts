@@ -5,6 +5,7 @@ import {
   remainingResourceCapacity,
   resourceRegenAmount,
   resourceRegenDelta,
+  resourcesFromExportBlend,
   resourcesFromGoldAmount,
 } from "../../../src/core/game/Resources";
 
@@ -14,6 +15,74 @@ describe("Resources", () => {
       food: 100n,
       energy: 100n,
       materials: 100n,
+    });
+  });
+
+  test("resourcesFromExportBlend splits total by exporter blend", () => {
+    expect(
+      resourcesFromExportBlend(10_000n, {
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+    ).toEqual({
+      food: 3_000n,
+      energy: 2_000n,
+      materials: 5_000n,
+    });
+  });
+
+  test("resourcesFromExportBlend preserves totals through rounding", () => {
+    const resources = resourcesFromExportBlend(10n, {
+      food: 1n,
+      energy: 1n,
+      materials: 1n,
+    });
+
+    expect(resources).toEqual({
+      food: 3n,
+      energy: 3n,
+      materials: 4n,
+    });
+    expect(resources.food + resources.energy + resources.materials).toBe(10n);
+  });
+
+  test("resourcesFromExportBlend falls back when exporter has no stockpile", () => {
+    expect(
+      resourcesFromExportBlend(10n, {
+        food: 0n,
+        energy: 0n,
+        materials: 0n,
+      }),
+    ).toEqual({
+      food: 3n,
+      energy: 3n,
+      materials: 4n,
+    });
+  });
+
+  test("resourcesFromExportBlend returns zero payload for non-positive amounts", () => {
+    expect(
+      resourcesFromExportBlend(0n, {
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+    ).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
+    expect(
+      resourcesFromExportBlend(-10n, {
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+    ).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
     });
   });
 

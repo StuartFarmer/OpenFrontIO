@@ -312,6 +312,87 @@ describe("NationStructureBehavior.buildReachableStations", () => {
   });
 });
 
+// ── capacity pressure structures ─────────────────────────────────────────────
+
+describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
+  function makeCapacityGame(disabled: Set<UnitType> = new Set()): any {
+    return {
+      config: () => ({
+        isUnitDisabled: (type: UnitType) => disabled.has(type),
+        maxTroops: () => 100,
+        maxResources: () => ({ food: 100n, energy: 100n, materials: 100n }),
+      }),
+    };
+  }
+
+  function makeCapacityPlayer(
+    troops: number,
+    resources = { food: 0n, energy: 0n, materials: 0n },
+  ): any {
+    return {
+      troops: () => troops,
+      resources: () => resources,
+    };
+  }
+
+  it("prioritizes City when troops are near troop capacity", () => {
+    const behavior = makeBehavior(makeCapacityGame(), makeCapacityPlayer(90));
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.City);
+  });
+
+  it("prioritizes Factory when any resource is near resource capacity", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(10, { food: 10n, energy: 92n, materials: 20n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Factory);
+  });
+
+  it("falls back to the other pressured capacity structure if the first cannot build", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(90, { food: 10n, energy: 96n, materials: 20n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenNthCalledWith(1, UnitType.Factory);
+    expect(maybeSpawn).toHaveBeenNthCalledWith(2, UnitType.City);
+  });
+
+  it("does not build capacity structures below pressure threshold", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(50, { food: 40n, energy: 50n, materials: 60n }),
+    );
+    const maybeSpawn = vi.spyOn(behavior as any, "maybeSpawnStructure");
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      false,
+    );
+    expect(maybeSpawn).not.toHaveBeenCalled();
+  });
+});
+
 // ── tryBuildDefensePost — early-exit guards ──────────────────────────────────
 
 describe("NationStructureBehavior.tryBuildDefensePost", () => {

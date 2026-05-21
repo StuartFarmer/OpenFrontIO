@@ -1,10 +1,11 @@
 import { TrainExecution } from "../execution/TrainExecution";
 import { PseudoRandom } from "../PseudoRandom";
-import { Game, Player, Unit, UnitType } from "./Game";
+import { Game, MessageType, Player, Unit, UnitType } from "./Game";
 import { TileRef } from "./GameMap";
 import { GameUpdateType } from "./GameUpdates";
 import { Railroad } from "./Railroad";
-import { resourcesFromGoldAmount } from "./Resources";
+import { renderResourceCapture } from "./ResourceFormatting";
+import { resourcesFromExportBlend } from "./Resources";
 
 /**
  * Handle train stops at various station types
@@ -27,13 +28,40 @@ class TradeStationStopHandler implements TrainStopHandler {
         rel(trainOwner, stationOwner),
         trainExecution.tradeStopsVisited(),
         trainOwner,
-    );
+      );
+    const resources = resourcesFromExportBlend(gold, trainOwner.resources());
     // Share revenue with the station owner if it's not the current player
     if (trainOwner !== stationOwner) {
-      stationOwner.addResources(resourcesFromGoldAmount(gold), station.tile());
+      stationOwner.addResources(resources, station.tile(), {
+        bonusResources: resources,
+        updateGold: false,
+      });
+      mg.displayMessage(
+        "events_display.received_resources_from_trade",
+        MessageType.RECEIVED_GOLD_FROM_TRADE,
+        stationOwner.id(),
+        undefined,
+        {
+          name: trainOwner.displayName(),
+          resources: renderResourceCapture(resources),
+        },
+      );
       mg.stats().trainExternalTrade(stationOwner, gold);
     }
-    trainOwner.addResources(resourcesFromGoldAmount(gold), station.tile());
+    trainOwner.addResources(resources, station.tile(), {
+      bonusResources: resources,
+      updateGold: false,
+    });
+    mg.displayMessage(
+      "events_display.received_resources_from_trade",
+      MessageType.RECEIVED_GOLD_FROM_TRADE,
+      trainOwner.id(),
+      undefined,
+      {
+        name: stationOwner.displayName(),
+        resources: renderResourceCapture(resources),
+      },
+    );
     mg.stats().trainSelfTrade(trainOwner, gold);
   }
 }

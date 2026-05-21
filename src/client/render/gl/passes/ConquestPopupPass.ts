@@ -61,6 +61,14 @@ function formatGold(gold: number): string {
   return gold.toString();
 }
 
+function formatResourceText(resources: {
+  food: number;
+  energy: number;
+  materials: number;
+}): string {
+  return `B ${formatGold(resources.food)} / F ${formatGold(resources.energy)} / M ${formatGold(resources.materials)}`;
+}
+
 function formatConquestText(evt: ConquestFx): string | null {
   const resources = evt.resources;
   const hasResources =
@@ -77,11 +85,26 @@ function formatConquestText(evt: ConquestFx): string | null {
     parts.push(`${formatGold(evt.gold)}g`);
   }
   if (hasResources && resources !== undefined) {
-    parts.push(
-      `B ${formatGold(resources.food)} / F ${formatGold(resources.energy)} / M ${formatGold(resources.materials)}`,
-    );
+    parts.push(formatResourceText(resources));
   }
   return "+ " + parts.join(" / ");
+}
+
+function formatBonusText(evt: BonusEvent): string | null {
+  const resources = evt.resources;
+  const hasResources =
+    resources !== undefined &&
+    (resources.food !== 0 ||
+      resources.energy !== 0 ||
+      resources.materials !== 0);
+
+  if (hasResources && resources !== undefined) {
+    return "+ " + formatResourceText(resources);
+  }
+  if (evt.gold === 0) return null;
+
+  const sign = evt.gold >= 0 ? "+" : "-";
+  return sign + " " + formatGold(Math.abs(evt.gold));
 }
 
 // ---------------------------------------------------------------------------
@@ -282,14 +305,14 @@ export class ConquestPopupPass {
     const now = this.now();
     const s = this.settings.bonusPopup;
     for (const evt of events) {
-      if (evt.gold === 0) continue;
+      const text = formatBonusText(evt);
+      if (text === null) continue;
       const x = evt.tile % this.mapW;
       const y = Math.floor(evt.tile / this.mapW);
-      const sign = evt.gold >= 0 ? "+" : "-";
       this.active.push({
         x,
         y: y + s.yOffset,
-        text: sign + " " + formatGold(Math.abs(evt.gold)),
+        text,
         startMs: now,
         lifetimeMs: s.lifetimeMs,
         riseSpeed: s.riseSpeed,

@@ -139,6 +139,7 @@ export interface BonusUpdate {
   player: string;
   tile?: number;
   gold: number;
+  resources?: ResourceEventStockpile;
   troops: number;
 }
 

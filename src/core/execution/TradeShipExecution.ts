@@ -1,4 +1,3 @@
-import { renderNumber } from "../../client/Utils";
 import {
   Execution,
   Game,
@@ -8,7 +7,8 @@ import {
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { resourcesFromGoldAmount } from "../game/Resources";
+import { renderResourceCapture } from "../game/ResourceFormatting";
+import { resourcesFromExportBlend } from "../game/Resources";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
 import { findClosestBy } from "../Util";
@@ -172,18 +172,24 @@ export class TradeShipExecution implements Execution {
     const gold = this.mg
       .config()
       .tradeShipGold(this.tilesTraveled, this.tradeShip!.owner());
-    const resources = resourcesFromGoldAmount(gold);
+    const sourceOwner = this.srcPort.owner();
+    const destinationOwner = this._dstPort.owner();
+    const exporter = this.wasCaptured ? this.origOwner : sourceOwner;
+    const resources = resourcesFromExportBlend(gold, exporter.resources());
 
     if (this.wasCaptured) {
-      this.tradeShip!.owner().addResources(resources, this._dstPort.tile());
+      this.tradeShip!.owner().addResources(resources, this._dstPort.tile(), {
+        bonusResources: resources,
+        updateGold: false,
+      });
       this.mg.displayMessage(
-        "events_display.received_gold_from_captured_ship",
+        "events_display.received_resources_from_captured_ship",
         MessageType.CAPTURED_ENEMY_UNIT,
         this.tradeShip!.owner().id(),
-        gold,
+        undefined,
         {
-          gold: renderNumber(gold),
           name: this.origOwner.displayName(),
+          resources: renderResourceCapture(resources),
         },
       );
       // Record stats
@@ -191,34 +197,35 @@ export class TradeShipExecution implements Execution {
         .stats()
         .boatCapturedTrade(this.tradeShip!.owner(), this.origOwner, gold);
     } else {
-      this.srcPort.owner().addResources(resources);
-      this._dstPort
-        .owner()
-        .addResources(resourcesFromGoldAmount(gold), this._dstPort.tile());
+      sourceOwner.addResources(resources, undefined, {
+        updateGold: false,
+      });
+      destinationOwner.addResources(resources, this._dstPort.tile(), {
+        bonusResources: resources,
+        updateGold: false,
+      });
       this.mg.displayMessage(
-        "events_display.received_gold_from_trade",
+        "events_display.received_resources_from_trade",
         MessageType.RECEIVED_GOLD_FROM_TRADE,
-        this._dstPort.owner().id(),
-        gold,
+        destinationOwner.id(),
+        undefined,
         {
-          gold: renderNumber(gold),
-          name: this.srcPort.owner().displayName(),
+          name: sourceOwner.displayName(),
+          resources: renderResourceCapture(resources),
         },
       );
       this.mg.displayMessage(
-        "events_display.received_gold_from_trade",
+        "events_display.received_resources_from_trade",
         MessageType.RECEIVED_GOLD_FROM_TRADE,
-        this.srcPort.owner().id(),
-        gold,
+        sourceOwner.id(),
+        undefined,
         {
-          gold: renderNumber(gold),
-          name: this._dstPort.owner().displayName(),
+          name: destinationOwner.displayName(),
+          resources: renderResourceCapture(resources),
         },
       );
       // Record stats
-      this.mg
-        .stats()
-        .boatArriveTrade(this.srcPort.owner(), this._dstPort.owner(), gold);
+      this.mg.stats().boatArriveTrade(sourceOwner, destinationOwner, gold);
     }
     return;
   }

@@ -546,6 +546,14 @@ export class GameView implements GameMap {
         smallID: player.smallID(),
         tile: b.tile,
         gold: Number(b.gold),
+        resources:
+          b.resources === undefined
+            ? undefined
+            : {
+                food: Number(b.resources.food),
+                energy: Number(b.resources.energy),
+                materials: Number(b.resources.materials),
+              },
         troops: b.troops,
       });
     }

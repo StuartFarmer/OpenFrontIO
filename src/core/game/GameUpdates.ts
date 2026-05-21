@@ -100,6 +100,7 @@ export interface BonusEventUpdate {
   player: PlayerID;
   tile: TileRef;
   gold: number;
+  resources?: ResourceStockpile;
   troops: number;
 }
 

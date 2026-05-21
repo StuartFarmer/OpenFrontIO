@@ -76,6 +76,9 @@ const FIRST_MISSILE_SILO_RATIO = 0.4;
 /** If we have more than this many structures per tiles, prefer upgrading over building */
 const UPGRADE_DENSITY_THRESHOLD = 1 / 1500;
 
+/** Capacity ratio where nations should prioritize capacity-expanding structures. */
+const CAPACITY_PRESSURE_THRESHOLD = 0.85;
+
 /** Estimated number of tiles per city equivalent, used when cities are disabled */
 const TILES_PER_CITY_EQUIVALENT = 2000;
 
@@ -461,6 +464,10 @@ export class NationStructureBehavior {
       }
     }
 
+    if (this.tryBuildCapacityPressureStructure(citiesDisabled)) {
+      return true;
+    }
+
     // Build order for non-city structures (priority order)
     const buildOrder: UnitType[] = [
       UnitType.Port,
@@ -513,6 +520,57 @@ export class NationStructureBehavior {
     }
 
     return false;
+  }
+
+  private tryBuildCapacityPressureStructure(citiesDisabled: boolean): boolean {
+    const config = this.game.config();
+    const cityPressure = citiesDisabled
+      ? 0
+      : this.capacityPressure(
+          this.player.troops(),
+          config.maxTroops(this.player),
+        );
+    const resourcePressure = this.resourceCapacityPressure();
+
+    const candidates: Array<{ type: UnitType; pressure: number }> = [];
+    if (
+      cityPressure >= CAPACITY_PRESSURE_THRESHOLD &&
+      !config.isUnitDisabled(UnitType.City)
+    ) {
+      candidates.push({ type: UnitType.City, pressure: cityPressure });
+    }
+    if (
+      resourcePressure >= CAPACITY_PRESSURE_THRESHOLD &&
+      !config.isUnitDisabled(UnitType.Factory)
+    ) {
+      candidates.push({ type: UnitType.Factory, pressure: resourcePressure });
+    }
+
+    candidates.sort((a, b) => b.pressure - a.pressure);
+    return candidates.some((candidate) =>
+      this.maybeSpawnStructure(candidate.type),
+    );
+  }
+
+  private resourceCapacityPressure(): number {
+    const resources = this.player.resources();
+    const capacity = this.game.config().maxResources(this.player);
+    return Math.max(
+      this.capacityPressure(resources.food, capacity.food),
+      this.capacityPressure(resources.energy, capacity.energy),
+      this.capacityPressure(resources.materials, capacity.materials),
+    );
+  }
+
+  private capacityPressure(
+    value: number | bigint,
+    capacity: number | bigint,
+  ): number {
+    const max = Number(capacity);
+    if (max <= 0) {
+      return 0;
+    }
+    return Number(value) / max;
   }
 
   private hasHighStartingGold(): boolean {

@@ -7,6 +7,8 @@ export type ResourceDelta = Partial<ResourceStockpile>;
 
 export interface AddResourcesOptions {
   updateGold?: boolean;
+  bonusGoldAmount?: ResourceAmount;
+  bonusResources?: ResourceStockpile;
 }
 
 export function createZeroResources(): ResourceStockpile {
@@ -24,6 +26,31 @@ export function resourcesFromGoldAmount(
     food: amount,
     energy: amount,
     materials: amount,
+  };
+}
+
+export function resourcesFromExportBlend(
+  amount: ResourceAmount,
+  exporterResources: ResourceStockpile,
+): ResourceStockpile {
+  if (amount <= 0n) {
+    return createZeroResources();
+  }
+
+  const total =
+    exporterResources.food +
+    exporterResources.energy +
+    exporterResources.materials;
+  if (total <= 0n) {
+    return splitResourcesEvenly(amount);
+  }
+
+  const food = (amount * exporterResources.food) / total;
+  const energy = (amount * exporterResources.energy) / total;
+  return {
+    food,
+    energy,
+    materials: amount - food - energy,
   };
 }
 
@@ -123,4 +150,13 @@ function clampPositiveDelta(
 ): ResourceAmount {
   if (delta <= 0n) return delta;
   return delta < available ? delta : available;
+}
+
+function splitResourcesEvenly(amount: ResourceAmount): ResourceStockpile {
+  const share = amount / 3n;
+  return {
+    food: share,
+    energy: share,
+    materials: amount - share - share,
+  };
 }

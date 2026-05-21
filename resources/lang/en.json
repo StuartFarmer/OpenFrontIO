@@ -990,6 +990,8 @@
     "attack_cancelled_retreat": "Attack cancelled, {troops} soldiers killed during retreat",
     "received_gold_from_captured_ship": "Received {gold} gold from ship captured from {name}",
     "received_gold_from_trade": "Received {gold} gold from trade with {name}",
+    "received_resources_from_captured_ship": "Received {resources} from ship captured from {name}",
+    "received_resources_from_trade": "Received {resources} from trade with {name}",
     "received_gold_from_conquest": "Conquered {name}, received {gold} gold and {resources}",
     "conquered_no_gold": "Conquered {name} (didn't play, no gold awarded)",
     "missile_intercepted": "Missile intercepted {unit}",

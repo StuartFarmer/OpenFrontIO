@@ -1,7 +1,28 @@
 import { TradeShipExecution } from "../../../src/core/execution/TradeShipExecution";
 import { Game, Player, Unit } from "../../../src/core/game/Game";
+import type { ResourceStockpile } from "../../../src/core/game/Resources";
 import { PathStatus } from "../../../src/core/pathfinding/types";
 import { setup } from "../../util/Setup";
+
+const ORIGIN_EXPORT_BLEND = {
+  food: 300n,
+  energy: 200n,
+  materials: 500n,
+};
+
+function expectedTradeResources(
+  total: bigint,
+  blend: ResourceStockpile,
+): ResourceStockpile {
+  const blendTotal = blend.food + blend.energy + blend.materials;
+  const food = (total * blend.food) / blendTotal;
+  const energy = (total * blend.energy) / blendTotal;
+  return {
+    food,
+    energy,
+    materials: total - food - energy,
+  };
+}
 
 describe("TradeShipExecution", () => {
   let game: Game;
@@ -29,6 +50,7 @@ describe("TradeShipExecution", () => {
       displayName: vi.fn(() => "Origin"),
       addGold: vi.fn(),
       addResources: vi.fn(),
+      resources: vi.fn(() => ORIGIN_EXPORT_BLEND),
       units: vi.fn(() => [dstPort]),
       unitCount: vi.fn(() => 1),
       id: vi.fn(() => 1),
@@ -40,6 +62,11 @@ describe("TradeShipExecution", () => {
       id: vi.fn(() => 2),
       addGold: vi.fn(),
       addResources: vi.fn(),
+      resources: vi.fn(() => ({
+        food: 100n,
+        energy: 100n,
+        materials: 100n,
+      })),
       displayName: vi.fn(() => "Destination"),
       units: vi.fn(() => [dstPort]),
       unitCount: vi.fn(() => 1),
@@ -51,9 +78,15 @@ describe("TradeShipExecution", () => {
       id: vi.fn(() => 3),
       addGold: vi.fn(),
       addResources: vi.fn(),
+      resources: vi.fn(() => ({
+        food: 0n,
+        energy: 500n,
+        materials: 500n,
+      })),
       displayName: vi.fn(() => "Destination"),
       units: vi.fn(() => [piratePort, piratePort2]),
       unitCount: vi.fn(() => 2),
+      clientID: vi.fn(() => 3),
       canTrade: vi.fn(() => true),
     } as any;
 
@@ -138,7 +171,7 @@ describe("TradeShipExecution", () => {
     expect(tradeShip.setTargetUnit).toHaveBeenCalledWith(piratePort);
   });
 
-  it("should complete trade and award gold", () => {
+  it("should complete trade and award blended resources", () => {
     tradeShipExecution["pathFinder"] = {
       next: vi.fn(() => ({ status: PathStatus.COMPLETE, node: 32 })),
       findPath: vi.fn((from: number) => [from]),
@@ -147,19 +180,48 @@ describe("TradeShipExecution", () => {
     expect(tradeShip.delete).toHaveBeenCalledWith(false);
     expect(tradeShipExecution.isActive()).toBe(false);
     const gold = game.config().tradeShipGold(0, origOwner);
-    expect(origOwner.addResources).toHaveBeenCalledWith({
-      food: gold,
-      energy: gold,
-      materials: gold,
+    const resources = expectedTradeResources(gold, ORIGIN_EXPORT_BLEND);
+    expect(origOwner.addResources).toHaveBeenCalledWith(resources, undefined, {
+      updateGold: false,
     });
     expect(dstOwner.addResources).toHaveBeenCalledWith(
-      {
-        food: gold,
-        energy: gold,
-        materials: gold,
-      },
+      resources,
       dstPort.tile(),
+      { bonusResources: resources, updateGold: false },
     );
     expect(game.displayMessage).toHaveBeenCalled();
+  });
+
+  it("should complete captured trade and award captured cargo resources", () => {
+    tradeShip.owner = vi.fn(() => pirate);
+    tradeShipExecution["wasCaptured"] = true;
+    tradeShipExecution["pathFinder"] = {
+      next: vi.fn(() => ({ status: PathStatus.COMPLETE, node: 32 })),
+      findPath: vi.fn((from: number) => [from]),
+    } as any;
+
+    tradeShipExecution.tick(1);
+
+    expect(tradeShip.delete).toHaveBeenCalledWith(false);
+    expect(tradeShipExecution.isActive()).toBe(false);
+    const gold = game.config().tradeShipGold(0, pirate);
+    expect(pirate.addResources).toHaveBeenCalledWith(
+      expectedTradeResources(gold, ORIGIN_EXPORT_BLEND),
+      piratePort.tile(),
+      {
+        bonusResources: expectedTradeResources(gold, ORIGIN_EXPORT_BLEND),
+        updateGold: false,
+      },
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_captured_ship",
+      expect.anything(),
+      pirate.id(),
+      undefined,
+      expect.objectContaining({
+        name: "Origin",
+        resources: expect.any(String),
+      }),
+    );
   });
 });

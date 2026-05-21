@@ -1016,7 +1016,10 @@ export class PlayerImpl implements Player {
         type: GameUpdateType.BonusEvent,
         player: this.id(),
         tile,
-        gold: Number(this.legacyResourceEventGold(toAdd)),
+        gold: Number(
+          options.bonusGoldAmount ?? this.legacyResourceEventGold(toAdd),
+        ),
+        resources: options.bonusResources,
         troops: 0,
       });
     }

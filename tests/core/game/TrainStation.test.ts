@@ -44,13 +44,20 @@ describe("TrainStation", () => {
       }),
       addUpdate: vi.fn(),
       addExecution: vi.fn(),
+      displayMessage: vi.fn(),
       stats: vi.fn().mockReturnValue(gameStats),
     } as any;
 
     player = {
       addGold: vi.fn(),
       addResources: vi.fn(),
-      id: 1,
+      resources: vi.fn().mockReturnValue({
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+      id: vi.fn().mockReturnValue("player-id"),
+      displayName: vi.fn().mockReturnValue("Player"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
@@ -81,11 +88,29 @@ describe("TrainStation", () => {
 
     expect(unit.owner().addResources).toHaveBeenCalledWith(
       {
-        food: 1000n,
-        energy: 1000n,
-        materials: 1000n,
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
       },
       unit.tile(),
+      {
+        bonusResources: {
+          food: 300n,
+          energy: 200n,
+          materials: 500n,
+        },
+        updateGold: false,
+      },
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_trade",
+      expect.anything(),
+      "player-id",
+      undefined,
+      expect.objectContaining({
+        name: "Player",
+        resources: "Biomass 300 / Fuels 200 / Metals 500",
+      }),
     );
   });
 
@@ -98,19 +123,35 @@ describe("TrainStation", () => {
 
     expect(unit.owner().addResources).toHaveBeenCalledWith(
       {
-        food: 1000n,
-        energy: 1000n,
-        materials: 1000n,
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
       },
       unit.tile(),
+      {
+        bonusResources: {
+          food: 300n,
+          energy: 200n,
+          materials: 500n,
+        },
+        updateGold: false,
+      },
     );
     expect(trainExecution.owner().addResources).toHaveBeenCalledWith(
       {
-        food: 1000n,
-        energy: 1000n,
-        materials: 1000n,
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
       },
       unit.tile(),
+      {
+        bonusResources: {
+          food: 300n,
+          energy: 200n,
+          materials: 500n,
+        },
+        updateGold: false,
+      },
     );
   });
 
@@ -118,7 +159,13 @@ describe("TrainStation", () => {
     const stationOwner = {
       addGold: vi.fn(),
       addResources: vi.fn(),
-      id: 1,
+      resources: vi.fn().mockReturnValue({
+        food: 0n,
+        energy: 0n,
+        materials: 0n,
+      }),
+      id: vi.fn().mockReturnValue("station-owner-id"),
+      displayName: vi.fn().mockReturnValue("Station Owner"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
@@ -126,7 +173,13 @@ describe("TrainStation", () => {
     const trainOwner = {
       addGold: vi.fn(),
       addResources: vi.fn(),
-      id: 2,
+      resources: vi.fn().mockReturnValue({
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+      id: vi.fn().mockReturnValue("train-owner-id"),
+      displayName: vi.fn().mockReturnValue("Train Owner"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
@@ -141,19 +194,55 @@ describe("TrainStation", () => {
 
     expect(stationOwner.addResources).toHaveBeenCalledWith(
       {
-        food: 500n,
-        energy: 500n,
-        materials: 500n,
+        food: 150n,
+        energy: 100n,
+        materials: 250n,
       },
       unit.tile(),
+      {
+        bonusResources: {
+          food: 150n,
+          energy: 100n,
+          materials: 250n,
+        },
+        updateGold: false,
+      },
     );
     expect(trainOwner.addResources).toHaveBeenCalledWith(
       {
-        food: 500n,
-        energy: 500n,
-        materials: 500n,
+        food: 150n,
+        energy: 100n,
+        materials: 250n,
       },
       unit.tile(),
+      {
+        bonusResources: {
+          food: 150n,
+          energy: 100n,
+          materials: 250n,
+        },
+        updateGold: false,
+      },
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_trade",
+      expect.anything(),
+      "station-owner-id",
+      undefined,
+      expect.objectContaining({
+        name: "Train Owner",
+        resources: "Biomass 150 / Fuels 100 / Metals 250",
+      }),
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_trade",
+      expect.anything(),
+      "train-owner-id",
+      undefined,
+      expect.objectContaining({
+        name: "Station Owner",
+        resources: "Biomass 150 / Fuels 100 / Metals 250",
+      }),
     );
     expect(gameStats.trainExternalTrade).toHaveBeenCalledWith(
       stationOwner,

@@ -45,8 +45,8 @@ import { MotionPlanRecord, packMotionPlans } from "./MotionPlans";
 import { PlayerImpl } from "./PlayerImpl";
 import { RailNetwork } from "./RailNetwork";
 import { createRailNetwork } from "./RailNetworkImpl";
-import type { ResourceStockpile } from "./Resources";
 import { clampResourceDeltaToCapacity, createZeroResources } from "./Resources";
+import { renderResourceCapture } from "./ResourceFormatting";
 import { Stats } from "./Stats";
 import { StatsImpl } from "./StatsImpl";
 import { assignTeams } from "./TeamAssignment";
@@ -1287,10 +1287,6 @@ export class GameImpl implements Game {
       resources: resourcesCaptured,
     });
   }
-}
-
-function renderResourceCapture(resources: ResourceStockpile): string {
-  return `Biomass ${renderNumber(resources.food)} / Fuels ${renderNumber(resources.energy)} / Metals ${renderNumber(resources.materials)}`;
 }
 
 // Or a more dynamic approach that will catch new enum values:
