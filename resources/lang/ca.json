@@ -742,7 +742,7 @@
     "attack_cancelled_retreat": "Atac cancel·lat, {troops} soldats morts durant la retirada",
     "received_gold_from_captured_ship": "Has rebut {gold} or d'un vaixell de comerç capturat de {name}",
     "received_gold_from_trade": "Has rebut {gold} or d'un negoci amb {name}",
-    "received_gold_from_conquest": "Has conquerit a {name} i guanyat {gold} or",
+    "received_gold_from_conquest": "Has conquerit a {name} i guanyat {gold} or i {resources}",
     "conquered_no_gold": "Has conquerit a {name} (no ha jugat, or no donat)",
     "missile_intercepted": "Un míssil interceptat a {unit}",
     "mirv_warheads_intercepted": "{count, plural, one {{count} míssil de MIRV interceptat} other {{count} míssils de MIRV interceptats}}",

@@ -1,5 +1,7 @@
 import { SpawnExecution } from "../src/core/execution/SpawnExecution";
+import type { GameUpdates } from "../src/core/game/Game";
 import { Game, Player, PlayerInfo, PlayerType } from "../src/core/game/Game";
+import { GameUpdateType } from "../src/core/game/GameUpdates";
 import { GameID } from "../src/core/Schemas";
 import { setup } from "./util/Setup";
 
@@ -15,6 +17,10 @@ function addPlayerWithGold(
   const player = game.player(id);
   player.addGold(gold);
   return player;
+}
+
+function latestUpdates(game: Game) {
+  return (game as unknown as { updates: GameUpdates }).updates;
 }
 
 describe("DefaultConfig.conquerGoldAmount", () => {
@@ -150,5 +156,49 @@ describe("Conquest gold transfer", () => {
       energy: 1000n,
       materials: 1000n,
     });
+  });
+
+  test("conquered resources are capped by conqueror storage and overflow is lost", () => {
+    const capacity = game.config().maxResources(conqueror);
+    conqueror.addResources(
+      {
+        food: capacity.food - 5n,
+        energy: capacity.energy - 3n,
+        materials: capacity.materials - 1n,
+      },
+      undefined,
+      { updateGold: false },
+    );
+
+    game.addPlayer(new PlayerInfo("victim", PlayerType.Bot, null, "victim"));
+    const victim = game.player("victim");
+    victim.addResources(
+      { food: 100n, energy: 100n, materials: 100n },
+      undefined,
+      { updateGold: false },
+    );
+
+    game.conquerPlayer(conqueror, victim);
+
+    expect(conqueror.resources()).toEqual(capacity);
+    expect(victim.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
+
+    const updates = latestUpdates(game);
+    expect(updates[GameUpdateType.ConquestEvent]).toContainEqual(
+      expect.objectContaining({
+        resources: { food: 5n, energy: 3n, materials: 1n },
+      }),
+    );
+    expect(updates[GameUpdateType.DisplayEvent]).toContainEqual(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          resources: "Biomass 5 / Fuels 3 / Metals 1",
+        }),
+      }),
+    );
   });
 });

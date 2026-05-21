@@ -61,6 +61,29 @@ function formatGold(gold: number): string {
   return gold.toString();
 }
 
+function formatConquestText(evt: ConquestFx): string | null {
+  const resources = evt.resources;
+  const hasResources =
+    resources !== undefined &&
+    (resources.food !== 0 ||
+      resources.energy !== 0 ||
+      resources.materials !== 0);
+  const hasGold = evt.gold !== 0;
+
+  if (!hasGold && !hasResources) return null;
+
+  const parts: string[] = [];
+  if (hasGold) {
+    parts.push(`${formatGold(evt.gold)}g`);
+  }
+  if (hasResources && resources !== undefined) {
+    parts.push(
+      `B ${formatGold(resources.food)} / F ${formatGold(resources.energy)} / M ${formatGold(resources.materials)}`,
+    );
+  }
+  return "+ " + parts.join(" / ");
+}
+
 // ---------------------------------------------------------------------------
 // ConquestPopupPass
 // ---------------------------------------------------------------------------
@@ -236,10 +259,12 @@ export class ConquestPopupPass {
     for (const evt of events) {
       const startMs = now - (evt.tickAge ?? 0) * MS_PER_TICK;
       if (now - startMs >= CONQUEST_LIFETIME_MS) continue;
+      const text = formatConquestText(evt);
+      if (text === null) continue;
       this.active.push({
         x: evt.x,
         y: evt.y + CONQUEST_Y_OFFSET,
-        text: "+ " + formatGold(evt.gold),
+        text,
         startMs,
         lifetimeMs: CONQUEST_LIFETIME_MS,
         riseSpeed: 0,

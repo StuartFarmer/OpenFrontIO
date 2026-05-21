@@ -31,9 +31,9 @@ describe("PlayerExecution", () => {
     game.addExecution(new PlayerExecution(otherPlayer));
   });
 
-  test("passive income adds an equal resource payload without accumulating gold", () => {
+  test("passive income adds terrain-weighted resources without accumulating gold", () => {
     player.conquer(game.ref(50, 50));
-    const expectedResources = game.config().resourceIncreaseRate(player);
+    const expectedResources = game.config().resourceIncreaseRate(game, player);
 
     executeTicks(game, 2);
 

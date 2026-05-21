@@ -2,12 +2,13 @@ import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
-import { Gold } from "../../../core/game/Game";
+import type { Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
-import {
-  createZeroResources,
+import type {
+  ResourceKind,
   ResourceStockpile,
 } from "../../../core/game/Resources";
+import { createZeroResources } from "../../../core/game/Resources";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { ClientID } from "../../../core/Schemas";
 import { Controller } from "../../Controller";
@@ -17,6 +18,22 @@ import { renderNumber, renderTroops } from "../../Utils";
 const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
+
+type MetricKey = "troops" | ResourceKind;
+
+interface MetricView {
+  key: MetricKey;
+  label: string;
+  shortLabel: string;
+  value: number | bigint;
+  capacity: number | bigint;
+  rate: number;
+  rateIsIncreasing: boolean;
+  barClass: string;
+  borderClass: string;
+  textClass: string;
+  icon: ReturnType<typeof html>;
+}
 
 @customElement("control-panel")
 export class ControlPanel extends LitElement implements Controller {
@@ -29,19 +46,19 @@ export class ControlPanel extends LitElement implements Controller {
   private attackRatio: number = 0.2;
 
   @state()
-  private _maxTroops: number;
+  private _maxTroops: number = 0;
 
   @state()
-  private troopRate: number;
+  private troopRate: number = 0;
 
   @state()
-  private _troops: number;
+  private _troops: number = 0;
 
   @state()
   private _isVisible = false;
 
   @state()
-  private _gold: Gold;
+  private _gold: Gold = 0n;
 
   @state()
   private _resources: ResourceStockpile = createZeroResources();
@@ -52,9 +69,20 @@ export class ControlPanel extends LitElement implements Controller {
   @state()
   private _attackingTroops: number = 0;
 
+  @state()
+  private _selectedMetric: MetricKey = "troops";
+
   private _troopRateIsIncreasing: boolean = true;
 
-  private _lastTroopIncreaseRate: number;
+  private _lastTroopIncreaseRate: number = 0;
+
+  private _resourceRates: Record<ResourceKind, number> = {
+    food: 0,
+    energy: 0,
+    materials: 0,
+  };
+
+  private _lastResourceRateSample: ResourceStockpile | null = null;
 
   getTickIntervalMs() {
     return 100;
@@ -99,7 +127,9 @@ export class ControlPanel extends LitElement implements Controller {
 
     this._maxTroops = this.game.config().maxTroops(player);
     this._gold = player.gold();
-    this._resources = player.resources();
+    const nextResources = player.resources();
+    this.updateResourceRates(nextResources);
+    this._resources = nextResources;
     this._resourceCapacity = player.resourceCapacity();
     this._troops = player.troops();
     this._attackingTroops = player
@@ -117,6 +147,28 @@ export class ControlPanel extends LitElement implements Controller {
     this._troopRateIsIncreasing =
       troopIncreaseRate >= this._lastTroopIncreaseRate;
     this._lastTroopIncreaseRate = troopIncreaseRate;
+  }
+
+  private updateResourceRates(nextResources: ResourceStockpile) {
+    if (this._lastResourceRateSample === null) {
+      this._lastResourceRateSample = nextResources;
+      return;
+    }
+
+    const ticksPerSecond = 1000 / this.getTickIntervalMs();
+    this._resourceRates = {
+      food:
+        Number(nextResources.food - this._lastResourceRateSample.food) *
+        ticksPerSecond,
+      energy:
+        Number(nextResources.energy - this._lastResourceRateSample.energy) *
+        ticksPerSecond,
+      materials:
+        Number(
+          nextResources.materials - this._lastResourceRateSample.materials,
+        ) * ticksPerSecond,
+    };
+    this._lastResourceRateSample = nextResources;
   }
 
   onAttackRatioChange(newRatio: number) {
@@ -139,10 +191,14 @@ export class ControlPanel extends LitElement implements Controller {
     (e.target as HTMLInputElement).blur();
   }
 
-  private calculateTroopBar(): { greenPercent: number; orangePercent: number } {
-    const base = Math.max(this._maxTroops, 1);
-    const greenPercentRaw = (this._troops / base) * 100;
-    const orangePercentRaw = (this._attackingTroops / base) * 100;
+  private calculateMetricBar(metric: MetricView): {
+    greenPercent: number;
+    orangePercent: number;
+  } {
+    const capacity = Math.max(Number(metric.capacity), 1);
+    const greenPercentRaw = (Number(metric.value) / capacity) * 100;
+    const orangePercentRaw =
+      metric.key === "troops" ? (this._attackingTroops / capacity) * 100 : 0;
 
     const greenPercent = Math.max(0, Math.min(100, greenPercentRaw));
     const orangePercent = Math.max(
@@ -153,8 +209,111 @@ export class ControlPanel extends LitElement implements Controller {
     return { greenPercent, orangePercent };
   }
 
-  private renderMobileTroopBar() {
-    const { greenPercent, orangePercent } = this.calculateTroopBar();
+  private metricValueText(metric: MetricView): string {
+    if (metric.key === "troops") {
+      return renderTroops(Number(metric.value));
+    }
+    return renderNumber(metric.value);
+  }
+
+  private metricRateText(metric: MetricView): string {
+    const sign = metric.rate >= 0 ? "+" : "-";
+    const amount = Math.abs(metric.rate);
+    if (metric.key === "troops") {
+      return `${sign}${renderTroops(amount)}/s`;
+    }
+    return `${sign}${renderNumber(Math.round(amount))}/s`;
+  }
+
+  private metricView(key: MetricKey): MetricView {
+    const placeholderIcon = (label: string, colorClass: string) => html`
+      <span
+        class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none ${colorClass}"
+        aria-hidden="true"
+        >${label}</span
+      >
+    `;
+
+    const metrics: Record<MetricKey, MetricView> = {
+      troops: {
+        key: "troops",
+        label: "Troops",
+        shortLabel: "Troops",
+        value: this._troops,
+        capacity: this._maxTroops,
+        rate: this.troopRate,
+        rateIsIncreasing: this._troopRateIsIncreasing,
+        barClass: "bg-malibu-blue",
+        borderClass: "border-blue-300/80",
+        textClass: "text-blue-200",
+        icon: html`<img
+          src=${soldierIcon}
+          alt=""
+          aria-hidden="true"
+          width="14"
+          height="14"
+          class="shrink-0"
+        />`,
+      },
+      food: {
+        key: "food",
+        label: "Biomass",
+        shortLabel: "Bio",
+        value: this._resources.food,
+        capacity: this._resourceCapacity.food,
+        rate: this._resourceRates.food,
+        rateIsIncreasing: this._resourceRates.food >= 0,
+        barClass: "bg-green-500",
+        borderClass: "border-green-400/80",
+        textClass: "text-green-300",
+        icon: placeholderIcon("B", "border-green-300 text-green-200"),
+      },
+      energy: {
+        key: "energy",
+        label: "Fuels",
+        shortLabel: "Fuel",
+        value: this._resources.energy,
+        capacity: this._resourceCapacity.energy,
+        rate: this._resourceRates.energy,
+        rateIsIncreasing: this._resourceRates.energy >= 0,
+        barClass: "bg-cyan-500",
+        borderClass: "border-cyan-400/80",
+        textClass: "text-cyan-300",
+        icon: placeholderIcon("F", "border-cyan-300 text-cyan-200"),
+      },
+      materials: {
+        key: "materials",
+        label: "Metals",
+        shortLabel: "Metal",
+        value: this._resources.materials,
+        capacity: this._resourceCapacity.materials,
+        rate: this._resourceRates.materials,
+        rateIsIncreasing: this._resourceRates.materials >= 0,
+        barClass: "bg-stone-300",
+        borderClass: "border-stone-300/80",
+        textClass: "text-stone-200",
+        icon: placeholderIcon("M", "border-stone-300 text-stone-100"),
+      },
+    };
+
+    return metrics[key];
+  }
+
+  private selectedMetric(): MetricView {
+    return this.metricView(this._selectedMetric);
+  }
+
+  private metricTabs(): MetricView[] {
+    return [
+      this.metricView("troops"),
+      this.metricView("food"),
+      this.metricView("energy"),
+      this.metricView("materials"),
+    ];
+  }
+
+  private renderMetricBar(metric: MetricView, compact: boolean) {
+    const { greenPercent, orangePercent } = this.calculateMetricBar(metric);
     return html`
       <div
         class="w-full h-6 border border-gray-600 rounded-md bg-gray-900/60 overflow-hidden relative"
@@ -162,7 +321,7 @@ export class ControlPanel extends LitElement implements Controller {
         <div class="h-full flex">
           ${greenPercent > 0
             ? html`<div
-                class="h-full bg-malibu-blue transition-[width] duration-200"
+                class="h-full ${metric.barClass} transition-[width] duration-200"
                 style="width: ${greenPercent}%;"
               ></div>`
             : ""}
@@ -174,174 +333,118 @@ export class ControlPanel extends LitElement implements Controller {
             : ""}
         </div>
         <div
-          class="absolute inset-0 flex items-center justify-between px-1.5 text-xs font-bold leading-none pointer-events-none"
+          class="absolute inset-0 flex items-center ${compact
+            ? "justify-between px-1.5 text-xs"
+            : "text-lg"} font-bold leading-none pointer-events-none"
           translate="no"
         >
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${renderTroops(this._troops)}</span
-          >
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${renderTroops(this._maxTroops)}</span
-          >
-        </div>
-        <div
-          class="absolute inset-0 flex items-center justify-center gap-0.5 pointer-events-none"
-          translate="no"
-        >
-          <img
-            src=${soldierIcon}
-            alt=""
-            aria-hidden="true"
-            width="12"
-            height="12"
-            class="brightness-0 invert drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-          />
-          <span
-            class="text-[10px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] ${this
-              ._troopRateIsIncreasing
-              ? "text-green-400"
-              : "text-orange-400"}"
-            >+${renderTroops(this.troopRate)}/s</span
-          >
+          ${compact
+            ? html`
+                <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+                  >${this.metricValueText(metric)}</span
+                >
+                <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+                  >${this.metricValueText({
+                    ...metric,
+                    value: metric.capacity,
+                  })}</span
+                >
+              `
+            : html`
+                <span
+                  class="flex-1 flex justify-end h-full items-center pr-0.5"
+                >
+                  <span
+                    class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+                    >${this.metricValueText(metric)}</span
+                  >
+                </span>
+                <span
+                  class="h-full flex items-center px-0.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+                  >/</span
+                >
+                <span
+                  class="flex-1 flex justify-start h-full items-center pl-0.5 gap-0.5"
+                >
+                  <span
+                    class="text-white tabular-nums w-[3.5rem] drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+                    >${this.metricValueText({
+                      ...metric,
+                      value: metric.capacity,
+                    })}</span
+                  >
+                  <span class="ml-1.5">${metric.icon}</span>
+                </span>
+              `}
         </div>
       </div>
     `;
   }
 
-  private renderDesktopTroopBar() {
-    const { greenPercent, orangePercent } = this.calculateTroopBar();
+  private renderRatePill(metric: MetricView, compact = false) {
     return html`
       <div
-        class="w-full h-6 border border-gray-600 rounded-md bg-gray-900/60 overflow-hidden relative"
-      >
-        <div class="h-full flex">
-          ${greenPercent > 0
-            ? html`<div
-                class="h-full bg-malibu-blue transition-[width] duration-200"
-                style="width: ${greenPercent}%;"
-              ></div>`
-            : ""}
-          ${orangePercent > 0
-            ? html`<div
-                class="h-full bg-aquarius transition-[width] duration-200"
-                style="width: ${orangePercent}%;"
-              ></div>`
-            : ""}
-        </div>
-        <div
-          class="absolute inset-0 flex items-center text-lg font-bold leading-none pointer-events-none"
-          translate="no"
-        >
-          <span class="flex-1 flex justify-end h-full items-center pr-0.5">
-            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-              >${renderTroops(this._troops)}</span
-            >
-          </span>
-          <span
-            class="h-full flex items-center px-0.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >/</span
-          >
-          <span
-            class="flex-1 flex justify-start h-full items-center pl-0.5 gap-0.5"
-          >
-            <span
-              class="text-white tabular-nums w-[3.5rem] drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-              >${renderTroops(this._maxTroops)}</span
-            >
-            <img
-              src=${soldierIcon}
-              alt=""
-              aria-hidden="true"
-              width="22"
-              height="22"
-              class="shrink-0 brightness-0 invert drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] ml-1.5"
-            />
-          </span>
-        </div>
-      </div>
-    `;
-  }
-
-  private renderResourcePill(
-    label: string,
-    value: Gold,
-    capacity: Gold,
-    borderClass: string,
-    textClass: string,
-  ) {
-    return html`
-      <div
-        class="flex min-w-0 items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold ${borderClass} ${textClass}"
+        class="flex items-center gap-1 shrink-0 border rounded-md font-bold py-0.5 px-1 ${compact
+          ? "text-xs w-[4.75rem]"
+          : "text-sm w-[5.5rem]"} ${metric.rateIsIncreasing
+          ? "border-green-400"
+          : "border-orange-400"}"
         translate="no"
       >
-        <span class="shrink-0">${label}</span>
-        <span class="min-w-0 truncate tabular-nums"
-          >${renderNumber(value)}/${renderNumber(capacity)}</span
+        ${metric.icon}
+        <span
+          class="font-bold tabular-nums ${compact
+            ? "text-xs"
+            : "text-sm"} ${metric.rateIsIncreasing
+            ? "text-green-400"
+            : "text-orange-400"}"
+          >${this.metricRateText(metric)}</span
         >
       </div>
     `;
   }
 
-  private renderResourceStrip() {
+  private renderMetricTabs() {
     return html`
-      <div class="grid grid-cols-3 gap-1">
-        ${this.renderResourcePill(
-          "Biomass",
-          this._resources.food,
-          this._resourceCapacity.food,
-          "border-green-400/80",
-          "text-green-300",
-        )}
-        ${this.renderResourcePill(
-          "Fuels",
-          this._resources.energy,
-          this._resourceCapacity.energy,
-          "border-cyan-400/80",
-          "text-cyan-300",
-        )}
-        ${this.renderResourcePill(
-          "Metals",
-          this._resources.materials,
-          this._resourceCapacity.materials,
-          "border-stone-300/80",
-          "text-stone-200",
-        )}
+      <div class="grid grid-cols-4 gap-1 mb-1">
+        ${this.metricTabs().map((metric) => {
+          const selected = metric.key === this._selectedMetric;
+          return html`
+            <button
+              class="flex min-w-0 items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold transition-colors ${metric.borderClass} ${metric.textClass} ${selected
+                ? "bg-white/15 ring-1 ring-white/60"
+                : "bg-gray-900/30 hover:bg-white/10"}"
+              type="button"
+              aria-pressed=${selected ? "true" : "false"}
+              @click=${() => {
+                this._selectedMetric = metric.key;
+              }}
+              translate="no"
+            >
+              <span class="flex min-w-0 items-center gap-1">
+                ${metric.icon}
+                <span class="hidden sm:inline truncate">${metric.label}</span>
+                <span class="sm:hidden truncate">${metric.shortLabel}</span>
+              </span>
+              <span class="min-w-0 truncate tabular-nums"
+                >${this.metricValueText(metric)}</span
+              >
+            </button>
+          `;
+        })}
       </div>
     `;
   }
 
   private renderDesktop() {
+    const metric = this.selectedMetric();
     return html`
-      <!-- Row 1: troop rate | troop bar | gold -->
+      <!-- Row 1: metric tabs -->
+      ${this.renderMetricTabs()}
+      <!-- Row 2: selected metric rate | selected metric bar | gold -->
       <div class="flex gap-1.5 items-center mb-1">
-        <!-- Troop rate -->
-        <div
-          class="flex items-center gap-1 shrink-0 border rounded-md font-bold text-sm py-0.5 px-1 w-[5.5rem] ${this
-            ._troopRateIsIncreasing
-            ? "border-green-400"
-            : "border-orange-400"}"
-          translate="no"
-        >
-          <img
-            src=${soldierIcon}
-            alt=""
-            aria-hidden="true"
-            width="13"
-            height="13"
-            class="shrink-0"
-            style="filter: ${this._troopRateIsIncreasing
-              ? "brightness(0) saturate(100%) invert(74%) sepia(44%) saturate(500%) hue-rotate(83deg) brightness(103%)"
-              : "brightness(0) saturate(100%) invert(65%) sepia(60%) saturate(600%) hue-rotate(330deg) brightness(105%)"}"
-          />
-          <span
-            class="text-sm font-bold tabular-nums ${this._troopRateIsIncreasing
-              ? "text-green-400"
-              : "text-orange-400"}"
-            >+${renderTroops(this.troopRate)}/s</span
-          >
-        </div>
-        <!-- Troop bar -->
-        <div class="flex-1">${this.renderDesktopTroopBar()}</div>
+        ${this.renderRatePill(metric)}
+        <div class="flex-1">${this.renderMetricBar(metric, false)}</div>
         <!-- Gold -->
         <div
           class="flex items-center gap-1 shrink-0 border rounded-md border-yellow-400 font-bold text-yellow-400 text-sm py-0.5 px-1 w-[4.5rem]"
@@ -351,8 +454,6 @@ export class ControlPanel extends LitElement implements Controller {
           <span class="tabular-nums">${renderNumber(this._gold)}</span>
         </div>
       </div>
-      <!-- Row 2: resources -->
-      <div class="mb-1">${this.renderResourceStrip()}</div>
       <!-- Row 3: attack ratio | slider -->
       <div class="flex items-center gap-1.5" translate="no">
         <div
@@ -387,21 +488,24 @@ export class ControlPanel extends LitElement implements Controller {
   }
 
   private renderMobile() {
+    const metric = this.selectedMetric();
     return html`
       <div>
-        <div class="flex gap-2 items-center">
-          <!-- Gold -->
+        ${this.renderMetricTabs()}
+        <div class="flex gap-1.5 items-center">
+          ${this.renderRatePill(metric, true)}
+          <div class="min-w-0 flex-1 flex items-center">
+            ${this.renderMetricBar(metric, true)}
+          </div>
           <div
-            class="flex items-center justify-center p-1 gap-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-xs w-1/5 shrink-0"
+            class="flex items-center justify-center p-1 gap-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-xs w-[3.75rem] shrink-0"
             translate="no"
           >
             <img src=${goldCoinIcon} width="13" height="13" />
             <span class="px-0.5">${renderNumber(this._gold)}</span>
           </div>
-          <!-- Troop bar -->
-          <div class="w-[40%] shrink-0 flex items-center">
-            ${this.renderMobileTroopBar()}
-          </div>
+        </div>
+        <div class="mt-1 flex gap-2 items-center">
           <!-- Sword + % label -->
           <div
             class="flex flex-col items-center shrink-0 gap-0.5 w-8"
@@ -432,7 +536,6 @@ export class ControlPanel extends LitElement implements Controller {
             />
           </div>
         </div>
-        <div class="mt-1">${this.renderResourceStrip()}</div>
       </div>
     `;
   }

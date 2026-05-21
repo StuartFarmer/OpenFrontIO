@@ -18,6 +18,8 @@ import {
 import { TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
 import {
+  clampResourceDeltaToCapacity,
+  createZeroResources,
   resourceRegenDelta,
   resourcesFromGoldAmount,
   ResourceStockpile,
@@ -877,12 +879,69 @@ export class Config {
     return Math.min(player.troops() + toAdd, max) - player.troops();
   }
 
-  resourceIncreaseRate(player: Player | PlayerView) {
-    return resourceRegenDelta(
+  resourceIncreaseRate(game: Game, player: Player) {
+    const equalRegen = resourceRegenDelta(
       player.resources(),
       this.maxResources(player),
       this.resourceRegenMultiplierFor(player) / 3,
     );
+    const terrainSplit = this.terrainResourceProductionSplit(game, player);
+    const totalRegen =
+      equalRegen.food + equalRegen.energy + equalRegen.materials;
+    return clampResourceDeltaToCapacity(
+      player.resources(),
+      this.splitTotalResourceProduction(totalRegen, terrainSplit),
+      this.maxResources(player),
+    );
+  }
+
+  private terrainResourceProductionSplit(
+    game: Game,
+    player: Player,
+  ): ResourceStockpile {
+    const weights = createZeroResources();
+
+    for (const tile of player.tiles()) {
+      switch (game.terrainType(tile)) {
+        case TerrainType.Plains:
+          weights.food += 1n;
+          weights.energy += 2n;
+          weights.materials += 1n;
+          break;
+        case TerrainType.Highland:
+          weights.food += 2n;
+          weights.energy += 1n;
+          weights.materials += 1n;
+          break;
+        case TerrainType.Mountain:
+          weights.food += 1n;
+          weights.energy += 1n;
+          weights.materials += 2n;
+          break;
+        default:
+          break;
+      }
+    }
+
+    return weights;
+  }
+
+  private splitTotalResourceProduction(
+    total: bigint,
+    weights: ResourceStockpile,
+  ): ResourceStockpile {
+    const totalWeight = weights.food + weights.energy + weights.materials;
+    if (total <= 0n || totalWeight <= 0n) {
+      return createZeroResources();
+    }
+
+    const food = (total * weights.food) / totalWeight;
+    const energy = (total * weights.energy) / totalWeight;
+    return {
+      food,
+      energy,
+      materials: total - food - energy,
+    };
   }
 
   private capacityMultiplierFor(

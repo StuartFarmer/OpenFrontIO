@@ -68,32 +68,61 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("resourceIncreaseRate returns equal resource deltas from current stockpile", () => {
+  test("resourceIncreaseRate favors fuels on lowland/plains tiles", () => {
     player.conquer(game.ref(0, 0));
     const before = player.resources();
-    const delta = game.config().resourceIncreaseRate(player);
+    const delta = game.config().resourceIncreaseRate(game, player);
 
     expect(player.resources()).toEqual(before);
     expect(delta.food).toBeGreaterThan(0n);
-    expect(delta).toEqual({
-      food: delta.food,
-      energy: delta.food,
-      materials: delta.food,
-    });
+    expect(delta.energy).toBeGreaterThan(delta.food);
+    expect(delta.energy).toBeGreaterThan(delta.materials);
+  });
+
+  test("resourceIncreaseRate favors biomass on highland tiles", () => {
+    const tile = game.ref(0, 0);
+    game.setMagnitude(tile, 15);
+    player.conquer(tile);
+
+    const delta = game.config().resourceIncreaseRate(game, player);
+
+    expect(delta.food).toBeGreaterThan(delta.energy);
+    expect(delta.food).toBeGreaterThan(delta.materials);
+  });
+
+  test("resourceIncreaseRate favors metals on mountain tiles", () => {
+    const tile = game.ref(0, 0);
+    game.setMagnitude(tile, 25);
+    player.conquer(tile);
+
+    const delta = game.config().resourceIncreaseRate(game, player);
+
+    expect(delta.materials).toBeGreaterThan(delta.food);
+    expect(delta.materials).toBeGreaterThan(delta.energy);
   });
 
   test("resourceIncreaseRate is slowed to one third of the base regen curve", () => {
     player.conquer(game.ref(0, 0));
     const capacity = game.config().maxResources(player);
     const baseDelta = resourceRegenDelta(player.resources(), capacity);
-    const slowerDelta = game.config().resourceIncreaseRate(player);
+    const slowedUniformDelta = resourceRegenDelta(
+      player.resources(),
+      capacity,
+      1 / 3,
+    );
+    const slowerDelta = game.config().resourceIncreaseRate(game, player);
 
     expect(baseDelta.food).toBeGreaterThan(0n);
-    expect(slowerDelta).toEqual({
-      food: baseDelta.food / 3n,
-      energy: baseDelta.energy / 3n,
-      materials: baseDelta.materials / 3n,
-    });
+    expect(
+      slowedUniformDelta.food +
+        slowedUniformDelta.energy +
+        slowedUniformDelta.materials,
+    ).toBeLessThan(baseDelta.food + baseDelta.energy + baseDelta.materials);
+    expect(slowerDelta.food + slowerDelta.energy + slowerDelta.materials).toBe(
+      slowedUniformDelta.food +
+        slowedUniformDelta.energy +
+        slowedUniformDelta.materials,
+    );
   });
 
   test("City, Port, and Factory split their legacy gold price into resource costs", () => {

@@ -742,7 +742,7 @@
     "attack_cancelled_retreat": "Rünnak tühistatud, {troops} sõdurit tapetud taganemise ajal",
     "received_gold_from_captured_ship": "Teenisid {gold} kulda kaubalaevast, mis üle võtsid {name}'lt",
     "received_gold_from_trade": "Teenisid {gold} kulda kaubandusest koos {name}'ga",
-    "received_gold_from_conquest": "Vallutasid {name} ja said {gold} kulda",
+    "received_gold_from_conquest": "Vallutasid {name} ja said {gold} kulda ning {resources}",
     "conquered_no_gold": "Vallutasid {name} (ei mänginud, kulla auhinda pole)",
     "missile_intercepted": "Rakett tõkestatud {unit}",
     "mirv_warheads_intercepted": "{count, plural,one {{count} MIRV'i tuumapea tõkestatud}other {{count} MIRV'i tuumapead tõkestatud}}",

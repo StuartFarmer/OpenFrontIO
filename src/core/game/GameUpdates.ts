@@ -128,6 +128,7 @@ export interface ConquestUpdate {
   conquerorId: PlayerID;
   conqueredId: PlayerID;
   gold: Gold;
+  resources?: ResourceStockpile;
 }
 
 export interface UnitUpdate {

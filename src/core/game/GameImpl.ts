@@ -45,6 +45,8 @@ import { MotionPlanRecord, packMotionPlans } from "./MotionPlans";
 import { PlayerImpl } from "./PlayerImpl";
 import { RailNetwork } from "./RailNetwork";
 import { createRailNetwork } from "./RailNetworkImpl";
+import type { ResourceStockpile } from "./Resources";
+import { clampResourceDeltaToCapacity, createZeroResources } from "./Resources";
 import { Stats } from "./Stats";
 import { StatsImpl } from "./StatsImpl";
 import { assignTeams } from "./TeamAssignment";
@@ -1232,7 +1234,10 @@ export class GameImpl implements Game {
     const goldCaptured = skipGoldTransfer
       ? 0n
       : this._config.conquerGoldAmount(conquered);
-    const resourcesCaptured = skipGoldTransfer ? null : conquered.resources();
+    const resourcesAvailable = skipGoldTransfer
+      ? createZeroResources()
+      : conquered.resources();
+    let resourcesCaptured = createZeroResources();
 
     if (skipGoldTransfer) {
       this.displayMessage(
@@ -1245,6 +1250,19 @@ export class GameImpl implements Game {
         },
       );
     } else {
+      conqueror.addGold(goldCaptured);
+      resourcesCaptured = clampResourceDeltaToCapacity(
+        conqueror.resources(),
+        resourcesAvailable,
+        this._config.maxResources(conqueror),
+      );
+      conqueror.addResources(resourcesCaptured, undefined, {
+        updateGold: false,
+      });
+      conquered.removeGold(gold);
+      conquered.removeResources(conquered.resources(), {
+        updateGold: false,
+      });
       this.displayMessage(
         "events_display.received_gold_from_conquest",
         MessageType.CONQUERED_PLAYER,
@@ -1253,18 +1271,9 @@ export class GameImpl implements Game {
         {
           gold: renderNumber(goldCaptured),
           name: conquered.displayName(),
+          resources: renderResourceCapture(resourcesCaptured),
         },
       );
-      conqueror.addGold(goldCaptured);
-      if (resourcesCaptured !== null) {
-        conqueror.addResources(resourcesCaptured, undefined, {
-          updateGold: false,
-        });
-      }
-      conquered.removeGold(gold);
-      conquered.removeResources(conquered.resources(), {
-        updateGold: false,
-      });
 
       // Record stats
       this.stats().goldWar(conqueror, conquered, goldCaptured);
@@ -1275,8 +1284,13 @@ export class GameImpl implements Game {
       conquerorId: conqueror.id(),
       conqueredId: conquered.id(),
       gold: goldCaptured,
+      resources: resourcesCaptured,
     });
   }
+}
+
+function renderResourceCapture(resources: ResourceStockpile): string {
+  return `Biomass ${renderNumber(resources.food)} / Fuels ${renderNumber(resources.energy)} / Metals ${renderNumber(resources.materials)}`;
 }
 
 // Or a more dynamic approach that will catch new enum values:

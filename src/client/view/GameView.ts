@@ -528,6 +528,14 @@ export class GameView implements GameMap {
         x: loc.x,
         y: loc.y,
         gold: Number(c.gold),
+        resources:
+          c.resources === undefined
+            ? undefined
+            : {
+                food: Number(c.resources.food),
+                energy: Number(c.resources.energy),
+                materials: Number(c.resources.materials),
+              },
       });
     }
     for (const b of gu.updates[GameUpdateType.BonusEvent] ?? []) {

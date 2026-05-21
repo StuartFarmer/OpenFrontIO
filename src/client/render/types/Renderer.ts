@@ -121,6 +121,11 @@ export interface ConquestFx {
   x: number; // world tile X (conquered player's name location)
   y: number; // world tile Y
   gold: number; // gold amount awarded
+  resources?: {
+    food: number;
+    energy: number;
+    materials: number;
+  };
   /** Ticks since the event occurred (0 = this frame, >0 = seeked past it). */
   tickAge?: number;
 }
