@@ -28,6 +28,7 @@ import { formatPlayerDisplayName } from "../../core/Util";
 import { WorkerClient } from "../../core/worker/WorkerClient";
 import { computeAllianceClusters } from "../render/frame/derive/AllianceClusters";
 import { extractAttackRings } from "../render/frame/derive/AttackRings";
+import { computeRailroadRouteOverlay } from "../render/frame/derive/ConnectedRailroads";
 import { extractNukeTelegraphs } from "../render/frame/derive/NukeTelegraphs";
 import { computePlayerStatus } from "../render/frame/derive/PlayerStatus";
 import { buildRelationMatrix } from "../render/frame/derive/RelationMatrix";
@@ -97,6 +98,9 @@ export class GameView implements GameMap {
   private _firstPopulate = true;
 
   private _myPlayer: PlayerView | null = null;
+  private _connectedRailroadTiles: number[] = [];
+  private _disconnectedRailroadTiles: number[] = [];
+  private _connectedRailroadTilesDirty = true;
 
   private unitGrid: UnitGrid;
   private unitMotionPlans = new Map<
@@ -187,6 +191,8 @@ export class GameView implements GameMap {
       changedTiles: this._changedTilesScratch,
       railroadDirty: false,
       revealedRailTiles: this.railroadCache.revealedRailTiles,
+      connectedRailroadTiles: [],
+      disconnectedRailroadTiles: [],
       trailDirtyRowMin: 0,
       trailDirtyRowMax: -1,
       // Derived data — populated each tick by populateFrame(). Empty defaults
@@ -362,7 +368,11 @@ export class GameView implements GameMap {
     });
 
     if (this._myClientID) {
+      const previousMyPlayer = this._myPlayer;
       this._myPlayer ??= this.playerByClientID(this._myClientID);
+      if (this._myPlayer !== previousMyPlayer) {
+        this._connectedRailroadTilesDirty = true;
+      }
     }
 
     for (const unit of this._units.values()) {
@@ -378,6 +388,8 @@ export class GameView implements GameMap {
         if (
           isStructure &&
           (unit.state.level !== update.level ||
+            unit.state.ownerID !== update.ownerID ||
+            unit.state.hasTrainStation !== update.hasTrainStation ||
             unit.state.isActive !== update.isActive ||
             (unit.state.underConstruction &&
               !(update.underConstruction ?? false)))
@@ -472,6 +484,24 @@ export class GameView implements GameMap {
     f.tick = gu.tick;
     f.inSpawnPhase = this.startTick === null;
     f.railroadDirty = this.railroadCache.railroadDirty;
+    if (
+      this._connectedRailroadTilesDirty ||
+      this.railroadCache.railroadDirty ||
+      this._structuresDirty
+    ) {
+      const railroadRouteOverlay = computeRailroadRouteOverlay({
+        railroads: this.railroadCache.getRailroads(),
+        units: this._unitStates.values(),
+        localPlayerID: this._myPlayer?.smallID() ?? 0,
+        mapWidth: this._map.width(),
+        mapHeight: this._map.height(),
+      });
+      this._connectedRailroadTiles = railroadRouteOverlay.connected;
+      this._disconnectedRailroadTiles = railroadRouteOverlay.disconnected;
+      this._connectedRailroadTilesDirty = false;
+    }
+    f.connectedRailroadTiles = this._connectedRailroadTiles;
+    f.disconnectedRailroadTiles = this._disconnectedRailroadTiles;
     f.trailDirtyRowMin = this.trailManager.dirtyRowMin;
     f.trailDirtyRowMax = this.trailManager.dirtyRowMax;
     f.playerStatus = computePlayerStatus(this._playerStates, this._unitStates, {

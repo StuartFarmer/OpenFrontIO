@@ -8,7 +8,12 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { renderResourceCapture } from "../game/ResourceFormatting";
-import { resourcesFromExportBlend } from "../game/Resources";
+import {
+  calculateTradeExchange,
+  calculateTradeManifest,
+  resourceTotal,
+} from "../game/ResourceTrade";
+import type { ResourceStockpile } from "../game/Resources";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
 import { findClosestBy } from "../Util";
@@ -174,58 +179,96 @@ export class TradeShipExecution implements Execution {
       .tradeShipGold(this.tilesTraveled, this.tradeShip!.owner());
     const sourceOwner = this.srcPort.owner();
     const destinationOwner = this._dstPort.owner();
-    const exporter = this.wasCaptured ? this.origOwner : sourceOwner;
-    const resources = resourcesFromExportBlend(gold, exporter.resources());
 
     if (this.wasCaptured) {
-      this.tradeShip!.owner().addResources(resources, this._dstPort.tile(), {
-        bonusResources: resources,
-        updateGold: false,
-      });
-      this.mg.displayMessage(
-        "events_display.received_resources_from_captured_ship",
-        MessageType.CAPTURED_ENEMY_UNIT,
-        this.tradeShip!.owner().id(),
-        undefined,
-        {
-          name: this.origOwner.displayName(),
-          resources: renderResourceCapture(resources),
-        },
+      const captor = this.tradeShip!.owner();
+      const capturedResources = transferResources(
+        this.origOwner,
+        captor,
+        calculateTradeManifest(
+          gold,
+          this.origOwner.resources(),
+          captor.resources(),
+          this.mg.config().maxResources(captor),
+        ),
+        this._dstPort.tile(),
       );
-      // Record stats
-      this.mg
-        .stats()
-        .boatCapturedTrade(this.tradeShip!.owner(), this.origOwner, gold);
+      if (resourceTotal(capturedResources) > 0n) {
+        this.mg.displayMessage(
+          "events_display.received_resources_from_captured_ship",
+          MessageType.CAPTURED_ENEMY_UNIT,
+          captor.id(),
+          undefined,
+          {
+            name: this.origOwner.displayName(),
+            resources: renderResourceCapture(capturedResources),
+          },
+        );
+        // Record stats
+        this.mg
+          .stats()
+          .boatCapturedTrade(
+            captor,
+            this.origOwner,
+            resourceTotal(capturedResources),
+          );
+      }
     } else {
-      sourceOwner.addResources(resources, undefined, {
-        updateGold: false,
-      });
-      destinationOwner.addResources(resources, this._dstPort.tile(), {
-        bonusResources: resources,
-        updateGold: false,
-      });
-      this.mg.displayMessage(
-        "events_display.received_resources_from_trade",
-        MessageType.RECEIVED_GOLD_FROM_TRADE,
-        destinationOwner.id(),
-        undefined,
-        {
-          name: sourceOwner.displayName(),
-          resources: renderResourceCapture(resources),
-        },
+      const exchange = calculateTradeExchange(
+        gold,
+        sourceOwner.resources(),
+        this.mg.config().maxResources(sourceOwner),
+        destinationOwner.resources(),
+        this.mg.config().maxResources(destinationOwner),
       );
-      this.mg.displayMessage(
-        "events_display.received_resources_from_trade",
-        MessageType.RECEIVED_GOLD_FROM_TRADE,
-        sourceOwner.id(),
-        undefined,
-        {
-          name: destinationOwner.displayName(),
-          resources: renderResourceCapture(resources),
-        },
+      const destinationReceives = transferResources(
+        sourceOwner,
+        destinationOwner,
+        exchange.secondReceives,
+        this._dstPort.tile(),
       );
-      // Record stats
-      this.mg.stats().boatArriveTrade(sourceOwner, destinationOwner, gold);
+      const sourceReceives = transferResources(
+        destinationOwner,
+        sourceOwner,
+        exchange.firstReceives,
+      );
+      if (resourceTotal(destinationReceives) > 0n) {
+        this.mg.displayMessage(
+          "events_display.received_resources_from_trade",
+          MessageType.RECEIVED_GOLD_FROM_TRADE,
+          destinationOwner.id(),
+          undefined,
+          {
+            name: sourceOwner.displayName(),
+            resources: renderResourceCapture(destinationReceives),
+          },
+        );
+      }
+      if (resourceTotal(sourceReceives) > 0n) {
+        this.mg.displayMessage(
+          "events_display.received_resources_from_trade",
+          MessageType.RECEIVED_GOLD_FROM_TRADE,
+          sourceOwner.id(),
+          undefined,
+          {
+            name: destinationOwner.displayName(),
+            resources: renderResourceCapture(sourceReceives),
+          },
+        );
+      }
+      if (
+        resourceTotal(destinationReceives) > 0n ||
+        resourceTotal(sourceReceives) > 0n
+      ) {
+        // Record stats
+        this.mg
+          .stats()
+          .boatArriveTrade(
+            sourceOwner,
+            destinationOwner,
+            resourceTotal(destinationReceives),
+          );
+      }
     }
     return;
   }
@@ -241,4 +284,26 @@ export class TradeShipExecution implements Execution {
   dstPort(): TileRef {
     return this._dstPort.tile();
   }
+}
+
+function transferResources(
+  from: Player,
+  to: Player,
+  resources: ResourceStockpile,
+  tile?: TileRef,
+): ResourceStockpile {
+  if (resourceTotal(resources) <= 0n) {
+    return resources;
+  }
+
+  const removed = from.removeResources(resources, { updateGold: false });
+  if (resourceTotal(removed) <= 0n) {
+    return removed;
+  }
+
+  to.addResources(removed, tile, {
+    bonusResources: removed,
+    updateGold: false,
+  });
+  return removed;
 }

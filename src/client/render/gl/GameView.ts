@@ -228,6 +228,15 @@ export class GameView {
   uploadRailroadState(data: Uint8Array): void {
     this.renderer.uploadRailroadState(data);
   }
+  updateRailroadNetworkOverlay(
+    connectedTileRefs: readonly number[],
+    disconnectedTileRefs: readonly number[],
+  ): void {
+    this.renderer.updateRailroadNetworkOverlay(
+      connectedTileRefs,
+      disconnectedTileRefs,
+    );
+  }
   updateUnits(units: Map<number, UnitState>, gameTick: number): void {
     this.renderer.updateUnits(units, gameTick);
   }

@@ -110,6 +110,10 @@ export class RailroadPass {
   private cpuGhostRailState: Uint8Array;
   private ghostRailDirty = false;
   private ghostOwnerID = 0;
+  private ghostPreview: GhostPreviewData | null = null;
+  private networkOverlayVisible = false;
+  private connectedNetworkOverlayTiles: readonly number[] = [];
+  private disconnectedNetworkOverlayTiles: readonly number[] = [];
 
   constructor(
     private gl: WebGL2RenderingContext,
@@ -228,13 +232,54 @@ export class RailroadPass {
   }
 
   updateGhostPreview(data: GhostPreviewData | null): void {
+    this.ghostPreview = data;
+    this.rebuildGhostRailState();
+  }
+
+  updateNetworkOverlay(
+    connectedTileRefs: readonly number[],
+    disconnectedTileRefs: readonly number[],
+  ): void {
+    if (
+      this.connectedNetworkOverlayTiles === connectedTileRefs &&
+      this.disconnectedNetworkOverlayTiles === disconnectedTileRefs
+    ) {
+      return;
+    }
+    this.connectedNetworkOverlayTiles = connectedTileRefs;
+    this.disconnectedNetworkOverlayTiles = disconnectedTileRefs;
+    if (this.networkOverlayVisible) {
+      this.rebuildGhostRailState();
+    }
+  }
+
+  setNetworkOverlayVisible(active: boolean): void {
+    if (this.networkOverlayVisible === active) return;
+    this.networkOverlayVisible = active;
+    this.rebuildGhostRailState();
+  }
+
+  private rebuildGhostRailState(): void {
     this.cpuGhostRailState.fill(0);
+    const maxRef = this.mapW * this.mapH;
 
-    if (data) {
-      const maxRef = this.mapW * this.mapH;
+    if (this.networkOverlayVisible) {
+      for (const ref of this.disconnectedNetworkOverlayTiles) {
+        if (ref >= 0 && ref < maxRef) {
+          this.cpuGhostRailState[ref] = 9;
+        }
+      }
 
+      for (const ref of this.connectedNetworkOverlayTiles) {
+        if (ref >= 0 && ref < maxRef) {
+          this.cpuGhostRailState[ref] = 8;
+        }
+      }
+    }
+
+    if (this.ghostPreview) {
       // Ghost rail paths (1-6 = orientation)
-      for (const path of data.ghostRailPaths) {
+      for (const path of this.ghostPreview.ghostRailPaths) {
         if (path.length === 0) continue;
         const tiles = this.computePathOrientations(path);
         for (const t of tiles) {
@@ -246,13 +291,13 @@ export class RailroadPass {
 
       // Overlapping railroad highlights (7 = green highlight marker)
       // overlappingRailroads contains resolved tile refs (not rail IDs)
-      for (const ref of data.overlappingRailroads) {
+      for (const ref of this.ghostPreview.overlappingRailroads) {
         if (ref >= 0 && ref < maxRef) {
           this.cpuGhostRailState[ref] = 7;
         }
       }
 
-      this.ghostOwnerID = data.ownerID;
+      this.ghostOwnerID = this.ghostPreview.ownerID;
     } else {
       this.ghostOwnerID = 0;
     }

@@ -97,11 +97,13 @@ void main() {
   // Compute coverage for real and ghost rails
   float realCov = railCoverage(railType, f);
   // Ghost only renders where there is no real rail (values 1-6 = ghost path)
-  // Value 7 = highlight marker (existing rail turns green)
+  // Value 7 = build overlap marker, value 8 = connected-network marker, value 9 = unreachable-network marker
   float ghostCov = (ghostRailType >= 1u && ghostRailType <= 6u && railType == 0u)
     ? railCoverage(ghostRailType, f)
     : 0.0;
   bool highlighted = (ghostRailType == 7u && railType != 0u);
+  bool networkHighlighted = (ghostRailType == 8u && railType != 0u);
+  bool networkBlocked = (ghostRailType == 9u && railType != 0u);
 
   bool hitRail = (realCov * uRailAlpha > 0.001);
   bool hitGhost = (ghostCov * uRailAlpha > 0.001);
@@ -138,6 +140,8 @@ void main() {
       : vec3(0.75);
     // Overlapping railroad highlight — green tint
     if (highlighted) railColor = vec3(0.2, 0.85, 0.3);
+    if (networkBlocked) railColor = vec3(0.95, 0.18, 0.16);
+    if (networkHighlighted) railColor = vec3(0.2, 0.9, 0.25);
     if (hitBridge) {
       fragColor = vec4(mix(bridgeColor, railColor, railAlpha), 1.0);
     } else {

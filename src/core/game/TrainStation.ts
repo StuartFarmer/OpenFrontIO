@@ -5,7 +5,8 @@ import { TileRef } from "./GameMap";
 import { GameUpdateType } from "./GameUpdates";
 import { Railroad } from "./Railroad";
 import { renderResourceCapture } from "./ResourceFormatting";
-import { resourcesFromExportBlend } from "./Resources";
+import { calculateTradeExchange, resourceTotal } from "./ResourceTrade";
+import type { ResourceStockpile } from "./Resources";
 
 /**
  * Handle train stops at various station types
@@ -22,6 +23,10 @@ class TradeStationStopHandler implements TrainStopHandler {
   ): void {
     const stationOwner = station.unit.owner();
     const trainOwner = trainExecution.owner();
+    if (trainOwner === stationOwner) {
+      return;
+    }
+
     const gold = mg
       .config()
       .trainGold(
@@ -29,13 +34,27 @@ class TradeStationStopHandler implements TrainStopHandler {
         trainExecution.tradeStopsVisited(),
         trainOwner,
       );
-    const resources = resourcesFromExportBlend(gold, trainOwner.resources());
-    // Share revenue with the station owner if it's not the current player
-    if (trainOwner !== stationOwner) {
-      stationOwner.addResources(resources, station.tile(), {
-        bonusResources: resources,
-        updateGold: false,
-      });
+    const exchange = calculateTradeExchange(
+      gold,
+      trainOwner.resources(),
+      mg.config().maxResources(trainOwner),
+      stationOwner.resources(),
+      mg.config().maxResources(stationOwner),
+    );
+    const stationOwnerReceives = transferResources(
+      trainOwner,
+      stationOwner,
+      exchange.secondReceives,
+      station.tile(),
+    );
+    const trainOwnerReceives = transferResources(
+      stationOwner,
+      trainOwner,
+      exchange.firstReceives,
+      station.tile(),
+    );
+
+    if (resourceTotal(stationOwnerReceives) > 0n) {
       mg.displayMessage(
         "events_display.received_resources_from_trade",
         MessageType.RECEIVED_GOLD_FROM_TRADE,
@@ -43,27 +62,50 @@ class TradeStationStopHandler implements TrainStopHandler {
         undefined,
         {
           name: trainOwner.displayName(),
-          resources: renderResourceCapture(resources),
+          resources: renderResourceCapture(stationOwnerReceives),
         },
       );
-      mg.stats().trainExternalTrade(stationOwner, gold);
+      mg.stats().trainExternalTrade(
+        stationOwner,
+        resourceTotal(stationOwnerReceives),
+      );
     }
-    trainOwner.addResources(resources, station.tile(), {
-      bonusResources: resources,
-      updateGold: false,
-    });
-    mg.displayMessage(
-      "events_display.received_resources_from_trade",
-      MessageType.RECEIVED_GOLD_FROM_TRADE,
-      trainOwner.id(),
-      undefined,
-      {
-        name: stationOwner.displayName(),
-        resources: renderResourceCapture(resources),
-      },
-    );
-    mg.stats().trainSelfTrade(trainOwner, gold);
+    if (resourceTotal(trainOwnerReceives) > 0n) {
+      mg.displayMessage(
+        "events_display.received_resources_from_trade",
+        MessageType.RECEIVED_GOLD_FROM_TRADE,
+        trainOwner.id(),
+        undefined,
+        {
+          name: stationOwner.displayName(),
+          resources: renderResourceCapture(trainOwnerReceives),
+        },
+      );
+      mg.stats().trainSelfTrade(trainOwner, resourceTotal(trainOwnerReceives));
+    }
   }
+}
+
+function transferResources(
+  from: Player,
+  to: Player,
+  resources: ResourceStockpile,
+  tile: TileRef,
+): ResourceStockpile {
+  if (resourceTotal(resources) <= 0n) {
+    return resources;
+  }
+
+  const removed = from.removeResources(resources, { updateGold: false });
+  if (resourceTotal(removed) <= 0n) {
+    return removed;
+  }
+
+  to.addResources(removed, tile, {
+    bonusResources: removed,
+    updateGold: false,
+  });
+  return removed;
 }
 
 class FactoryStopHandler implements TrainStopHandler {
