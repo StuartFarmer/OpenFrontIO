@@ -11,6 +11,7 @@ import {
   UnitType,
 } from "../../game/Game";
 import { TileRef } from "../../game/GameMap";
+import type { ResourceStockpile } from "../../game/Resources";
 import { Cluster } from "../../game/TrainStation";
 import { PseudoRandom } from "../../PseudoRandom";
 import { assertNever } from "../../Util";
@@ -62,9 +63,6 @@ function getStructureRatios(
     },
   };
 }
-
-/** Perceived cost increase percentage per city owned */
-const CITY_PERCEIVED_COST_INCREASE_PER_OWNED = 1;
 
 /** Factory ratio multiplier when the nation has coastal tiles */
 const FACTORY_COASTAL_RATIO_MULTIPLIER = 0.33;
@@ -208,8 +206,7 @@ export class NationStructureBehavior {
     if (this.countDefensePostsNearFront(frontTiles, allowed) >= allowed)
       return false;
 
-    const cost = this.cost(UnitType.DefensePost);
-    if (player.gold() < cost) return false;
+    if (!this.canAfford(UnitType.DefensePost)) return false;
 
     const tiles = this.sampleTilesNearFront(
       frontTiles,
@@ -582,10 +579,17 @@ export class NationStructureBehavior {
     return this.game.unitInfo(type).cost(this.game, this.player);
   }
 
+  private resourceCost(type: UnitType): ResourceStockpile {
+    return this.game.config().unitResourceCost(type, this.game, this.player);
+  }
+
+  private canAfford(type: UnitType): boolean {
+    return this.player.canAffordResources(this.resourceCost(type));
+  }
+
   private maybeSpawnStructure(type: UnitType): boolean {
     const game = this.game;
-    const perceivedCost = this.getPerceivedCost(type);
-    if (this.player.gold() < perceivedCost) {
+    if (!this.canAfford(type)) {
       return false;
     }
 
@@ -616,38 +620,6 @@ export class NationStructureBehavior {
     }
     game.addExecution(new ConstructionExecution(this.player, type, tile));
     return true;
-  }
-
-  /**
-   * Calculates the perceived cost for a structure type.
-   * The perceived cost increases by a percentage for each structure of that type already owned.
-   * This makes nations save up gold for nukes.
-   * Once the nation can afford its target stockpile, stop inflating costs.
-   */
-  private getPerceivedCost(type: UnitType): Gold {
-    const realCost = this.cost(type);
-
-    const saveUpTarget = this.getSaveUpTarget();
-    if (saveUpTarget === 0n || this.player.gold() >= saveUpTarget) {
-      return realCost;
-    }
-
-    const owned = this.player.unitsOwned(type);
-
-    let increasePerOwned: number;
-    if (type === UnitType.City) {
-      increasePerOwned = CITY_PERCEIVED_COST_INCREASE_PER_OWNED;
-    } else {
-      const { difficulty } = this.game.config().gameConfig();
-      const ratios = getStructureRatios(difficulty);
-      const config = ratios[type];
-      increasePerOwned = config?.perceivedCostIncreasePerOwned ?? 0.1;
-    }
-
-    // Each owned structure makes the next one feel more expensive
-    // Formula: realCost * (1 + increasePerOwned * owned)
-    const multiplier = 1 + increasePerOwned * owned;
-    return BigInt(Math.ceil(Number(realCost) * multiplier));
   }
 
   /**

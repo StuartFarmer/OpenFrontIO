@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { ConstructionExecution } from "../src/core/execution/ConstructionExecution";
 import { NationStructureBehavior } from "../src/core/execution/nation/NationStructureBehavior";
-import { Difficulty, PlayerType } from "../src/core/game/Game";
+import { Difficulty, PlayerType, UnitType } from "../src/core/game/Game";
 import { Cluster } from "../src/core/game/TrainStation";
 import { PseudoRandom } from "../src/core/PseudoRandom";
 
@@ -339,6 +339,8 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
         gameConfig: () => ({ difficulty }),
         isUnitDisabled: () => false,
         nukeMagnitudes: () => ({ outer: 50 }),
+        unitInfo: () => ({ upgradable: false }),
+        unitResourceCost: () => ({ food: 0n, energy: 0n, materials: 0n }),
       }),
       unitInfo: () => ({ cost: () => 0n }),
       euclideanDistSquared: () => Number.MAX_VALUE,
@@ -350,7 +352,9 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
       troops: () => troops,
       incomingAttacks: () => attacks,
       gold: () => 1_000_000n,
+      canAffordResources: () => true,
       units: () => [],
+      numTilesOwned: () => 1000,
     };
   }
 
@@ -465,7 +469,7 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
     const canBuild = vi.fn(() => true);
     const player = {
       ...makeMinimalPlayer(1000, [makeLandAttack(1000)]),
-      gold: () => 1_000_000n,
+      gold: () => 0n,
       canBuild,
     };
     const behavior = makeBehavior(game, player);
@@ -480,15 +484,13 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
     expect(exec).toBeInstanceOf(ConstructionExecution);
   });
 
-  it("returns false when player.gold() is below cost", () => {
+  it("returns false when player cannot afford the resource cost", () => {
     const game = {
       ...makeMinimalGame(Difficulty.Hard),
-      // cost > 0 so gold check fails
-      unitInfo: () => ({ cost: () => 1_000_000n }),
     };
     const player = {
       ...makeMinimalPlayer(1000, [makeLandAttack(1000)]),
-      gold: () => 0n,
+      canAffordResources: () => false,
     };
     const behavior = makeBehavior(game, player);
     (behavior as any).placementsCount = 1;
@@ -516,6 +518,26 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
 
     expect((behavior as any).tryBuildDefensePost()).toBe(false);
     expect(addExecution).not.toHaveBeenCalled();
+  });
+
+  it("builds normal structures with resources even when gold is zero", () => {
+    const addExecution = vi.fn();
+    const game = {
+      ...makeMinimalGame(Difficulty.Hard),
+      addExecution,
+    };
+    const player = {
+      ...makeMinimalPlayer(1000, []),
+      gold: () => 0n,
+      canAffordResources: () => true,
+      canBuild: () => 42,
+    };
+    const behavior = makeBehavior(game, player);
+    vi.spyOn(behavior as any, "structureSpawnTile").mockReturnValue(42);
+
+    expect((behavior as any).maybeSpawnStructure(UnitType.City)).toBe(true);
+    expect(addExecution).toHaveBeenCalledTimes(1);
+    expect(addExecution.mock.calls[0][0]).toBeInstanceOf(ConstructionExecution);
   });
 });
 
