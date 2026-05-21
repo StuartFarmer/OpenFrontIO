@@ -17,7 +17,11 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
-import { resourceRegenDelta, resourcesFromGoldAmount } from "../game/Resources";
+import {
+  resourceRegenDelta,
+  resourcesFromGoldAmount,
+  ResourceStockpile,
+} from "../game/Resources";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
@@ -493,6 +497,40 @@ export class Config {
     };
   }
 
+  unitResourceCost(
+    type: UnitType,
+    game: Game,
+    player: Player,
+  ): ResourceStockpile {
+    const goldCost = this.unitInfo(type).cost(game, player);
+    switch (type) {
+      case UnitType.Port:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
+      case UnitType.City:
+        return this.splitResourceCost(goldCost, 2, 1, 1);
+      case UnitType.Factory:
+        return this.splitResourceCost(goldCost, 1, 2, 1);
+      default:
+        return this.splitResourceCost(goldCost, 1, 1, 1);
+    }
+  }
+
+  private splitResourceCost(
+    cost: Gold,
+    foodWeight: number,
+    energyWeight: number,
+    materialsWeight: number,
+  ): ResourceStockpile {
+    const totalWeight = BigInt(foodWeight + energyWeight + materialsWeight);
+    const food = (cost * BigInt(foodWeight)) / totalWeight;
+    const energy = (cost * BigInt(energyWeight)) / totalWeight;
+    return {
+      food,
+      energy,
+      materials: cost - food - energy,
+    };
+  }
+
   defaultDonationAmount(sender: Player): number {
     return Math.floor(sender.troops() / 3);
   }
@@ -843,7 +881,7 @@ export class Config {
     return resourceRegenDelta(
       player.resources(),
       this.maxResources(player),
-      this.resourceRegenMultiplierFor(player),
+      this.resourceRegenMultiplierFor(player) / 3,
     );
   }
 

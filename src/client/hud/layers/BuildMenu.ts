@@ -12,6 +12,10 @@ import {
 } from "../../../core/game/Game";
 import { TileRef } from "../../../core/game/GameMap";
 import { GameView } from "../../../core/game/GameView";
+import {
+  createZeroResources,
+  ResourceStockpile,
+} from "../../../core/game/Resources";
 import { Controller } from "../../Controller";
 import {
   CloseViewEvent,
@@ -26,10 +30,10 @@ import {
 } from "../../Transport";
 import { UIState } from "../../UIState";
 import { renderNumber } from "../../Utils";
+import { renderResourceCostText } from "../ResourceDisplay";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
-const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
@@ -373,6 +377,15 @@ export class BuildMenu extends LitElement implements Controller {
     return 0n;
   }
 
+  public resourceCost(item: BuildItemDisplay): ResourceStockpile {
+    for (const bu of this.playerBuildables ?? []) {
+      if (bu.type === item.unitType) {
+        return bu.resourceCost;
+      }
+    }
+    return createZeroResources();
+  }
+
   public count(item: BuildItemDisplay): string {
     const player = this.game?.myPlayer();
     if (!player) {
@@ -446,16 +459,9 @@ export class BuildMenu extends LitElement implements Controller {
                       translateText(item.description)}</span
                     >
                     <span class="build-cost" translate="no">
-                      ${renderNumber(
-                        this.game && this.game.myPlayer() ? this.cost(item) : 0,
-                      )}
-                      <img
-                        src=${goldCoinIcon}
-                        alt="gold"
-                        width="12"
-                        height="12"
-                        class="align-middle"
-                      />
+                      ${this.game && this.game.myPlayer()
+                        ? renderResourceCostText(this.resourceCost(item))
+                        : renderNumber(0)}
                     </span>
                     ${item.countable
                       ? html`<div class="build-count-chip">

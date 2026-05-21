@@ -98,6 +98,30 @@ describe("PlayerImpl", () => {
     expect(player.gold()).toBe(0n);
   });
 
+  test("removeResources can spend non-uniform resources without touching gold", () => {
+    const beforeGold = player.gold();
+    const removed = player.removeResources(
+      {
+        food: 100n,
+        energy: 200n,
+        materials: 300n,
+      },
+      { updateGold: false },
+    );
+
+    expect(removed).toEqual({
+      food: 100n,
+      energy: 200n,
+      materials: 300n,
+    });
+    expect(player.resources()).toEqual({
+      food: 999_900n,
+      energy: 999_800n,
+      materials: 999_700n,
+    });
+    expect(player.gold()).toBe(beforeGold);
+  });
+
   test("canAffordResources checks each resource", () => {
     expect(
       player.canAffordResources({
@@ -180,7 +204,7 @@ describe("PlayerImpl", () => {
     );
     expect(cityToUpgrade).toBe(false);
   });
-  test("Unit cannot be upgraded when not enough gold", () => {
+  test("Unit cannot be upgraded when not enough resources", () => {
     player.buildUnit(UnitType.City, game.ref(0, 0), {});
     player.removeGold(BigInt(1000000));
     const cityToUpgrade = player.findUnitToUpgrade(

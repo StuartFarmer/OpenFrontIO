@@ -12,7 +12,8 @@ import { TileRef } from "../../../core/game/GameMap";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { Emoji, findClosestBy, flattenedEmojiTable } from "../../../core/Util";
 import { UIState } from "../../UIState";
-import { renderNumber, translateText } from "../../Utils";
+import { translateText } from "../../Utils";
+import { renderResourceCostText } from "../ResourceDisplay";
 import { BuildItemDisplay, BuildMenu, flattenedBuildTable } from "./BuildMenu";
 import { ChatIntegration } from "./ChatIntegration";
 import { EmojiTable } from "./EmojiTable";
@@ -441,7 +442,7 @@ function createMenuElements(
             className: "description",
           },
           {
-            text: `${renderNumber(params.buildMenu.cost(item))} ${translateText("player_panel.gold")}`,
+            text: renderResourceCostText(params.buildMenu.resourceCost(item)),
             className: "cost",
           },
           item.countable

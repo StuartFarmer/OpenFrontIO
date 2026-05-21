@@ -1023,10 +1023,37 @@ export class PlayerImpl implements Player {
   }
 
   removeGold(toRemove: Gold): Gold {
-    return this.removeResources(resourcesFromGoldAmount(toRemove)).food;
+    if (toRemove <= 0n) {
+      return 0n;
+    }
+    const actualRemoved = minInt(this._gold, toRemove);
+    this._gold -= actualRemoved;
+    this._resources = addResourceDelta(this._resources, {
+      food: -minInt(this._resources.food, actualRemoved),
+      energy: -minInt(this._resources.energy, actualRemoved),
+      materials: -minInt(this._resources.materials, actualRemoved),
+    });
+    return actualRemoved;
   }
 
-  removeResources(toRemove: ResourceStockpile): ResourceStockpile {
+  removeResources(
+    toRemove: ResourceStockpile,
+    options: AddResourcesOptions = {},
+  ): ResourceStockpile {
+    if (options.updateGold === false) {
+      const actualRemoved = {
+        food: minInt(this._resources.food, toRemove.food),
+        energy: minInt(this._resources.energy, toRemove.energy),
+        materials: minInt(this._resources.materials, toRemove.materials),
+      };
+      this._resources = addResourceDelta(this._resources, {
+        food: -actualRemoved.food,
+        energy: -actualRemoved.energy,
+        materials: -actualRemoved.materials,
+      });
+      return actualRemoved;
+    }
+
     const compatibilityGold = this.compatibilityGoldAmount(toRemove);
     if (compatibilityGold <= 0n) {
       return resourcesFromGoldAmount(0n);
@@ -1111,7 +1138,7 @@ export class PlayerImpl implements Player {
       );
     }
 
-    const cost = this.mg.unitInfo(type).cost(this.mg, this);
+    const cost = this.mg.config().unitResourceCost(type, this.mg, this);
     const b = new UnitImpl(
       type,
       this.mg,
@@ -1122,7 +1149,7 @@ export class PlayerImpl implements Player {
     );
     this._units.push(b);
     this.recordUnitConstructed(type);
-    this.removeGold(cost);
+    this.removeResources(cost, { updateGold: false });
     this.removeTroops("troops" in params ? (params.troops ?? 0) : 0);
     this.mg.addUpdate(b.toUpdate());
     this.mg.addUnit(b);
@@ -1158,13 +1185,14 @@ export class PlayerImpl implements Player {
 
   private canBuildUnitType(
     unitType: UnitType,
-    knownCost: Gold | null = null,
+    knownCost: ResourceStockpile | null = null,
   ): boolean {
     if (this.mg.config().isUnitDisabled(unitType)) {
       return false;
     }
-    const cost = knownCost ?? this.mg.unitInfo(unitType).cost(this.mg, this);
-    if (this._gold < cost) {
+    const cost =
+      knownCost ?? this.mg.config().unitResourceCost(unitType, this.mg, this);
+    if (!this.canAffordResources(cost)) {
       return false;
     }
     if (unitType !== UnitType.MIRVWarhead && !this.isAlive()) {
@@ -1204,8 +1232,8 @@ export class PlayerImpl implements Player {
   }
 
   upgradeUnit(unit: Unit) {
-    const cost = this.mg.unitInfo(unit.type()).cost(this.mg, this);
-    this.removeGold(cost);
+    const cost = this.mg.config().unitResourceCost(unit.type(), this.mg, this);
+    this.removeResources(cost, { updateGold: false });
     unit.increaseLevel();
     this.recordUnitConstructed(unit.type());
   }
@@ -1230,7 +1258,7 @@ export class PlayerImpl implements Player {
     for (let i = 0; i < len; i++) {
       const u = units[i];
 
-      const cost = config.unitInfo(u).cost(mg, this);
+      const cost = config.unitResourceCost(u, mg, this);
       let canUpgrade: number | false = false;
       let canBuild: TileRef | false = false;
 
@@ -1253,7 +1281,8 @@ export class PlayerImpl implements Player {
         type: u,
         canBuild,
         canUpgrade,
-        cost,
+        cost: config.unitInfo(u).cost(mg, this),
+        resourceCost: cost,
         overlappingRailroads: buildNew
           ? rail.overlappingRailroads(canBuild as TileRef)
           : [],

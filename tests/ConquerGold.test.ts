@@ -61,13 +61,18 @@ describe("Conquest gold transfer", () => {
 
   test("conqueror receives 100% of gold when conquering a Bot", () => {
     const bot = addPlayerWithGold(game, "bot", PlayerType.Bot, 1000n);
+    bot.addResources({ food: 10n, energy: 20n, materials: 30n }, undefined, {
+      updateGold: false,
+    });
     const goldBefore = conqueror.gold();
+    const resourcesBefore = conqueror.resources();
+    const botResources = bot.resources();
     game.conquerPlayer(conqueror, bot);
     expect(conqueror.gold()).toBe(goldBefore + 1000n);
     expect(conqueror.resources()).toEqual({
-      food: goldBefore + 1000n,
-      energy: goldBefore + 1000n,
-      materials: goldBefore + 1000n,
+      food: resourcesBefore.food + 1000n + botResources.food,
+      energy: resourcesBefore.energy + 1000n + botResources.energy,
+      materials: resourcesBefore.materials + 1000n + botResources.materials,
     });
     expect(bot.gold()).toBe(0n);
     expect(bot.resources()).toEqual({
@@ -80,12 +85,14 @@ describe("Conquest gold transfer", () => {
   test("conqueror receives 100% of gold when conquering a Nation", () => {
     const nation = addPlayerWithGold(game, "nation", PlayerType.Nation, 800n);
     const goldBefore = conqueror.gold();
+    const resourcesBefore = conqueror.resources();
+    const nationResources = nation.resources();
     game.conquerPlayer(conqueror, nation);
     expect(conqueror.gold()).toBe(goldBefore + 800n);
     expect(conqueror.resources()).toEqual({
-      food: goldBefore + 800n,
-      energy: goldBefore + 800n,
-      materials: goldBefore + 800n,
+      food: resourcesBefore.food + 800n + nationResources.food,
+      energy: resourcesBefore.energy + 800n + nationResources.energy,
+      materials: resourcesBefore.materials + 800n + nationResources.materials,
     });
     expect(nation.gold()).toBe(0n);
     expect(nation.resources()).toEqual({
@@ -102,15 +109,22 @@ describe("Conquest gold transfer", () => {
     );
     const victim = game.player("victim");
     victim.addGold(1000n);
+    victim.addResources(
+      { food: 100n, energy: 200n, materials: 300n },
+      undefined,
+      { updateGold: false },
+    );
     // Record an attack so the gold transfer is not skipped
     game.stats().attack(victim, game.terraNullius(), 100);
     const goldBefore = conqueror.gold();
+    const resourcesBefore = conqueror.resources();
+    const victimResources = victim.resources();
     game.conquerPlayer(conqueror, victim);
     expect(conqueror.gold()).toBe(goldBefore + 500n);
     expect(conqueror.resources()).toEqual({
-      food: goldBefore + 500n,
-      energy: goldBefore + 500n,
-      materials: goldBefore + 500n,
+      food: resourcesBefore.food + 500n + victimResources.food,
+      energy: resourcesBefore.energy + 500n + victimResources.energy,
+      materials: resourcesBefore.materials + 500n + victimResources.materials,
     });
     expect(victim.gold()).toBe(0n);
     expect(victim.resources()).toEqual({

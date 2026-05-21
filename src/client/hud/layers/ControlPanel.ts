@@ -286,21 +286,21 @@ export class ControlPanel extends LitElement implements Controller {
     return html`
       <div class="grid grid-cols-3 gap-1">
         ${this.renderResourcePill(
-          "Food",
+          "Biomass",
           this._resources.food,
           this._resourceCapacity.food,
           "border-green-400/80",
           "text-green-300",
         )}
         ${this.renderResourcePill(
-          "Energy",
+          "Fuels",
           this._resources.energy,
           this._resourceCapacity.energy,
           "border-cyan-400/80",
           "text-cyan-300",
         )}
         ${this.renderResourcePill(
-          "Materials",
+          "Metals",
           this._resources.materials,
           this._resourceCapacity.materials,
           "border-stone-300/80",

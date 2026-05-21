@@ -731,7 +731,10 @@ export interface Player {
     tile?: TileRef,
     options?: AddResourcesOptions,
   ): void;
-  removeResources(toRemove: ResourceStockpile): ResourceStockpile;
+  removeResources(
+    toRemove: ResourceStockpile,
+    options?: AddResourcesOptions,
+  ): ResourceStockpile;
   canAffordResources(cost: ResourceStockpile): boolean;
   troops(): number;
   setTroops(troops: number): void;
@@ -992,6 +995,7 @@ export interface BuildableUnit {
   canUpgrade: number | false;
   type: PlayerBuildableUnitType;
   cost: Gold;
+  resourceCost: ResourceStockpile;
   overlappingRailroads: number[];
   ghostRailPaths: TileRef[][];
 }

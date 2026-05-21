@@ -6,6 +6,7 @@ import {
   UnitType,
 } from "../../../src/core/game/Game";
 import { GameUpdateType } from "../../../src/core/game/GameUpdates";
+import { resourceRegenDelta } from "../../../src/core/game/Resources";
 import { setup } from "../../util/Setup";
 
 describe("resource capacity config", () => {
@@ -78,6 +79,46 @@ describe("resource capacity config", () => {
       food: delta.food,
       energy: delta.food,
       materials: delta.food,
+    });
+  });
+
+  test("resourceIncreaseRate is slowed to one third of the base regen curve", () => {
+    player.conquer(game.ref(0, 0));
+    const capacity = game.config().maxResources(player);
+    const baseDelta = resourceRegenDelta(player.resources(), capacity);
+    const slowerDelta = game.config().resourceIncreaseRate(player);
+
+    expect(baseDelta.food).toBeGreaterThan(0n);
+    expect(slowerDelta).toEqual({
+      food: baseDelta.food / 3n,
+      energy: baseDelta.energy / 3n,
+      materials: baseDelta.materials / 3n,
+    });
+  });
+
+  test("City, Port, and Factory split their legacy gold price into resource costs", () => {
+    player.conquer(game.ref(0, 0));
+
+    expect(game.config().unitResourceCost(UnitType.City, game, player)).toEqual(
+      {
+        food: 62_500n,
+        energy: 31_250n,
+        materials: 31_250n,
+      },
+    );
+    expect(game.config().unitResourceCost(UnitType.Port, game, player)).toEqual(
+      {
+        food: 31_250n,
+        energy: 31_250n,
+        materials: 62_500n,
+      },
+    );
+    expect(
+      game.config().unitResourceCost(UnitType.Factory, game, player),
+    ).toEqual({
+      food: 31_250n,
+      energy: 62_500n,
+      materials: 31_250n,
     });
   });
 

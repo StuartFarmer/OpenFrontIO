@@ -5,20 +5,23 @@ import { EventBus } from "../../../core/EventBus";
 import {
   BuildableUnit,
   BuildMenus,
-  Gold,
   PlayerBuildableUnitType,
   UnitType,
 } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
+import {
+  createZeroResources,
+  ResourceStockpile,
+} from "../../../core/game/Resources";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { Controller } from "../../Controller";
 import { ToggleStructureEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { renderNumber, translateText } from "../../Utils";
+import { renderResourceCostText } from "../ResourceDisplay";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
-const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
@@ -58,13 +61,25 @@ export class UnitDisplay extends LitElement implements Controller {
     this.requestUpdate();
   }
 
-  private cost(item: UnitType): Gold {
+  private resourceCost(item: UnitType): ResourceStockpile {
     for (const bu of this.playerBuildables ?? []) {
       if (bu.type === item) {
-        return bu.cost;
+        return bu.resourceCost;
       }
     }
-    return 0n;
+    return createZeroResources();
+  }
+
+  private canAfford(item: UnitType): boolean {
+    const player = this.game?.myPlayer();
+    if (!player) return false;
+    const resources = player.resources();
+    const cost = this.resourceCost(item);
+    return (
+      resources.food >= cost.food &&
+      resources.energy >= cost.energy &&
+      resources.materials >= cost.materials
+    );
   }
 
   private canBuild(item: UnitType): boolean {
@@ -75,16 +90,15 @@ export class UnitDisplay extends LitElement implements Controller {
       case UnitType.HydrogenBomb:
       case UnitType.MIRV:
         return (
-          this.cost(item) <= (player?.gold() ?? 0n) &&
+          this.canAfford(item) &&
           (player?.units(UnitType.MissileSilo).length ?? 0) > 0
         );
       case UnitType.Warship:
         return (
-          this.cost(item) <= (player?.gold() ?? 0n) &&
-          (player?.units(UnitType.Port).length ?? 0) > 0
+          this.canAfford(item) && (player?.units(UnitType.Port).length ?? 0) > 0
         );
       default:
-        return this.cost(item) <= (player?.gold() ?? 0n);
+        return this.canAfford(item);
     }
   }
 
@@ -248,9 +262,10 @@ export class UnitDisplay extends LitElement implements Controller {
                     </div>`
                   : null}
                 <div class="flex items-center justify-center gap-1">
-                  <img src=${goldCoinIcon} width="13" height="13" />
                   <span class="text-yellow-300"
-                    >${renderNumber(this.cost(unitType))}</span
+                    >${renderResourceCostText(
+                      this.resourceCost(unitType),
+                    )}</span
                   >
                 </div>
               </div>

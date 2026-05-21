@@ -43,7 +43,6 @@ import { GameUpdate, GameUpdateType } from "./GameUpdates";
 import { UnitView } from "./GameView";
 import { MotionPlanRecord, packMotionPlans } from "./MotionPlans";
 import { PlayerImpl } from "./PlayerImpl";
-import { resourcesFromGoldAmount } from "./Resources";
 import { RailNetwork } from "./RailNetwork";
 import { createRailNetwork } from "./RailNetworkImpl";
 import { Stats } from "./Stats";
@@ -1233,6 +1232,7 @@ export class GameImpl implements Game {
     const goldCaptured = skipGoldTransfer
       ? 0n
       : this._config.conquerGoldAmount(conquered);
+    const resourcesCaptured = skipGoldTransfer ? null : conquered.resources();
 
     if (skipGoldTransfer) {
       this.displayMessage(
@@ -1255,8 +1255,16 @@ export class GameImpl implements Game {
           name: conquered.displayName(),
         },
       );
-      conqueror.addResources(resourcesFromGoldAmount(goldCaptured));
-      conquered.removeResources(resourcesFromGoldAmount(gold));
+      conqueror.addGold(goldCaptured);
+      if (resourcesCaptured !== null) {
+        conqueror.addResources(resourcesCaptured, undefined, {
+          updateGold: false,
+        });
+      }
+      conquered.removeGold(gold);
+      conquered.removeResources(conquered.resources(), {
+        updateGold: false,
+      });
 
       // Record stats
       this.stats().goldWar(conqueror, conquered, goldCaptured);

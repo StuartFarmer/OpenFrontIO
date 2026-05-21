@@ -113,6 +113,7 @@ describe("RadialMenuElements", () => {
     mockBuildMenu = {
       canBuildOrUpgrade: vi.fn(() => true),
       cost: vi.fn(() => 100),
+      resourceCost: vi.fn(() => ({ food: 50n, energy: 25n, materials: 25n })),
       count: vi.fn(() => 5),
       sendBuildOrUpgrade: vi.fn(),
     };
@@ -524,7 +525,9 @@ describe("RadialMenuElements", () => {
       const tooltipTexts = cityElement!.tooltipItems!.map((item) => item.text);
       expect(tooltipTexts).toContain("unit_type.city");
       expect(tooltipTexts).toContain("unit_type.city_desc");
-      expect(tooltipTexts.some((text) => text.includes("100"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("B 50"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("F 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("M 25"))).toBe(true);
       expect(tooltipTexts.some((text) => text.includes("5x"))).toBe(true);
     });
 
@@ -548,7 +551,9 @@ describe("RadialMenuElements", () => {
       );
       expect(tooltipTexts).toContain("unit_type.atom_bomb");
       expect(tooltipTexts).toContain("unit_type.atom_bomb_desc");
-      expect(tooltipTexts.some((text) => text.includes("100"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("B 50"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("F 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("M 25"))).toBe(true);
     });
   });
 

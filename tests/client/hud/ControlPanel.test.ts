@@ -13,7 +13,7 @@ describe("ControlPanel resources", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders Food, Energy, and Materials from the local player resources", async () => {
+  it("renders Biomass, Fuels, and Metals from the local player resources", async () => {
     const game = makeGameView({ myClientID: "client-a" });
     const update = makeEmptyGu(1);
     const player = makePlayerUpdate({
@@ -35,9 +35,9 @@ describe("ControlPanel resources", () => {
     panel.tick();
     await panel.updateComplete;
 
-    expect(panel.textContent).toContain("Food");
-    expect(panel.textContent).toContain("Energy");
-    expect(panel.textContent).toContain("Materials");
+    expect(panel.textContent).toContain("Biomass");
+    expect(panel.textContent).toContain("Fuels");
+    expect(panel.textContent).toContain("Metals");
     expect(panel.textContent).toContain("100/1.00K");
     expect(panel.textContent).toContain("200/2.00K");
     expect(panel.textContent).toContain("300/3.00K");
