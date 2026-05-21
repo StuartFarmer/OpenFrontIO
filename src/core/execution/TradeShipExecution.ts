@@ -8,6 +8,7 @@ import {
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
+import { resourcesFromGoldAmount } from "../game/Resources";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
 import { findClosestBy } from "../Util";
@@ -171,9 +172,10 @@ export class TradeShipExecution implements Execution {
     const gold = this.mg
       .config()
       .tradeShipGold(this.tilesTraveled, this.tradeShip!.owner());
+    const resources = resourcesFromGoldAmount(gold);
 
     if (this.wasCaptured) {
-      this.tradeShip!.owner().addGold(gold, this._dstPort.tile());
+      this.tradeShip!.owner().addResources(resources, this._dstPort.tile());
       this.mg.displayMessage(
         "events_display.received_gold_from_captured_ship",
         MessageType.CAPTURED_ENEMY_UNIT,
@@ -189,8 +191,10 @@ export class TradeShipExecution implements Execution {
         .stats()
         .boatCapturedTrade(this.tradeShip!.owner(), this.origOwner, gold);
     } else {
-      this.srcPort.owner().addGold(gold);
-      this._dstPort.owner().addGold(gold, this._dstPort.tile());
+      this.srcPort.owner().addResources(resources);
+      this._dstPort
+        .owner()
+        .addResources(resourcesFromGoldAmount(gold), this._dstPort.tile());
       this.mg.displayMessage(
         "events_display.received_gold_from_trade",
         MessageType.RECEIVED_GOLD_FROM_TRADE,

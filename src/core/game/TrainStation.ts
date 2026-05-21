@@ -4,6 +4,7 @@ import { Game, Player, Unit, UnitType } from "./Game";
 import { TileRef } from "./GameMap";
 import { GameUpdateType } from "./GameUpdates";
 import { Railroad } from "./Railroad";
+import { resourcesFromGoldAmount } from "./Resources";
 
 /**
  * Handle train stops at various station types
@@ -26,13 +27,13 @@ class TradeStationStopHandler implements TrainStopHandler {
         rel(trainOwner, stationOwner),
         trainExecution.tradeStopsVisited(),
         trainOwner,
-      );
+    );
     // Share revenue with the station owner if it's not the current player
     if (trainOwner !== stationOwner) {
-      stationOwner.addGold(gold, station.tile());
+      stationOwner.addResources(resourcesFromGoldAmount(gold), station.tile());
       mg.stats().trainExternalTrade(stationOwner, gold);
     }
-    trainOwner.addGold(gold, station.tile());
+    trainOwner.addResources(resourcesFromGoldAmount(gold), station.tile());
     mg.stats().trainSelfTrade(trainOwner, gold);
   }
 }

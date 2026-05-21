@@ -15,6 +15,7 @@ function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
     isDisconnected: false,
     tilesOwned: 0,
     gold: 0,
+    resources: { food: 0, energy: 0, materials: 0 },
     troops: 100,
     isTraitor: false,
     traitorRemainingTicks: 0,
@@ -59,6 +60,21 @@ describe("diffPlayerUpdate", () => {
     expect(diff.gold).toBe(200n);
     expect(diff.troops).toBe(75);
     expect(diff.tilesOwned).toBeUndefined();
+  });
+
+  it("detects resource stockpile changes without JSON bigint comparison", () => {
+    const prev = makePlayerUpdate({
+      resources: { food: 100n, energy: 100n, materials: 100n },
+    });
+    const next = makePlayerUpdate({
+      resources: { food: 100n, energy: 125n, materials: 100n },
+    });
+    const diff = diffPlayerUpdate(prev, next);
+    expect(diff).toEqual({
+      type: GameUpdateType.Player,
+      id: "player-a",
+      resources: { food: 100n, energy: 125n, materials: 100n },
+    });
   });
 
   it("detects allies array additions", () => {
@@ -156,6 +172,7 @@ describe("applyStateUpdate", () => {
     const target = makePlayerState();
     const pu = makePlayerUpdate({
       gold: 500n,
+      resources: { food: 500n, energy: 500n, materials: 500n },
       troops: 999,
       tilesOwned: 42,
       allies: [7, 8],
@@ -170,6 +187,11 @@ describe("applyStateUpdate", () => {
     });
     applyStateUpdate(target, pu);
     expect(target.gold).toBe(500);
+    expect(target.resources).toEqual({
+      food: 500,
+      energy: 500,
+      materials: 500,
+    });
     expect(target.troops).toBe(999);
     expect(target.tilesOwned).toBe(42);
     expect(target.allies).toEqual([7, 8]);
@@ -193,6 +215,25 @@ describe("applyStateUpdate", () => {
     expect(typeof target.gold).toBe("number");
   });
 
+  it("converts bigint resources to renderer number state", () => {
+    const target = makePlayerState();
+    applyStateUpdate(target, {
+      type: GameUpdateType.Player,
+      id: "p",
+      resources: {
+        food: 9_999_999_999n,
+        energy: 123n,
+        materials: 456n,
+      },
+    });
+    expect(target.resources).toEqual({
+      food: 9_999_999_999,
+      energy: 123,
+      materials: 456,
+    });
+    expect(typeof target.resources.food).toBe("number");
+  });
+
   it("clamps negative traitorRemainingTicks to zero", () => {
     const target = makePlayerState({ traitorRemainingTicks: 5 });
     applyStateUpdate(target, {
@@ -204,7 +245,13 @@ describe("applyStateUpdate", () => {
   });
 
   it("only mutates fields present on the partial update", () => {
-    const target = makePlayerState({ gold: 100, troops: 50, tilesOwned: 7 });
+    const originalResources = { food: 1, energy: 2, materials: 3 };
+    const target = makePlayerState({
+      gold: 100,
+      resources: originalResources,
+      troops: 50,
+      tilesOwned: 7,
+    });
     const partial: PlayerUpdate = {
       type: GameUpdateType.Player,
       id: "p",
@@ -212,6 +259,7 @@ describe("applyStateUpdate", () => {
     };
     applyStateUpdate(target, partial);
     expect(target.gold).toBe(200);
+    expect(target.resources).toBe(originalResources);
     expect(target.troops).toBe(50);
     expect(target.tilesOwned).toBe(7);
   });
@@ -278,12 +326,14 @@ describe("diff + apply round-trip", () => {
   it("emitting full first + diff second reconstructs final state", () => {
     const v0 = makePlayerUpdate({
       gold: 0n,
+      resources: { food: 0n, energy: 0n, materials: 0n },
       troops: 100,
       tilesOwned: 0,
       allies: [],
     });
     const v1 = makePlayerUpdate({
       gold: 200n,
+      resources: { food: 200n, energy: 200n, materials: 200n },
       troops: 150,
       tilesOwned: 5,
       allies: [2],
@@ -299,6 +349,11 @@ describe("diff + apply round-trip", () => {
     applyStateUpdate(target, diff);
 
     expect(target.gold).toBe(200);
+    expect(target.resources).toEqual({
+      food: 200,
+      energy: 200,
+      materials: 200,
+    });
     expect(target.troops).toBe(150);
     expect(target.tilesOwned).toBe(5);
     expect(target.allies).toEqual([2]);

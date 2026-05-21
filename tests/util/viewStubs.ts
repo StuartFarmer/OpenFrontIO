@@ -28,6 +28,32 @@ import { TerrainMapData } from "../../src/core/game/TerrainMapLoader";
 import { Player, PlayerCosmetics } from "../../src/core/Schemas";
 import { WorkerClient } from "../../src/core/worker/WorkerClient";
 
+function ensureLocalStorage(): void {
+  if (
+    typeof globalThis.localStorage !== "undefined" &&
+    typeof globalThis.localStorage.getItem === "function"
+  ) {
+    return;
+  }
+
+  const store: Record<string, string> = {};
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => {
+        store[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+      clear: () => {
+        for (const key of Object.keys(store)) delete store[key];
+      },
+    },
+  });
+}
+
 /** Theme stub — returns deterministic colors so PlayerView's color math works. */
 export function stubTheme(): Theme {
   const white = colord("#ffffff");
@@ -67,6 +93,8 @@ export function stubConfig(overrides: Partial<Config> = {}): Config {
     spawnImmunityDuration: () => 0,
     nationSpawnImmunityDuration: () => 0,
     unitInfo: () => ({ maxHealth: 100, constructionDuration: 20 }),
+    maxTroops: () => 1_000,
+    troopIncreaseRate: () => 10,
     disableAlliances: () => false,
     allianceDuration: () => 100,
     deletionMarkDuration: () => 300,
@@ -107,6 +135,7 @@ export interface GameViewStubOptions {
 
 /** Construct a GameView with minimal dependencies. */
 export function makeGameView(opts: GameViewStubOptions = {}): GameView {
+  ensureLocalStorage();
   return new GameView(
     stubWorker(),
     opts.config ?? stubConfig(),
@@ -136,6 +165,7 @@ export function makePlayerUpdate(
     isDisconnected: false,
     tilesOwned: 0,
     gold: 0n,
+    resources: { food: 0n, energy: 0n, materials: 0n },
     troops: 100,
     allies: [],
     embargoes: new Set(),
@@ -191,6 +221,7 @@ export interface PlayerViewStubOptions {
 
 /** Construct a PlayerView with minimal dependencies. */
 export function makePlayerView(opts: PlayerViewStubOptions = {}): PlayerView {
+  ensureLocalStorage();
   return new PlayerView(
     opts.game ?? makeGameView(),
     makePlayerUpdate(opts.data),

@@ -50,12 +50,19 @@ export interface EmojiData {
   createdAt: number;
 }
 
+export interface ResourceState {
+  food: number;
+  energy: number;
+  materials: number;
+}
+
 export interface PlayerState {
   smallID: number;
   isAlive: boolean;
   isDisconnected: boolean;
   tilesOwned: number;
   gold: number;
+  resources: ResourceState;
   troops: number;
   isTraitor: boolean;
   traitorRemainingTicks: number;

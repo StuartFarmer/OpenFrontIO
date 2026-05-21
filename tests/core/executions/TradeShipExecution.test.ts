@@ -28,6 +28,7 @@ describe("TradeShipExecution", () => {
       buildUnit: vi.fn((type, spawn, opts) => tradeShip),
       displayName: vi.fn(() => "Origin"),
       addGold: vi.fn(),
+      addResources: vi.fn(),
       units: vi.fn(() => [dstPort]),
       unitCount: vi.fn(() => 1),
       id: vi.fn(() => 1),
@@ -38,6 +39,7 @@ describe("TradeShipExecution", () => {
     dstOwner = {
       id: vi.fn(() => 2),
       addGold: vi.fn(),
+      addResources: vi.fn(),
       displayName: vi.fn(() => "Destination"),
       units: vi.fn(() => [dstPort]),
       unitCount: vi.fn(() => 1),
@@ -48,6 +50,7 @@ describe("TradeShipExecution", () => {
     pirate = {
       id: vi.fn(() => 3),
       addGold: vi.fn(),
+      addResources: vi.fn(),
       displayName: vi.fn(() => "Destination"),
       units: vi.fn(() => [piratePort, piratePort2]),
       unitCount: vi.fn(() => 2),
@@ -143,6 +146,20 @@ describe("TradeShipExecution", () => {
     tradeShipExecution.tick(1);
     expect(tradeShip.delete).toHaveBeenCalledWith(false);
     expect(tradeShipExecution.isActive()).toBe(false);
+    const gold = game.config().tradeShipGold(0, origOwner);
+    expect(origOwner.addResources).toHaveBeenCalledWith({
+      food: gold,
+      energy: gold,
+      materials: gold,
+    });
+    expect(dstOwner.addResources).toHaveBeenCalledWith(
+      {
+        food: gold,
+        energy: gold,
+        materials: gold,
+      },
+      dstPort.tile(),
+    );
     expect(game.displayMessage).toHaveBeenCalled();
   });
 });

@@ -4,6 +4,10 @@ import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import { Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
+import {
+  createZeroResources,
+  ResourceStockpile,
+} from "../../../core/game/Resources";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { ClientID } from "../../../core/Schemas";
 import { Controller } from "../../Controller";
@@ -38,6 +42,9 @@ export class ControlPanel extends LitElement implements Controller {
 
   @state()
   private _gold: Gold;
+
+  @state()
+  private _resources: ResourceStockpile = createZeroResources();
 
   @state()
   private _attackingTroops: number = 0;
@@ -89,6 +96,7 @@ export class ControlPanel extends LitElement implements Controller {
 
     this._maxTroops = this.game.config().maxTroops(player);
     this._gold = player.gold();
+    this._resources = player.resources();
     this._troops = player.troops();
     this._attackingTroops = player
       .outgoingAttacks()
@@ -250,6 +258,48 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
+  private renderResourcePill(
+    label: string,
+    value: Gold,
+    borderClass: string,
+    textClass: string,
+  ) {
+    return html`
+      <div
+        class="flex min-w-0 items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold ${borderClass} ${textClass}"
+        translate="no"
+      >
+        <span class="shrink-0">${label}</span>
+        <span class="min-w-0 truncate tabular-nums">${renderNumber(value)}</span>
+      </div>
+    `;
+  }
+
+  private renderResourceStrip() {
+    return html`
+      <div class="grid grid-cols-3 gap-1">
+        ${this.renderResourcePill(
+          "Food",
+          this._resources.food,
+          "border-green-400/80",
+          "text-green-300",
+        )}
+        ${this.renderResourcePill(
+          "Energy",
+          this._resources.energy,
+          "border-cyan-400/80",
+          "text-cyan-300",
+        )}
+        ${this.renderResourcePill(
+          "Materials",
+          this._resources.materials,
+          "border-stone-300/80",
+          "text-stone-200",
+        )}
+      </div>
+    `;
+  }
+
   private renderDesktop() {
     return html`
       <!-- Row 1: troop rate | troop bar | gold -->
@@ -291,7 +341,9 @@ export class ControlPanel extends LitElement implements Controller {
           <span class="tabular-nums">${renderNumber(this._gold)}</span>
         </div>
       </div>
-      <!-- Row 2: attack ratio | slider -->
+      <!-- Row 2: resources -->
+      <div class="mb-1">${this.renderResourceStrip()}</div>
+      <!-- Row 3: attack ratio | slider -->
       <div class="flex items-center gap-1.5" translate="no">
         <div
           class="flex items-center gap-1 shrink-0 border border-gray-600 rounded-md px-1 py-0.5 text-sm font-bold text-white cursor-pointer w-[8rem]"
@@ -326,48 +378,51 @@ export class ControlPanel extends LitElement implements Controller {
 
   private renderMobile() {
     return html`
-      <div class="flex gap-2 items-center">
-        <!-- Gold -->
-        <div
-          class="flex items-center justify-center p-1 gap-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-xs w-1/5 shrink-0"
-          translate="no"
-        >
-          <img src=${goldCoinIcon} width="13" height="13" />
-          <span class="px-0.5">${renderNumber(this._gold)}</span>
-        </div>
-        <!-- Troop bar -->
-        <div class="w-[40%] shrink-0 flex items-center">
-          ${this.renderMobileTroopBar()}
-        </div>
-        <!-- Sword + % label -->
-        <div
-          class="flex flex-col items-center shrink-0 gap-0.5 w-8"
-          translate="no"
-        >
-          <img
-            src=${swordIcon}
-            alt=""
-            aria-hidden="true"
-            width="10"
-            height="10"
-            style="filter: brightness(0) invert(1);"
-          />
-          <span class="text-white text-xs font-bold tabular-nums"
-            >${(this.attackRatio * 100).toFixed(0)}%</span
+      <div>
+        <div class="flex gap-2 items-center">
+          <!-- Gold -->
+          <div
+            class="flex items-center justify-center p-1 gap-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-xs w-1/5 shrink-0"
+            translate="no"
           >
+            <img src=${goldCoinIcon} width="13" height="13" />
+            <span class="px-0.5">${renderNumber(this._gold)}</span>
+          </div>
+          <!-- Troop bar -->
+          <div class="w-[40%] shrink-0 flex items-center">
+            ${this.renderMobileTroopBar()}
+          </div>
+          <!-- Sword + % label -->
+          <div
+            class="flex flex-col items-center shrink-0 gap-0.5 w-8"
+            translate="no"
+          >
+            <img
+              src=${swordIcon}
+              alt=""
+              aria-hidden="true"
+              width="10"
+              height="10"
+              style="filter: brightness(0) invert(1);"
+            />
+            <span class="text-white text-xs font-bold tabular-nums"
+              >${(this.attackRatio * 100).toFixed(0)}%</span
+            >
+          </div>
+          <!-- Attack ratio slider -->
+          <div class="flex-1" translate="no">
+            <input
+              type="range"
+              min="1"
+              max="100"
+              .value=${String(Math.round(this.attackRatio * 100))}
+              @input=${(e: Event) => this.handleRatioSliderInput(e)}
+              @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
+              class="w-full h-1.5 accent-aquarius cursor-pointer"
+            />
+          </div>
         </div>
-        <!-- Attack ratio slider -->
-        <div class="flex-1" translate="no">
-          <input
-            type="range"
-            min="1"
-            max="100"
-            .value=${String(Math.round(this.attackRatio * 100))}
-            @input=${(e: Event) => this.handleRatioSliderInput(e)}
-            @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
-            class="w-full h-1.5 accent-aquarius cursor-pointer"
-          />
-        </div>
+        <div class="mt-1">${this.renderResourceStrip()}</div>
       </div>
     `;
   }

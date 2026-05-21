@@ -31,6 +31,19 @@ describe("PlayerExecution", () => {
     game.addExecution(new PlayerExecution(otherPlayer));
   });
 
+  test("passive income adds an equal resource payload without accumulating gold", () => {
+    player.conquer(game.ref(50, 50));
+
+    executeTicks(game, 2);
+
+    expect(player.resources()).toEqual({
+      food: 100n,
+      energy: 100n,
+      materials: 100n,
+    });
+    expect(player.gold()).toBe(0n);
+  });
+
   test("DefensePost lv. 1 is destroyed when tile owner changes", () => {
     const tile = game.ref(50, 50);
     player.conquer(tile);

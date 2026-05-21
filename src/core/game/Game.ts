@@ -12,6 +12,7 @@ import {
 } from "./GameUpdates";
 import { MotionPlanRecord } from "./MotionPlans";
 import { RailNetwork } from "./RailNetwork";
+import { AddResourcesOptions, ResourceStockpile } from "./Resources";
 import { Stats } from "./Stats";
 import { UnitPredicate } from "./UnitGrid";
 
@@ -722,8 +723,16 @@ export interface Player {
 
   // Resources & Troops
   gold(): Gold;
+  resources(): ResourceStockpile;
   addGold(toAdd: Gold, tile?: TileRef): void;
   removeGold(toRemove: Gold): Gold;
+  addResources(
+    toAdd: ResourceStockpile,
+    tile?: TileRef,
+    options?: AddResourcesOptions,
+  ): void;
+  removeResources(toRemove: ResourceStockpile): ResourceStockpile;
+  canAffordResources(cost: ResourceStockpile): boolean;
   troops(): number;
   setTroops(troops: number): void;
   addTroops(troops: number): void;

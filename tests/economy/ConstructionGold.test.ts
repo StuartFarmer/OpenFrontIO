@@ -42,6 +42,11 @@ describe("Construction economy", () => {
     const cost = game.unitInfo(UnitType.City).cost(game, player);
     player.addGold(cost);
     expect(player.gold()).toBe(cost);
+    expect(player.resources()).toEqual({
+      food: cost,
+      energy: cost,
+      materials: cost,
+    });
 
     const startTick = game.ticks();
     game.addExecution(new ConstructionExecution(player, UnitType.City, target));
@@ -50,6 +55,11 @@ describe("Construction economy", () => {
     game.executeNextTick();
     game.executeNextTick();
     const afterBuild = player.gold();
+    expect(player.resources()).toEqual({
+      food: afterBuild,
+      energy: afterBuild,
+      materials: afterBuild,
+    });
     const ticksAfterBuild = BigInt(game.ticks() - startTick);
     const passivePerTick = 100n; // DefaultConfig goldAdditionRate for humans
     expect(afterBuild < cost).toBe(true); // cost was deducted

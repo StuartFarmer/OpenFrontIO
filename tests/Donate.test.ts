@@ -115,6 +115,8 @@ describe("Donate gold to an ally", () => {
     donor.addGold(6000n);
     const donorGoldBefore = donor.gold();
     const recipientGoldBefore = recipient.gold();
+    const donorResourcesBefore = donor.resources();
+    const recipientResourcesBefore = recipient.resources();
     game.addExecution(new DonateGoldExecution(donor, recipientInfo.id, 5000));
 
     for (let i = 0; i < 5; i++) {
@@ -123,6 +125,20 @@ describe("Donate gold to an ally", () => {
 
     expect(donor.gold() < donorGoldBefore).toBe(true);
     expect(recipient.gold() > recipientGoldBefore).toBe(true);
+    expect(donor.resources().food).toBeLessThan(donorResourcesBefore.food);
+    expect(donor.resources().energy).toBeLessThan(donorResourcesBefore.energy);
+    expect(donor.resources().materials).toBeLessThan(
+      donorResourcesBefore.materials,
+    );
+    expect(recipient.resources().food).toBeGreaterThan(
+      recipientResourcesBefore.food,
+    );
+    expect(recipient.resources().energy).toBeGreaterThan(
+      recipientResourcesBefore.energy,
+    );
+    expect(recipient.resources().materials).toBeGreaterThan(
+      recipientResourcesBefore.materials,
+    );
   });
 });
 

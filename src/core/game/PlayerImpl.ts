@@ -51,6 +51,13 @@ import {
   PlayerUpdate,
 } from "./GameUpdates";
 import {
+  addResourceDelta,
+  AddResourcesOptions,
+  cloneResources,
+  resourcesFromGoldAmount,
+  ResourceStockpile,
+} from "./Resources";
+import {
   bestShoreDeploymentSource,
   canBuildTransportShip,
 } from "./TransportShipUtils";
@@ -73,6 +80,7 @@ export class PlayerImpl implements Player {
   public _pseudo_random: PseudoRandom;
 
   private _gold: bigint;
+  private _resources: ResourceStockpile;
   private _troops: bigint;
 
   markedTraitorTick = -1;
@@ -121,7 +129,9 @@ export class PlayerImpl implements Player {
     private readonly _team: Team | null,
   ) {
     this._troops = toInt(startTroops);
-    this._gold = mg.config().startingGold(playerInfo);
+    const startingGold = mg.config().startingGold(playerInfo);
+    this._gold = startingGold;
+    this._resources = resourcesFromGoldAmount(startingGold);
     this._pseudo_random = new PseudoRandom(simpleHash(this.playerInfo.id));
   }
 
@@ -162,6 +172,7 @@ export class PlayerImpl implements Player {
       isDisconnected: this.isDisconnected(),
       tilesOwned: this.numTilesOwned(),
       gold: this._gold,
+      resources: this.resources(),
       troops: this.troops(),
       allies: this.alliances().map((a) => a.other(this).smallID()),
       embargoes: new Set([...this.embargoes.keys()].map((p) => p.toString())),
@@ -841,9 +852,9 @@ export class PlayerImpl implements Player {
 
   donateGold(recipient: Player, gold: Gold): boolean {
     if (gold <= 0n) return false;
-    const removed = this.removeGold(gold);
+    const removed = this.removeResources(resourcesFromGoldAmount(gold)).food;
     if (removed === 0n) return false;
-    recipient.addGold(removed);
+    recipient.addResources(resourcesFromGoldAmount(removed));
 
     this.sentDonations.push(new Donation(recipient, this.mg.ticks()));
     this.mg.displayMessage(
@@ -979,26 +990,86 @@ export class PlayerImpl implements Player {
     return this._gold;
   }
 
+  resources(): ResourceStockpile {
+    return cloneResources(this._resources);
+  }
+
   addGold(toAdd: Gold, tile?: TileRef): void {
     this._gold += toAdd;
+    this.addResources(resourcesFromGoldAmount(toAdd), tile, {
+      updateGold: false,
+    });
+  }
+
+  addResources(
+    toAdd: ResourceStockpile,
+    tile?: TileRef,
+    options: AddResourcesOptions = {},
+  ): void {
+    this._resources = addResourceDelta(this._resources, toAdd);
+    if (options.updateGold !== false) {
+      this._gold += this.compatibilityGoldAmount(toAdd);
+    }
     if (tile) {
       this.mg.addUpdate({
         type: GameUpdateType.BonusEvent,
         player: this.id(),
         tile,
-        gold: Number(toAdd),
+        gold: Number(this.legacyResourceEventGold(toAdd)),
         troops: 0,
       });
     }
   }
 
   removeGold(toRemove: Gold): Gold {
-    if (toRemove <= 0n) {
-      return 0n;
+    return this.removeResources(resourcesFromGoldAmount(toRemove)).food;
+  }
+
+  removeResources(toRemove: ResourceStockpile): ResourceStockpile {
+    const compatibilityGold = this.compatibilityGoldAmount(toRemove);
+    if (compatibilityGold <= 0n) {
+      return resourcesFromGoldAmount(0n);
     }
-    const actualRemoved = minInt(this._gold, toRemove);
+    let actualRemoved = minInt(this._gold, compatibilityGold);
+    actualRemoved = minInt(actualRemoved, this._resources.food);
+    actualRemoved = minInt(actualRemoved, this._resources.energy);
+    actualRemoved = minInt(actualRemoved, this._resources.materials);
+    this._resources = addResourceDelta(
+      this._resources,
+      resourcesFromGoldAmount(-actualRemoved),
+    );
     this._gold -= actualRemoved;
-    return actualRemoved;
+    return resourcesFromGoldAmount(actualRemoved);
+  }
+
+  canAffordResources(cost: ResourceStockpile): boolean {
+    return (
+      this._resources.food >= cost.food &&
+      this._resources.energy >= cost.energy &&
+      this._resources.materials >= cost.materials
+    );
+  }
+
+  private legacyResourceEventGold(resources: ResourceStockpile): Gold {
+    if (
+      resources.food === resources.energy &&
+      resources.food === resources.materials
+    ) {
+      return resources.food;
+    }
+    return 0n;
+  }
+
+  private compatibilityGoldAmount(resources: ResourceStockpile): Gold {
+    if (
+      resources.food !== resources.energy ||
+      resources.food !== resources.materials
+    ) {
+      throw new Error(
+        `Non-uniform resource payloads are not supported while gold compatibility is active: food=${resources.food}, energy=${resources.energy}, materials=${resources.materials}`,
+      );
+    }
+    return resources.food;
   }
 
   troops(): number {

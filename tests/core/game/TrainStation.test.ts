@@ -49,6 +49,7 @@ describe("TrainStation", () => {
 
     player = {
       addGold: vi.fn(),
+      addResources: vi.fn(),
       id: 1,
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
@@ -78,7 +79,14 @@ describe("TrainStation", () => {
 
     station.onTrainStop(trainExecution);
 
-    expect(unit.owner().addGold).toHaveBeenCalledWith(1000n, unit.tile());
+    expect(unit.owner().addResources).toHaveBeenCalledWith(
+      {
+        food: 1000n,
+        energy: 1000n,
+        materials: 1000n,
+      },
+      unit.tile(),
+    );
   });
 
   it("handles allied trade", () => {
@@ -88,9 +96,20 @@ describe("TrainStation", () => {
 
     station.onTrainStop(trainExecution);
 
-    expect(unit.owner().addGold).toHaveBeenCalledWith(1000n, unit.tile());
-    expect(trainExecution.owner().addGold).toHaveBeenCalledWith(
-      1000n,
+    expect(unit.owner().addResources).toHaveBeenCalledWith(
+      {
+        food: 1000n,
+        energy: 1000n,
+        materials: 1000n,
+      },
+      unit.tile(),
+    );
+    expect(trainExecution.owner().addResources).toHaveBeenCalledWith(
+      {
+        food: 1000n,
+        energy: 1000n,
+        materials: 1000n,
+      },
       unit.tile(),
     );
   });
@@ -98,6 +117,7 @@ describe("TrainStation", () => {
   it("records external trade on the station owner", () => {
     const stationOwner = {
       addGold: vi.fn(),
+      addResources: vi.fn(),
       id: 1,
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
@@ -105,6 +125,7 @@ describe("TrainStation", () => {
     } as any;
     const trainOwner = {
       addGold: vi.fn(),
+      addResources: vi.fn(),
       id: 2,
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
@@ -118,8 +139,22 @@ describe("TrainStation", () => {
 
     station.onTrainStop(trainExecution);
 
-    expect(stationOwner.addGold).toHaveBeenCalledWith(500n, unit.tile());
-    expect(trainOwner.addGold).toHaveBeenCalledWith(500n, unit.tile());
+    expect(stationOwner.addResources).toHaveBeenCalledWith(
+      {
+        food: 500n,
+        energy: 500n,
+        materials: 500n,
+      },
+      unit.tile(),
+    );
+    expect(trainOwner.addResources).toHaveBeenCalledWith(
+      {
+        food: 500n,
+        energy: 500n,
+        materials: 500n,
+      },
+      unit.tile(),
+    );
     expect(gameStats.trainExternalTrade).toHaveBeenCalledWith(
       stationOwner,
       500n,

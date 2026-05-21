@@ -1,4 +1,5 @@
 import { AllPlayersStats, ClientID, Winner } from "../Schemas";
+import type { ResourceStockpile } from "./Resources";
 import {
   EmojiMessage,
   GameUpdates,
@@ -186,6 +187,7 @@ export interface PlayerUpdate {
   isDisconnected?: boolean;
   tilesOwned?: number;
   gold?: Gold;
+  resources?: ResourceStockpile;
   troops?: number;
   allies?: number[];
   embargoes?: Set<PlayerID>;

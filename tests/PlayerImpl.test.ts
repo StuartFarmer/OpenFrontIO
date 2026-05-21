@@ -28,6 +28,120 @@ describe("PlayerImpl", () => {
     game.config().structureMinDist = () => 10;
   });
 
+  test("resources initialize from starting gold", async () => {
+    const startingGoldGame = await setup("plains", { startingGold: 1234 }, [
+      new PlayerInfo("rich", PlayerType.Human, null, "rich_id"),
+    ]);
+
+    expect(startingGoldGame.player("rich_id").resources()).toEqual({
+      food: 1234n,
+      energy: 1234n,
+      materials: 1234n,
+    });
+  });
+
+  test("addResources updates all resources and compatibility gold", () => {
+    const before = player.gold();
+
+    player.addResources({
+      food: 100n,
+      energy: 100n,
+      materials: 100n,
+    });
+
+    expect(player.resources()).toEqual({
+      food: before + 100n,
+      energy: before + 100n,
+      materials: before + 100n,
+    });
+    expect(player.gold()).toBe(before + 100n);
+  });
+
+  test("addResources can update stockpiles without compatibility gold", () => {
+    const before = player.gold();
+
+    player.addResources(
+      {
+        food: 100n,
+        energy: 100n,
+        materials: 100n,
+      },
+      undefined,
+      { updateGold: false },
+    );
+
+    expect(player.resources()).toEqual({
+      food: before + 100n,
+      energy: before + 100n,
+      materials: before + 100n,
+    });
+    expect(player.gold()).toBe(before);
+  });
+
+  test("removeResources removes without underflowing resource stockpiles", () => {
+    const removed = player.removeResources({
+      food: 2_000_000n,
+      energy: 2_000_000n,
+      materials: 2_000_000n,
+    });
+
+    expect(removed).toEqual({
+      food: 1_000_000n,
+      energy: 1_000_000n,
+      materials: 1_000_000n,
+    });
+    expect(player.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
+    expect(player.gold()).toBe(0n);
+  });
+
+  test("canAffordResources checks each resource", () => {
+    expect(
+      player.canAffordResources({
+        food: 1_000_000n,
+        energy: 1_000_000n,
+        materials: 1_000_000n,
+      }),
+    ).toBe(true);
+
+    expect(
+      player.canAffordResources({
+        food: 1n,
+        energy: 1_000_001n,
+        materials: 1n,
+      }),
+    ).toBe(false);
+  });
+
+  test("gold compatibility wrappers update resources", () => {
+    player.addGold(50n);
+    expect(player.resources()).toEqual({
+      food: 1_000_050n,
+      energy: 1_000_050n,
+      materials: 1_000_050n,
+    });
+
+    expect(player.removeGold(25n)).toBe(25n);
+    expect(player.resources()).toEqual({
+      food: 1_000_025n,
+      energy: 1_000_025n,
+      materials: 1_000_025n,
+    });
+  });
+
+  test("non-uniform resource mutations are unsupported while gold compatibility is active", () => {
+    expect(() =>
+      player.addResources({
+        food: 10n,
+        energy: 5n,
+        materials: 10n,
+      }),
+    ).toThrow("Non-uniform resource payloads are not supported");
+  });
+
   test("City can be upgraded", () => {
     const city = player.buildUnit(UnitType.City, game.ref(0, 0), {});
     const buCity = player

@@ -64,7 +64,17 @@ describe("Conquest gold transfer", () => {
     const goldBefore = conqueror.gold();
     game.conquerPlayer(conqueror, bot);
     expect(conqueror.gold()).toBe(goldBefore + 1000n);
+    expect(conqueror.resources()).toEqual({
+      food: goldBefore + 1000n,
+      energy: goldBefore + 1000n,
+      materials: goldBefore + 1000n,
+    });
     expect(bot.gold()).toBe(0n);
+    expect(bot.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
   });
 
   test("conqueror receives 100% of gold when conquering a Nation", () => {
@@ -72,7 +82,17 @@ describe("Conquest gold transfer", () => {
     const goldBefore = conqueror.gold();
     game.conquerPlayer(conqueror, nation);
     expect(conqueror.gold()).toBe(goldBefore + 800n);
+    expect(conqueror.resources()).toEqual({
+      food: goldBefore + 800n,
+      energy: goldBefore + 800n,
+      materials: goldBefore + 800n,
+    });
     expect(nation.gold()).toBe(0n);
+    expect(nation.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
   });
 
   test("conqueror receives 50% of gold when conquering a Human who has attacked", () => {
@@ -87,7 +107,17 @@ describe("Conquest gold transfer", () => {
     const goldBefore = conqueror.gold();
     game.conquerPlayer(conqueror, victim);
     expect(conqueror.gold()).toBe(goldBefore + 500n);
+    expect(conqueror.resources()).toEqual({
+      food: goldBefore + 500n,
+      energy: goldBefore + 500n,
+      materials: goldBefore + 500n,
+    });
     expect(victim.gold()).toBe(0n);
+    expect(victim.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
   });
 
   test("conqueror receives no gold when conquering a Human who never attacked", () => {
@@ -95,6 +125,16 @@ describe("Conquest gold transfer", () => {
     const goldBefore = conqueror.gold();
     game.conquerPlayer(conqueror, victim);
     expect(conqueror.gold()).toBe(goldBefore);
+    expect(conqueror.resources()).toEqual({
+      food: goldBefore,
+      energy: goldBefore,
+      materials: goldBefore,
+    });
     expect(victim.gold()).toBe(1000n);
+    expect(victim.resources()).toEqual({
+      food: 1000n,
+      energy: 1000n,
+      materials: 1000n,
+    });
   });
 });

@@ -43,6 +43,7 @@ import { GameUpdate, GameUpdateType } from "./GameUpdates";
 import { UnitView } from "./GameView";
 import { MotionPlanRecord, packMotionPlans } from "./MotionPlans";
 import { PlayerImpl } from "./PlayerImpl";
+import { resourcesFromGoldAmount } from "./Resources";
 import { RailNetwork } from "./RailNetwork";
 import { createRailNetwork } from "./RailNetworkImpl";
 import { Stats } from "./Stats";
@@ -1254,8 +1255,8 @@ export class GameImpl implements Game {
           name: conquered.displayName(),
         },
       );
-      conqueror.addGold(goldCaptured);
-      conquered.removeGold(gold);
+      conqueror.addResources(resourcesFromGoldAmount(goldCaptured));
+      conquered.removeResources(resourcesFromGoldAmount(gold));
 
       // Record stats
       this.stats().goldWar(conqueror, conquered, goldCaptured);
