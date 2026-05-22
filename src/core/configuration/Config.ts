@@ -323,7 +323,7 @@ export class Config {
             (numUnits: number) =>
               Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
             UnitType.Port,
-            UnitType.Factory,
+            UnitType.RailStation,
           ),
           constructionDuration: this.instantBuild() ? 0 : 5 * 10,
           upgradable: true,
@@ -408,7 +408,29 @@ export class Config {
             (numUnits: number) =>
               Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
             UnitType.Factory,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.RailStation:
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) =>
+              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+            UnitType.RailStation,
             UnitType.Port,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.Silo:
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) =>
+              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+            UnitType.Silo,
           ),
           constructionDuration: this.instantBuild() ? 0 : 2 * 10,
           upgradable: true,
@@ -512,6 +534,10 @@ export class Config {
         return this.splitResourceCost(goldCost, 2, 1, 1);
       case UnitType.Factory:
         return this.splitResourceCost(goldCost, 1, 2, 1);
+      case UnitType.RailStation:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
+      case UnitType.Silo:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
       default:
         return this.splitResourceCost(goldCost, 1, 1, 1);
     }

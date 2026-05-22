@@ -1344,6 +1344,8 @@ export class PlayerImpl implements Player {
       case UnitType.DefensePost:
       case UnitType.SAMLauncher:
       case UnitType.City:
+      case UnitType.RailStation:
+      case UnitType.Silo:
       case UnitType.Factory:
         return this.landBasedStructureSpawn(targetTile, validTiles);
       default:

@@ -141,6 +141,9 @@ export class ConstructionExecution implements Execution {
       case UnitType.City:
         this.mg.addExecution(new CityExecution(this.structure!));
         break;
+      case UnitType.RailStation:
+      case UnitType.Silo:
+        break;
       case UnitType.Factory:
         this.mg.addExecution(new FactoryExecution(this.structure!));
         break;
@@ -159,6 +162,8 @@ export class ConstructionExecution implements Execution {
       case UnitType.DefensePost:
       case UnitType.SAMLauncher:
       case UnitType.City:
+      case UnitType.RailStation:
+      case UnitType.Silo:
       case UnitType.Factory:
         return true;
       default:
