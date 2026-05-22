@@ -108,6 +108,14 @@
       "Missile Silo": {
         "scale": 1.55,
         "iconFill": 0.85
+      },
+      "Rail Station": {
+        "scale": 1.08,
+        "iconFill": 0.9
+      },
+      "Silo": {
+        "scale": 1.08,
+        "iconFill": 0.85
       }
     },
     "highlightOutlineWidth": 0.04,

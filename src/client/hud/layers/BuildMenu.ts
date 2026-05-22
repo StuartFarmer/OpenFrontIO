@@ -35,12 +35,12 @@ const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
-const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const samlauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
+const railStationIcon = assetUrl("icons/rail-icon.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
+const siloIcon = assetUrl("icons/silo-icon.svg");
 
 export interface BuildItemDisplay {
   unitType: PlayerBuildableUnitType;
@@ -88,17 +88,17 @@ export const buildTable: BuildItemDisplay[][] = [
       countable: true,
     },
     {
-      unitType: UnitType.MissileSilo,
-      icon: missileSiloIcon,
-      description: "build_menu.desc.missile_silo",
-      key: "unit_type.missile_silo",
+      unitType: UnitType.RailStation,
+      icon: railStationIcon,
+      description: "build_menu.desc.rail_station",
+      key: "unit_type.rail_station",
       countable: true,
     },
     {
-      unitType: UnitType.SAMLauncher,
-      icon: samlauncherIcon,
-      description: "build_menu.desc.sam_launcher",
-      key: "unit_type.sam_launcher",
+      unitType: UnitType.Silo,
+      icon: siloIcon,
+      description: "build_menu.desc.silo",
+      key: "unit_type.silo",
       countable: true,
     },
     {

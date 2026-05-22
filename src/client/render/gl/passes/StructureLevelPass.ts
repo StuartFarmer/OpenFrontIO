@@ -15,7 +15,9 @@ import {
   UT_FACTORY,
   UT_MISSILE_SILO,
   UT_PORT,
+  UT_RAIL_STATION,
   UT_SAM_LAUNCHER,
+  UT_SILO,
 } from "../../types";
 import { DynamicInstanceBuffer } from "../DynamicBuffer";
 import type { RenderSettings } from "../RenderSettings";
@@ -44,6 +46,8 @@ const STRUCTURE_ORDER = [
   UT_DEFENSE_POST,
   UT_SAM_LAUNCHER,
   UT_MISSILE_SILO,
+  UT_RAIL_STATION,
+  UT_SILO,
 ] as const;
 
 /** Max characters per level label (handles up to "99"). */
@@ -93,7 +97,7 @@ export class StructureLevelPass {
   private atlasScaleH: number;
   private base: number;
 
-  /** unitType string → atlas column index (0–5). */
+  /** unitType string → atlas column index. */
   private typeToAtlasCol = new Map<string, number>();
   /** Build-button hover highlight bitmask (0 = off). */
   private highlightMask = 0;

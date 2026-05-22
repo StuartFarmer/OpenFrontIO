@@ -23,12 +23,12 @@ const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
-const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const samLauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
+const railStationIcon = assetUrl("icons/rail-icon.svg");
 const defensePostIcon = assetUrl("images/ShieldIconWhite.svg");
+const siloIcon = assetUrl("icons/silo-icon.svg");
 
 @customElement("unit-display")
 export class UnitDisplay extends LitElement implements Controller {
@@ -40,10 +40,10 @@ export class UnitDisplay extends LitElement implements Controller {
   private _cities = 0;
   private _warships = 0;
   private _factories = 0;
-  private _missileSilo = 0;
+  private _railStations = 0;
   private _port = 0;
   private _defensePost = 0;
-  private _samLauncher = 0;
+  private _silos = 0;
   private allDisabled = false;
   private _hoveredUnit: PlayerBuildableUnitType | null = null;
 
@@ -109,10 +109,10 @@ export class UnitDisplay extends LitElement implements Controller {
       this.playerBuildables = buildables;
     });
     this._cities = player.totalUnitLevels(UnitType.City);
-    this._missileSilo = player.totalUnitLevels(UnitType.MissileSilo);
+    this._railStations = player.totalUnitLevels(UnitType.RailStation);
     this._port = player.totalUnitLevels(UnitType.Port);
     this._defensePost = player.totalUnitLevels(UnitType.DefensePost);
-    this._samLauncher = player.totalUnitLevels(UnitType.SAMLauncher);
+    this._silos = player.totalUnitLevels(UnitType.Silo);
     this._factories = player.totalUnitLevels(UnitType.Factory);
     this._warships = player.totalUnitLevels(UnitType.Warship);
     this.requestUpdate();
@@ -166,18 +166,18 @@ export class UnitDisplay extends LitElement implements Controller {
             this.keybinds["buildDefensePost"]?.key ?? "4",
           )}
           ${this.renderUnitItem(
-            missileSiloIcon,
-            this._missileSilo,
-            UnitType.MissileSilo,
-            "missile_silo",
-            this.keybinds["buildMissileSilo"]?.key ?? "5",
+            railStationIcon,
+            this._railStations,
+            UnitType.RailStation,
+            "rail_station",
+            this.keybinds["buildRailStation"]?.key ?? "5",
           )}
           ${this.renderUnitItem(
-            samLauncherIcon,
-            this._samLauncher,
-            UnitType.SAMLauncher,
-            "sam_launcher",
-            this.keybinds["buildSamLauncher"]?.key ?? "6",
+            siloIcon,
+            this._silos,
+            UnitType.Silo,
+            "silo",
+            this.keybinds["buildSilo"]?.key ?? "6",
           )}
           ${this.renderUnitItem(
             warshipIcon,

@@ -37,6 +37,20 @@ vi.mock("../../../src/client/hud/layers/BuildMenu", async () => {
         countable: true,
       },
       {
+        unitType: UnitType.RailStation,
+        key: "unit_type.rail_station",
+        description: "unit_type.rail_station_desc",
+        icon: "rail-station-icon",
+        countable: true,
+      },
+      {
+        unitType: UnitType.Silo,
+        key: "unit_type.silo",
+        description: "unit_type.silo_desc",
+        icon: "silo-icon",
+        countable: true,
+      },
+      {
         unitType: UnitType.AtomBomb,
         key: "unit_type.atom_bomb",
         description: "unit_type.atom_bomb_desc",
@@ -122,6 +136,8 @@ describe("RadialMenuElements", () => {
       buildableUnits: [
         { type: UnitType.City, canBuild: true },
         { type: UnitType.Factory, canBuild: true },
+        { type: UnitType.RailStation, canBuild: true },
+        { type: UnitType.Silo, canBuild: true },
         { type: UnitType.AtomBomb, canBuild: true },
         { type: UnitType.Warship, canBuild: true },
         { type: UnitType.HydrogenBomb, canBuild: true },
@@ -212,7 +228,12 @@ describe("RadialMenuElements", () => {
 
       const subMenu = attackMenuElement.subMenu!(mockParams);
 
-      const constructionUnitTypes = [UnitType.City, UnitType.Factory];
+      const constructionUnitTypes = [
+        UnitType.City,
+        UnitType.Factory,
+        UnitType.RailStation,
+        UnitType.Silo,
+      ];
       const returnedUnitTypes = subMenu.map((item) => {
         const unitTypeStr = item.id.replace("attack_", "");
         return Object.values(UnitType).find(
@@ -255,7 +276,12 @@ describe("RadialMenuElements", () => {
       expect(subMenu).toBeDefined();
       expect(subMenu.length).toBeGreaterThan(0);
 
-      const constructionUnitTypes = [UnitType.City, UnitType.Factory];
+      const constructionUnitTypes = [
+        UnitType.City,
+        UnitType.Factory,
+        UnitType.RailStation,
+        UnitType.Silo,
+      ];
       const returnedUnitTypes = subMenu.map((item) => {
         const unitTypeStr = item.id.replace("build_", "");
         return Object.values(UnitType).find(
