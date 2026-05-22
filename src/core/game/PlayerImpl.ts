@@ -1020,6 +1020,7 @@ export class PlayerImpl implements Player {
           options.bonusGoldAmount ?? this.legacyResourceEventGold(toAdd),
         ),
         resources: options.bonusResources,
+        source: options.bonusSource,
         troops: 0,
       });
     }

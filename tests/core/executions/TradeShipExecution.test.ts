@@ -210,6 +210,7 @@ describe("TradeShipExecution", () => {
           energy: 0n,
           materials: 5_001n,
         },
+        bonusSource: "ship",
         updateGold: false,
       },
     );
@@ -226,6 +227,7 @@ describe("TradeShipExecution", () => {
           energy: 10_000n,
           materials: 0n,
         },
+        bonusSource: "ship",
         updateGold: false,
       },
     );
@@ -257,6 +259,7 @@ describe("TradeShipExecution", () => {
       piratePort.tile(),
       {
         bonusResources: expectedResources,
+        bonusSource: "ship",
         updateGold: false,
       },
     );

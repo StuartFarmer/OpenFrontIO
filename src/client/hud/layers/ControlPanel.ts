@@ -2,7 +2,7 @@ import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
-import type { Gold } from "../../../core/game/Game";
+import { TerrainType, type Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import type {
   ResourceKind,
@@ -20,6 +20,13 @@ const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
 
 type MetricKey = "troops" | ResourceKind;
+type BlendKind = "import" | "export";
+
+interface ResourceBlendPercents {
+  food: number;
+  energy: number;
+  materials: number;
+}
 
 interface MetricView {
   key: MetricKey;
@@ -72,9 +79,33 @@ export class ControlPanel extends LitElement implements Controller {
   @state()
   private _selectedMetric: MetricKey = "troops";
 
+  @state()
+  private _importBlendFirst = 34;
+
+  @state()
+  private _importBlendSecond = 67;
+
+  @state()
+  private _exportBlendFirst = 34;
+
+  @state()
+  private _exportBlendSecond = 67;
+
+  @state()
+  private _productionBlend: ResourceBlendPercents = {
+    food: 34,
+    energy: 33,
+    materials: 33,
+  };
+
+  private _activeBlend: { kind: BlendKind; handle: "first" | "second" } | null =
+    null;
+
   private _troopRateIsIncreasing: boolean = true;
 
   private _lastTroopIncreaseRate: number = 0;
+
+  private _lastProductionBlendSampleAt = -Infinity;
 
   private _resourceRates: Record<ResourceKind, number> = {
     food: 0,
@@ -91,6 +122,8 @@ export class ControlPanel extends LitElement implements Controller {
   init() {
     this.attackRatio = new UserSettings().attackRatio();
     this.uiState.attackRatio = this.attackRatio;
+    this.updateResourceImportBlend();
+    this.updateResourceExportBlend();
     this.eventBus.on(AttackRatioEvent, (event) => {
       let newAttackRatio = this.attackRatio + event.attackRatio / 100;
 
@@ -132,6 +165,7 @@ export class ControlPanel extends LitElement implements Controller {
     this._resources = nextResources;
     this._resourceCapacity = player.resourceCapacity();
     this._troops = player.troops();
+    this.updateProductionBlend();
     this._attackingTroops = player
       .outgoingAttacks()
       .map((a) => a.troops)
@@ -173,6 +207,143 @@ export class ControlPanel extends LitElement implements Controller {
 
   onAttackRatioChange(newRatio: number) {
     this.uiState.attackRatio = newRatio;
+  }
+
+  private updateResourceImportBlend() {
+    if (this.uiState === undefined) return;
+    this.uiState.resourceImportBlend = {
+      food: this._importBlendFirst,
+      energy: this._importBlendSecond - this._importBlendFirst,
+      materials: 100 - this._importBlendSecond,
+    };
+  }
+
+  private updateResourceExportBlend() {
+    if (this.uiState === undefined) return;
+    this.uiState.resourceExportBlend = {
+      food: this._exportBlendFirst,
+      energy: this._exportBlendSecond - this._exportBlendFirst,
+      materials: 100 - this._exportBlendSecond,
+    };
+  }
+
+  private updateProductionBlend() {
+    const now = performance.now();
+    if (now - this._lastProductionBlendSampleAt < 1000) return;
+    this._lastProductionBlendSampleAt = now;
+
+    const player = this.game?.myPlayer();
+    if (player === null || player === undefined) return;
+
+    const weights = {
+      food: 0,
+      energy: 0,
+      materials: 0,
+    };
+    const playerID = player.smallID();
+    const totalTiles = this.game.width() * this.game.height();
+
+    for (let tile = 0; tile < totalTiles; tile++) {
+      if (this.game.ownerID(tile) !== playerID) continue;
+      switch (this.game.terrainType(tile)) {
+        case TerrainType.Plains:
+          weights.food += 1;
+          weights.energy += 2;
+          weights.materials += 1;
+          break;
+        case TerrainType.Highland:
+          weights.food += 2;
+          weights.energy += 1;
+          weights.materials += 1;
+          break;
+        case TerrainType.Mountain:
+          weights.food += 1;
+          weights.energy += 1;
+          weights.materials += 2;
+          break;
+        default:
+          break;
+      }
+    }
+
+    this._productionBlend = normalizeBlend(weights);
+  }
+
+  private handleBlendPointerDown(
+    kind: BlendKind,
+    e: PointerEvent,
+    handle?: "first" | "second",
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const target =
+      handle === undefined
+        ? (e.currentTarget as HTMLElement)
+        : ((e.currentTarget as HTMLElement).parentElement as HTMLElement);
+    target.setPointerCapture(e.pointerId);
+    const percent = this.blendPercentFromPointer(e, target);
+    this._activeBlend = {
+      kind,
+      handle: handle ?? this.nearestBlendHandle(kind, percent),
+    };
+    this.updateBlendHandle(percent);
+  }
+
+  private handleBlendPointerMove(e: PointerEvent) {
+    if (this._activeBlend === null) return;
+    const target = e.currentTarget as HTMLElement;
+    this.updateBlendHandle(this.blendPercentFromPointer(e, target));
+  }
+
+  private handleBlendPointerUp(e: PointerEvent) {
+    const target = e.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(e.pointerId)) {
+      target.releasePointerCapture(e.pointerId);
+    }
+    this._activeBlend = null;
+  }
+
+  private blendPercentFromPointer(e: PointerEvent, target: HTMLElement) {
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    return Math.max(
+      0,
+      Math.min(100, Math.round(((e.clientX - rect.left) / rect.width) * 100)),
+    );
+  }
+
+  private nearestBlendHandle(
+    kind: BlendKind,
+    percent: number,
+  ): "first" | "second" {
+    const first =
+      kind === "import" ? this._importBlendFirst : this._exportBlendFirst;
+    const second =
+      kind === "import" ? this._importBlendSecond : this._exportBlendSecond;
+    return Math.abs(percent - first) <= Math.abs(percent - second)
+      ? "first"
+      : "second";
+  }
+
+  private updateBlendHandle(percent: number) {
+    if (this._activeBlend === null) return;
+
+    if (this._activeBlend.kind === "import") {
+      if (this._activeBlend.handle === "first") {
+        this._importBlendFirst = Math.min(percent, this._importBlendSecond);
+      } else {
+        this._importBlendSecond = Math.max(percent, this._importBlendFirst);
+      }
+      this.updateResourceImportBlend();
+      return;
+    }
+
+    if (this._activeBlend.handle === "first") {
+      this._exportBlendFirst = Math.min(percent, this._exportBlendSecond);
+    } else {
+      this._exportBlendSecond = Math.max(percent, this._exportBlendFirst);
+    }
+    this.updateResourceExportBlend();
   }
 
   setVisibile(visible: boolean) {
@@ -436,6 +607,209 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
+  private renderAttackRatioControl(compact = false) {
+    return html`
+      <div class="flex items-center gap-1.5" translate="no">
+        <div
+          class="${compact
+            ? "flex flex-col items-center shrink-0 gap-0.5 w-8"
+            : "flex items-center gap-1 shrink-0 border border-gray-600 rounded-md px-1 py-0.5 text-sm font-bold text-white cursor-pointer w-[8rem]"}"
+        >
+          <img
+            src=${swordIcon}
+            alt=""
+            aria-hidden="true"
+            width=${compact ? "10" : "12"}
+            height=${compact ? "10" : "12"}
+            style="filter: brightness(0) invert(1);"
+          />
+          <span
+            class="text-white ${compact
+              ? "text-xs"
+              : ""} font-bold tabular-nums"
+            >${(this.attackRatio * 100).toFixed(0)}%${compact
+              ? ""
+              : ` (${renderTroops(
+                  (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
+                )})`}</span
+          >
+        </div>
+        <div class="flex-1">
+          <input
+            type="range"
+            min="1"
+            max="100"
+            .value=${String(Math.round(this.attackRatio * 100))}
+            @input=${(e: Event) => this.handleRatioSliderInput(e)}
+            @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
+            class="w-full h-1.5 accent-aquarius cursor-pointer"
+          />
+        </div>
+      </div>
+    `;
+  }
+
+  private renderResourceBlendControl(compact = false) {
+    return html`
+      <div class="space-y-1" translate="no">
+        ${this.renderBlendRow(
+          compact ? "Prod" : "Production Blend",
+          this._productionBlend,
+          null,
+          compact,
+        )}
+        ${this.renderBlendRow(
+          compact ? "Import" : "Import Blend",
+          {
+            food: this._importBlendFirst,
+            energy: this._importBlendSecond - this._importBlendFirst,
+            materials: 100 - this._importBlendSecond,
+          },
+          {
+            kind: "import",
+            first: this._importBlendFirst,
+            second: this._importBlendSecond,
+          },
+          compact,
+        )}
+        ${this.renderBlendRow(
+          compact ? "Export" : "Export Blend",
+          {
+            food: this._exportBlendFirst,
+            energy: this._exportBlendSecond - this._exportBlendFirst,
+            materials: 100 - this._exportBlendSecond,
+          },
+          {
+            kind: "export",
+            first: this._exportBlendFirst,
+            second: this._exportBlendSecond,
+          },
+          compact,
+        )}
+      </div>
+    `;
+  }
+
+  private renderBlendRow(
+    label: string,
+    blend: ResourceBlendPercents,
+    handles: { kind: BlendKind; first: number; second: number } | null,
+    compact: boolean,
+  ) {
+    return html`
+      <div class="flex items-center gap-2">
+        <div
+          class="shrink-0 ${compact
+            ? "w-[4.75rem] text-[10px]"
+            : "w-[7.75rem] text-xs"} font-bold text-slate-200 leading-none"
+        >
+          ${label}
+        </div>
+        ${this.renderBlendBar(blend, handles)}
+      </div>
+    `;
+  }
+
+  private renderBlendBar(
+    blend: ResourceBlendPercents,
+    handles: { kind: BlendKind; first: number; second: number } | null,
+  ) {
+    const interactive = handles !== null;
+    return html`
+      <div
+        class="relative h-6 flex-1 ${interactive
+          ? "cursor-pointer touch-none"
+          : "pointer-events-none opacity-90"}"
+        role=${interactive ? "slider" : "meter"}
+        aria-label=${interactive
+          ? `${handles.kind} resource blend`
+          : "Production resource blend"}
+        aria-valuetext="Biomass ${blend.food}%, Fuels ${blend.energy}%, Metals ${blend.materials}%"
+        @pointerdown=${interactive
+          ? (e: PointerEvent) => this.handleBlendPointerDown(handles.kind, e)
+          : undefined}
+        @pointermove=${interactive
+          ? (e: PointerEvent) => this.handleBlendPointerMove(e)
+          : undefined}
+        @pointerup=${interactive
+          ? (e: PointerEvent) => this.handleBlendPointerUp(e)
+          : undefined}
+        @pointercancel=${interactive
+          ? (e: PointerEvent) => this.handleBlendPointerUp(e)
+          : undefined}
+      >
+        <div
+          class="absolute left-0 right-0 top-1/2 h-5 -translate-y-1/2 overflow-hidden rounded-full bg-gray-900/70 border border-gray-600"
+        >
+          <div class="flex h-full">
+            <div
+              class="h-full bg-green-500 flex items-center justify-center overflow-hidden"
+              style="width: ${blend.food}%"
+            >
+              ${this.renderBlendSegmentText("B", blend.food)}
+            </div>
+            <div
+              class="h-full bg-cyan-500 flex items-center justify-center overflow-hidden"
+              style="width: ${blend.energy}%"
+            >
+              ${this.renderBlendSegmentText("F", blend.energy)}
+            </div>
+            <div
+              class="h-full bg-stone-300 flex items-center justify-center overflow-hidden"
+              style="width: ${blend.materials}%"
+            >
+              ${this.renderBlendSegmentText("M", blend.materials)}
+            </div>
+          </div>
+        </div>
+        ${handles === null
+          ? ""
+          : html`
+              ${this.renderBlendHandle(handles.kind, "first", handles.first)}
+              ${this.renderBlendHandle(handles.kind, "second", handles.second)}
+            `}
+      </div>
+    `;
+  }
+
+  private renderBlendSegmentText(label: string, percent: number) {
+    if (percent < 8) return html``;
+    return html`
+      <span
+        class="text-[10px] font-bold text-white leading-none tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)] whitespace-nowrap pointer-events-none"
+        >${label} ${percent}%</span
+      >
+    `;
+  }
+
+  private renderBlendHandle(
+    kind: BlendKind,
+    handle: "first" | "second",
+    percent: number,
+  ) {
+    return html`
+      <button
+        type="button"
+        class="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-gray-900 shadow-md cursor-grab active:cursor-grabbing"
+        style="left: ${percent}%"
+        aria-label=${handle === "first"
+          ? "Biomass and Fuels split"
+          : "Fuels and Metals split"}
+        @pointerdown=${(e: PointerEvent) =>
+          this.handleBlendPointerDown(kind, e, handle)}
+        @pointermove=${(e: PointerEvent) => this.handleBlendPointerMove(e)}
+        @pointerup=${(e: PointerEvent) => this.handleBlendPointerUp(e)}
+        @pointercancel=${(e: PointerEvent) => this.handleBlendPointerUp(e)}
+      ></button>
+    `;
+  }
+
+  private renderSelectedActionControl(compact = false) {
+    return this._selectedMetric === "troops"
+      ? this.renderAttackRatioControl(compact)
+      : this.renderResourceBlendControl(compact);
+  }
+
   private renderDesktop() {
     const metric = this.selectedMetric();
     return html`
@@ -445,7 +819,6 @@ export class ControlPanel extends LitElement implements Controller {
       <div class="flex gap-1.5 items-center mb-1">
         ${this.renderRatePill(metric)}
         <div class="flex-1">${this.renderMetricBar(metric, false)}</div>
-        <!-- Gold -->
         <div
           class="flex items-center gap-1 shrink-0 border rounded-md border-yellow-400 font-bold text-yellow-400 text-sm py-0.5 px-1 w-[4.5rem]"
           translate="no"
@@ -454,36 +827,8 @@ export class ControlPanel extends LitElement implements Controller {
           <span class="tabular-nums">${renderNumber(this._gold)}</span>
         </div>
       </div>
-      <!-- Row 3: attack ratio | slider -->
-      <div class="flex items-center gap-1.5" translate="no">
-        <div
-          class="flex items-center gap-1 shrink-0 border border-gray-600 rounded-md px-1 py-0.5 text-sm font-bold text-white cursor-pointer w-[8rem]"
-        >
-          <img
-            src=${swordIcon}
-            alt=""
-            aria-hidden="true"
-            width="12"
-            height="12"
-            style="filter: brightness(0) invert(1);"
-          />
-          <span
-            >${(this.attackRatio * 100).toFixed(0)}%
-            (${renderTroops(
-              (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
-            )})</span
-          >
-        </div>
-        <input
-          type="range"
-          min="1"
-          max="100"
-          .value=${String(Math.round(this.attackRatio * 100))}
-          @input=${(e: Event) => this.handleRatioSliderInput(e)}
-          @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
-          class="flex-1 h-1.5 accent-aquarius cursor-pointer"
-        />
-      </div>
+      <!-- Row 3: attack ratio or resource import/export blends -->
+      ${this.renderSelectedActionControl(false)}
     `;
   }
 
@@ -505,37 +850,7 @@ export class ControlPanel extends LitElement implements Controller {
             <span class="px-0.5">${renderNumber(this._gold)}</span>
           </div>
         </div>
-        <div class="mt-1 flex gap-2 items-center">
-          <!-- Sword + % label -->
-          <div
-            class="flex flex-col items-center shrink-0 gap-0.5 w-8"
-            translate="no"
-          >
-            <img
-              src=${swordIcon}
-              alt=""
-              aria-hidden="true"
-              width="10"
-              height="10"
-              style="filter: brightness(0) invert(1);"
-            />
-            <span class="text-white text-xs font-bold tabular-nums"
-              >${(this.attackRatio * 100).toFixed(0)}%</span
-            >
-          </div>
-          <!-- Attack ratio slider -->
-          <div class="flex-1" translate="no">
-            <input
-              type="range"
-              min="1"
-              max="100"
-              .value=${String(Math.round(this.attackRatio * 100))}
-              @input=${(e: Event) => this.handleRatioSliderInput(e)}
-              @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
-              class="w-full h-1.5 accent-aquarius cursor-pointer"
-            />
-          </div>
-        </div>
+        <div class="mt-1">${this.renderSelectedActionControl(true)}</div>
       </div>
     `;
   }
@@ -557,4 +872,19 @@ export class ControlPanel extends LitElement implements Controller {
   createRenderRoot() {
     return this; // Disable shadow DOM to allow Tailwind styles
   }
+}
+
+function normalizeBlend(weights: ResourceBlendPercents): ResourceBlendPercents {
+  const total = weights.food + weights.energy + weights.materials;
+  if (total <= 0) {
+    return { food: 34, energy: 33, materials: 33 };
+  }
+
+  const food = Math.round((weights.food / total) * 100);
+  const energy = Math.round((weights.energy / total) * 100);
+  return {
+    food,
+    energy,
+    materials: Math.max(0, 100 - food - energy),
+  };
 }

@@ -8,12 +8,12 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { renderResourceCapture } from "../game/ResourceFormatting";
+import type { ResourceStockpile } from "../game/Resources";
 import {
   calculateTradeExchange,
   calculateTradeManifest,
   resourceTotal,
 } from "../game/ResourceTrade";
-import type { ResourceStockpile } from "../game/Resources";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
 import { findClosestBy } from "../Util";
@@ -303,6 +303,7 @@ function transferResources(
 
   to.addResources(removed, tile, {
     bonusResources: removed,
+    bonusSource: "ship",
     updateGold: false,
   });
   return removed;

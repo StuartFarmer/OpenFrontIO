@@ -101,6 +101,7 @@ export interface BonusEventUpdate {
   tile: TileRef;
   gold: number;
   resources?: ResourceStockpile;
+  source?: "rail" | "ship";
   troops: number;
 }
 

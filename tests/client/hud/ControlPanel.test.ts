@@ -75,5 +75,8 @@ describe("ControlPanel resources", () => {
 
     expect(metalsTab!.getAttribute("aria-pressed")).toBe("true");
     expect(panel.textContent).toContain("3.00K");
+    expect(panel.textContent).toContain("B 34%");
+    expect(panel.textContent).toContain("F 33%");
+    expect(panel.textContent).toContain("M 33%");
   });
 });

@@ -584,6 +584,7 @@ export class GameView implements GameMap {
                 energy: Number(b.resources.energy),
                 materials: Number(b.resources.materials),
               },
+        source: b.source,
         troops: b.troops,
       });
     }

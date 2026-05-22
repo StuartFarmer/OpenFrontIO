@@ -43,6 +43,7 @@ export interface BonusEvent {
     energy: number;
     materials: number;
   };
+  source?: "rail" | "ship";
   troops: number;
 }
 

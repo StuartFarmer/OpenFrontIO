@@ -193,6 +193,7 @@ describe("TrainStation", () => {
           energy: 10_000n,
           materials: 0n,
         },
+        bonusSource: "rail",
         updateGold: false,
       },
     );
@@ -209,6 +210,7 @@ describe("TrainStation", () => {
           energy: 0n,
           materials: 5_001n,
         },
+        bonusSource: "rail",
         updateGold: false,
       },
     );

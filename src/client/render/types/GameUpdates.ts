@@ -140,6 +140,7 @@ export interface BonusUpdate {
   tile?: number;
   gold: number;
   resources?: ResourceEventStockpile;
+  source?: "rail" | "ship";
   troops: number;
 }
 

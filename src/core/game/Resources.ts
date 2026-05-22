@@ -9,6 +9,7 @@ export interface AddResourcesOptions {
   updateGold?: boolean;
   bonusGoldAmount?: ResourceAmount;
   bonusResources?: ResourceStockpile;
+  bonusSource?: "rail" | "ship";
 }
 
 export function createZeroResources(): ResourceStockpile {
