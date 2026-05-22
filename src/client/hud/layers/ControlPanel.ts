@@ -18,6 +18,9 @@ import { renderNumber, renderTroops } from "../../Utils";
 const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
+const biomassIcon = assetUrl("icons/biomass-icon.svg");
+const fuelIcon = assetUrl("icons/fuel-icon.svg");
+const metalIcon = assetUrl("icons/metal-icon.svg");
 
 type MetricKey = "troops" | ResourceKind;
 type BlendKind = "import" | "export";
@@ -397,14 +400,6 @@ export class ControlPanel extends LitElement implements Controller {
   }
 
   private metricView(key: MetricKey): MetricView {
-    const placeholderIcon = (label: string, colorClass: string) => html`
-      <span
-        class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none ${colorClass}"
-        aria-hidden="true"
-        >${label}</span
-      >
-    `;
-
     const metrics: Record<MetricKey, MetricView> = {
       troops: {
         key: "troops",
@@ -437,7 +432,7 @@ export class ControlPanel extends LitElement implements Controller {
         barClass: "bg-green-500",
         borderClass: "border-green-400/80",
         textClass: "text-green-300",
-        icon: placeholderIcon("B", "border-green-300 text-green-200"),
+        icon: this.renderResourceIcon("food", "h-4 w-4"),
       },
       energy: {
         key: "energy",
@@ -450,7 +445,7 @@ export class ControlPanel extends LitElement implements Controller {
         barClass: "bg-cyan-500",
         borderClass: "border-cyan-400/80",
         textClass: "text-cyan-300",
-        icon: placeholderIcon("F", "border-cyan-300 text-cyan-200"),
+        icon: this.renderResourceIcon("energy", "h-4 w-4"),
       },
       materials: {
         key: "materials",
@@ -463,11 +458,23 @@ export class ControlPanel extends LitElement implements Controller {
         barClass: "bg-stone-300",
         borderClass: "border-stone-300/80",
         textClass: "text-stone-200",
-        icon: placeholderIcon("M", "border-stone-300 text-stone-100"),
+        icon: this.renderResourceIcon("materials", "h-4 w-4"),
       },
     };
 
     return metrics[key];
+  }
+
+  private renderResourceIcon(kind: ResourceKind, sizeClass: string) {
+    const src =
+      kind === "food" ? biomassIcon : kind === "energy" ? fuelIcon : metalIcon;
+    return html`<img
+      src=${src}
+      alt=""
+      aria-hidden="true"
+      class="${sizeClass} shrink-0"
+      style="filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(0,0,0,0.8));"
+    />`;
   }
 
   private selectedMetric(): MetricView {
@@ -746,19 +753,19 @@ export class ControlPanel extends LitElement implements Controller {
               class="h-full bg-green-500 flex items-center justify-center overflow-hidden"
               style="width: ${blend.food}%"
             >
-              ${this.renderBlendSegmentText("B", blend.food)}
+              ${this.renderBlendSegmentText("food", blend.food)}
             </div>
             <div
               class="h-full bg-cyan-500 flex items-center justify-center overflow-hidden"
               style="width: ${blend.energy}%"
             >
-              ${this.renderBlendSegmentText("F", blend.energy)}
+              ${this.renderBlendSegmentText("energy", blend.energy)}
             </div>
             <div
               class="h-full bg-stone-300 flex items-center justify-center overflow-hidden"
               style="width: ${blend.materials}%"
             >
-              ${this.renderBlendSegmentText("M", blend.materials)}
+              ${this.renderBlendSegmentText("materials", blend.materials)}
             </div>
           </div>
         </div>
@@ -772,12 +779,12 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
-  private renderBlendSegmentText(label: string, percent: number) {
+  private renderBlendSegmentText(kind: ResourceKind, percent: number) {
     if (percent < 8) return html``;
     return html`
       <span
-        class="text-[10px] font-bold text-white leading-none tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)] whitespace-nowrap pointer-events-none"
-        >${label} ${percent}%</span
+        class="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-white leading-none tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)] whitespace-nowrap pointer-events-none"
+        >${this.renderResourceIcon(kind, "h-3 w-3")} ${percent}%</span
       >
     `;
   }
