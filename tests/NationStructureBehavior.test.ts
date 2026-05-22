@@ -347,7 +347,7 @@ describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
     expect(maybeSpawn).toHaveBeenCalledWith(UnitType.City);
   });
 
-  it("prioritizes Factory when any resource is near resource capacity", () => {
+  it("prioritizes Silo when any resource is near resource capacity", () => {
     const behavior = makeBehavior(
       makeCapacityGame(),
       makeCapacityPlayer(10, { food: 10n, energy: 92n, materials: 20n }),
@@ -359,7 +359,7 @@ describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
     expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
       true,
     );
-    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Factory);
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Silo);
   });
 
   it("falls back to the other pressured capacity structure if the first cannot build", () => {
@@ -375,7 +375,7 @@ describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
     expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
       true,
     );
-    expect(maybeSpawn).toHaveBeenNthCalledWith(1, UnitType.Factory);
+    expect(maybeSpawn).toHaveBeenNthCalledWith(1, UnitType.Silo);
     expect(maybeSpawn).toHaveBeenNthCalledWith(2, UnitType.City);
   });
 
@@ -390,6 +390,123 @@ describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
       false,
     );
     expect(maybeSpawn).not.toHaveBeenCalled();
+  });
+});
+
+// ── production pressure structures ──────────────────────────────────────────
+
+describe("NationStructureBehavior.tryBuildProductionPressureStructure", () => {
+  function makeProductionGame(disabled: Set<UnitType> = new Set()): any {
+    return {
+      config: () => ({
+        isUnitDisabled: (type: UnitType) => disabled.has(type),
+        maxResources: () => ({ food: 100n, energy: 100n, materials: 100n }),
+      }),
+    };
+  }
+
+  function makeProductionPlayer(resources: {
+    food: bigint;
+    energy: bigint;
+    materials: bigint;
+  }): any {
+    return {
+      resources: () => resources,
+    };
+  }
+
+  it("waits for repeated low-resource checks before building a Factory", () => {
+    const behavior = makeBehavior(
+      makeProductionGame(),
+      makeProductionPlayer({ food: 20n, energy: 50n, materials: 50n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(true);
+    expect(maybeSpawn).toHaveBeenCalledTimes(1);
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Factory);
+  });
+
+  it("resets the low-resource streak when resources recover", () => {
+    const resources = { food: 20n, energy: 50n, materials: 50n };
+    const behavior = makeBehavior(
+      makeProductionGame(),
+      makeProductionPlayer(resources),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    resources.food = 80n;
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    resources.food = 20n;
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(true);
+    expect(maybeSpawn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not build factories when Factory is disabled", () => {
+    const behavior = makeBehavior(
+      makeProductionGame(new Set([UnitType.Factory])),
+      makeProductionPlayer({ food: 20n, energy: 50n, materials: 50n }),
+    );
+    const maybeSpawn = vi.spyOn(behavior as any, "maybeSpawnStructure");
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect(maybeSpawn).not.toHaveBeenCalled();
+  });
+});
+
+// ── structure ratio decisions ────────────────────────────────────────────────
+
+describe("NationStructureBehavior.shouldBuildStructure", () => {
+  function makeRatioGame(): any {
+    return {
+      config: () => ({
+        gameConfig: () => ({ difficulty: Difficulty.Hard }),
+      }),
+    };
+  }
+
+  function makeRatioPlayer(owned: Partial<Record<UnitType, number>>): any {
+    return {
+      unitsOwned: (type: UnitType) => owned[type] ?? 0,
+    };
+  }
+
+  it("wants an early RailStation once it has a few cities", () => {
+    const behavior = makeBehavior(makeRatioGame(), makeRatioPlayer({}));
+
+    expect(
+      (behavior as any).shouldBuildStructure(UnitType.RailStation, 2),
+    ).toBe(true);
+  });
+
+  it("does not overbuild RailStations past the city ratio", () => {
+    const behavior = makeBehavior(
+      makeRatioGame(),
+      makeRatioPlayer({ [UnitType.RailStation]: 1 }),
+    );
+
+    expect(
+      (behavior as any).shouldBuildStructure(UnitType.RailStation, 2),
+    ).toBe(false);
+  });
+
+  it("does not build Factories from the generic city-ratio path", () => {
+    const behavior = makeBehavior(makeRatioGame(), makeRatioPlayer({}));
+
+    expect((behavior as any).shouldBuildStructure(UnitType.Factory, 10)).toBe(
+      false,
+    );
   });
 });
 
