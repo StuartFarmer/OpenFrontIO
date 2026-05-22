@@ -271,6 +271,33 @@ export class PerformanceOverlay extends LitElement implements Controller {
       overflow: hidden;
     }
 
+    .fps-counter {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9998;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 64px;
+      justify-content: center;
+      padding: 3px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.62);
+      color: white;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.2;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .fps-label {
+      opacity: 0.7;
+    }
+
     .overlay-scroll {
       overflow: auto;
       max-height: calc(100vh - 56px);
@@ -489,6 +516,7 @@ export class PerformanceOverlay extends LitElement implements Controller {
 
   init() {
     this.setVisible(this.userSettings.performanceOverlay());
+    this.startFpsLoop();
 
     if (this.subscribedEventBus && this.subscribedEventBus !== this.eventBus) {
       this.subscribedEventBus.off(
@@ -563,12 +591,6 @@ export class PerformanceOverlay extends LitElement implements Controller {
   setVisible(visible: boolean) {
     this.isVisible = visible;
     FrameProfiler.setEnabled(visible);
-
-    if (visible) {
-      this.startFpsLoop();
-    } else {
-      this.stopFpsLoop();
-    }
 
     if (!visible && this.resizeState) {
       globalThis.removeEventListener("pointermove", this.onResizePointerMove);
@@ -779,8 +801,6 @@ export class PerformanceOverlay extends LitElement implements Controller {
     frameDuration: number,
     layerDurations?: Record<string, number>,
   ) {
-    if (!this.isVisible) return;
-
     const now = performance.now();
 
     // Initialize timing on first call
@@ -833,7 +853,7 @@ export class PerformanceOverlay extends LitElement implements Controller {
     this.lastTime = now;
     this.frameCount++;
 
-    if (layerDurations) {
+    if (this.isVisible && layerDurations) {
       this.updateLayerStats(layerDurations);
     }
   }
@@ -1090,7 +1110,14 @@ export class PerformanceOverlay extends LitElement implements Controller {
 
   render() {
     if (!this.isVisible) {
-      return html``;
+      return html`
+        <div class="fps-counter">
+          <span class="fps-label">FPS</span>
+          <span class="${this.getPerformanceColor(this.currentFPS)}"
+            >${this.currentFPS}</span
+          >
+        </div>
+      `;
     }
 
     this.ensureUiText();
