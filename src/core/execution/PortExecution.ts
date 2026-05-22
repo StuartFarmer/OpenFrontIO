@@ -35,13 +35,13 @@ export class PortExecution implements Execution {
       return;
     }
 
-    if (!this.port.hasTrainStation()) {
-      this.createStation();
-    }
-
     // Only check every 10 ticks for performance.
     if ((this.mg.ticks() + this.checkOffset) % 10 !== 0) {
       return;
+    }
+
+    if (!this.port.hasTrainStation()) {
+      this.createStation();
     }
 
     if (!this.shouldSpawnTradeShip()) {

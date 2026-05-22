@@ -38,13 +38,12 @@ const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const railStationIcon = assetUrl("icons/rail-icon.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
-const siloIcon = assetUrl("icons/silo-icon.svg");
 
 export interface BuildItemDisplay {
   unitType: PlayerBuildableUnitType;
-  icon: string;
+  icon?: string;
+  label?: string;
   description?: string;
   key?: string;
   countable?: boolean;
@@ -89,14 +88,14 @@ export const buildTable: BuildItemDisplay[][] = [
     },
     {
       unitType: UnitType.RailStation,
-      icon: railStationIcon,
+      label: "R",
       description: "build_menu.desc.rail_station",
       key: "unit_type.rail_station",
       countable: true,
     },
     {
       unitType: UnitType.Silo,
-      icon: siloIcon,
+      label: "S",
       description: "build_menu.desc.silo",
       key: "unit_type.silo",
       countable: true,
@@ -191,6 +190,17 @@ export class BuildMenu extends LitElement implements Controller {
     }
     .build-description {
       font-size: 0.6rem;
+    }
+    .letter-icon {
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
     }
     .build-row {
       display: flex;
@@ -445,12 +455,16 @@ export class BuildMenu extends LitElement implements Controller {
                       ? translateText("build_menu.not_enough_money")
                       : ""}
                   >
-                    <img
-                      src=${item.icon}
-                      alt="${item.unitType}"
-                      width="40"
-                      height="40"
-                    />
+                    ${item.icon
+                      ? html`<img
+                          src=${item.icon}
+                          alt="${item.unitType}"
+                          width="40"
+                          height="40"
+                        />`
+                      : html`<span class="letter-icon" aria-hidden="true"
+                          >${item.label}</span
+                        >`}
                     <span class="build-name"
                       >${item.key && translateText(item.key)}</span
                     >

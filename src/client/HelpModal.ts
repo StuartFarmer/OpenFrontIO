@@ -1027,10 +1027,10 @@ export class HelpModal extends BaseModal {
                       ${translateText("help_modal.build_rail_station")}
                     </td>
                     <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("icons/rail-icon.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
+                      <span
+                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
+                        >R</span
+                      >
                     </td>
                     <td
                       class="py-3 border-b border-white/5 text-white/60 text-sm"
@@ -1043,10 +1043,10 @@ export class HelpModal extends BaseModal {
                       ${translateText("help_modal.build_silo")}
                     </td>
                     <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("icons/silo-icon.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
+                      <span
+                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
+                        >S</span
+                      >
                     </td>
                     <td
                       class="py-3 border-b border-white/5 text-white/60 text-sm"

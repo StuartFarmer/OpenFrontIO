@@ -13,14 +13,15 @@ export class RailStationExecution implements Execution {
   }
 
   tick(ticks: number): void {
-    if (!this.stationCreated) {
-      this.createStation();
-      this.stationCreated = true;
-    }
     if (!this.railStation.isActive()) {
       this.active = false;
       return;
     }
+    if (!this.stationCreated) {
+      this.createStation();
+      this.stationCreated = true;
+    }
+    this.active = false;
   }
 
   isActive(): boolean {

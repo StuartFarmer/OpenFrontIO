@@ -4,7 +4,6 @@ import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import {
   BuildableUnit,
-  BuildMenus,
   PlayerBuildableUnitType,
   UnitType,
 } from "../../../core/game/Game";
@@ -26,9 +25,20 @@ const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const railStationIcon = assetUrl("icons/rail-icon.svg");
 const defensePostIcon = assetUrl("images/ShieldIconWhite.svg");
-const siloIcon = assetUrl("icons/silo-icon.svg");
+
+const visibleBuildTypes: PlayerBuildableUnitType[] = [
+  UnitType.City,
+  UnitType.Factory,
+  UnitType.Port,
+  UnitType.DefensePost,
+  UnitType.RailStation,
+  UnitType.Silo,
+  UnitType.Warship,
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.MIRV,
+];
 
 @customElement("unit-display")
 export class UnitDisplay extends LitElement implements Controller {
@@ -57,7 +67,7 @@ export class UnitDisplay extends LitElement implements Controller {
 
     this.keybinds = userSettings.parsedUserKeybinds();
 
-    this.allDisabled = BuildMenus.types.every((u) => config.isUnitDisabled(u));
+    this.allDisabled = visibleBuildTypes.every((u) => config.isUnitDisabled(u));
     this.requestUpdate();
   }
 
@@ -105,7 +115,7 @@ export class UnitDisplay extends LitElement implements Controller {
   tick() {
     const player = this.game?.myPlayer();
     if (!player) return;
-    player.buildables(undefined, BuildMenus.types).then((buildables) => {
+    player.buildables(undefined, visibleBuildTypes).then((buildables) => {
       this.playerBuildables = buildables;
     });
     this._cities = player.totalUnitLevels(UnitType.City);
@@ -166,18 +176,20 @@ export class UnitDisplay extends LitElement implements Controller {
             this.keybinds["buildDefensePost"]?.key ?? "4",
           )}
           ${this.renderUnitItem(
-            railStationIcon,
+            null,
             this._railStations,
             UnitType.RailStation,
             "rail_station",
             this.keybinds["buildRailStation"]?.key ?? "5",
+            "R",
           )}
           ${this.renderUnitItem(
-            siloIcon,
+            null,
             this._silos,
             UnitType.Silo,
             "silo",
             this.keybinds["buildSilo"]?.key ?? "6",
+            "S",
           )}
           ${this.renderUnitItem(
             warshipIcon,
@@ -213,11 +225,12 @@ export class UnitDisplay extends LitElement implements Controller {
   }
 
   private renderUnitItem(
-    icon: string,
+    icon: string | null,
     number: number | null,
     unitType: PlayerBuildableUnitType,
     structureKey: string,
     hotkey: string,
+    label?: string,
   ) {
     if (this.game.config().isUnitDisabled(unitType)) {
       return html``;
@@ -310,7 +323,17 @@ export class UnitDisplay extends LitElement implements Controller {
             ${displayHotkey}
           </div>`}
           <div class="flex items-center gap-0.5 pt-0.5">
-            <img src=${icon} alt=${structureKey} class="align-middle size-5" />
+            ${icon
+              ? html`<img
+                  src=${icon}
+                  alt=${structureKey}
+                  class="align-middle size-5"
+                />`
+              : html`<span
+                  class="inline-flex items-center justify-center size-5 text-sm font-extrabold leading-none text-white"
+                  aria-hidden="true"
+                  >${label}</span
+                >`}
             ${number !== null
               ? html`<span class="text-xs">${renderNumber(number)}</span>`
               : null}

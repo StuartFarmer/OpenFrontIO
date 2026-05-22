@@ -435,6 +435,7 @@ function createMenuElements(
               : COLORS.building
             : COLORS.building,
         icon: item.icon,
+        text: item.label,
         tooltipItems: [
           { text: translateText(item.key ?? ""), className: "title" },
           {
