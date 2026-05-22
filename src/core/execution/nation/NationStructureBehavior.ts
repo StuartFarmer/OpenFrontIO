@@ -927,6 +927,8 @@ export class NationStructureBehavior {
         return this.factoryValue();
       case UnitType.RailStation:
         return this.railStationValue();
+      case UnitType.Silo:
+        return this.siloValue();
       case UnitType.Port:
         return this.portValue();
       case UnitType.SAMLauncher:
@@ -1030,6 +1032,51 @@ export class NationStructureBehavior {
       const closestCity = closestTwoTiles(game, cityTiles, [tile]);
       if (closestCity !== null) {
         const d = game.manhattanDist(closestCity.x, tile);
+        w += Math.min(d, structureSpacing);
+      }
+
+      return w;
+    };
+  }
+
+  /**
+   * Value function for silos.
+   * Storage should be durable and distributed, not part of rail connectivity.
+   */
+  private siloValue(): (tile: TileRef) => number {
+    const game = this.game;
+    const player = this.player;
+    const borderTiles = player.borderTiles();
+    const otherUnits = player.units(UnitType.Silo);
+    const { borderSpacing, structureSpacing } = this.spacingConstants();
+
+    const protectedStructureTiles: Set<TileRef> = new Set(
+      player
+        .units(UnitType.City, UnitType.Factory)
+        .map((structure) => structure.tile()),
+    );
+
+    return (tile) => {
+      let w = 0;
+
+      w += game.magnitude(tile);
+
+      const [, closestBorderDist] = closestTile(game, borderTiles, tile);
+      w += Math.min(closestBorderDist, borderSpacing);
+
+      const otherTiles: Set<TileRef> = new Set(otherUnits.map((u) => u.tile()));
+      otherTiles.delete(tile);
+      const closestOther = closestTwoTiles(game, otherTiles, [tile]);
+      if (closestOther !== null) {
+        const d = game.manhattanDist(closestOther.x, tile);
+        w += Math.min(d, structureSpacing);
+      }
+
+      const closestStructure = closestTwoTiles(game, protectedStructureTiles, [
+        tile,
+      ]);
+      if (closestStructure !== null) {
+        const d = game.manhattanDist(closestStructure.x, tile);
         w += Math.min(d, structureSpacing);
       }
 

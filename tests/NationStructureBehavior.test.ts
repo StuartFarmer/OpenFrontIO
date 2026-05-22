@@ -510,6 +510,48 @@ describe("NationStructureBehavior.shouldBuildStructure", () => {
   });
 });
 
+// ── structure value functions ────────────────────────────────────────────────
+
+describe("NationStructureBehavior.structureSpawnTileValue", () => {
+  function makeValueGame(): any {
+    return {
+      config: () => ({
+        nukeMagnitudes: () => ({ outer: 50 }),
+      }),
+      x: (tile: number) => tile,
+      y: () => 0,
+      magnitude: () => 1,
+      manhattanDist: (a: number, b: number) => Math.abs(a - b),
+    };
+  }
+
+  function makeValuePlayer(): any {
+    return {
+      borderTiles: () => [0],
+      units: (...types: UnitType[]) => {
+        if (types.includes(UnitType.City)) {
+          return [makeUnit(10)];
+        }
+        if (types.includes(UnitType.Factory)) {
+          return [makeUnit(20)];
+        }
+        if (types.includes(UnitType.Silo)) {
+          return [makeUnit(30)];
+        }
+        return [];
+      },
+    };
+  }
+
+  it("provides a placement value function for Silo", () => {
+    const behavior = makeBehavior(makeValueGame(), makeValuePlayer());
+
+    expect(
+      (behavior as any).structureSpawnTileValue(UnitType.Silo)(40),
+    ).toBeGreaterThan(0);
+  });
+});
+
 // ── tryBuildDefensePost — early-exit guards ──────────────────────────────────
 
 describe("NationStructureBehavior.tryBuildDefensePost", () => {
