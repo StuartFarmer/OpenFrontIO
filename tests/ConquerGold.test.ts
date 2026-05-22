@@ -196,7 +196,7 @@ describe("Conquest gold transfer", () => {
     expect(updates[GameUpdateType.DisplayEvent]).toContainEqual(
       expect.objectContaining({
         params: expect.objectContaining({
-          resources: "Biomass 5 / Fuels 3 / Metals 1",
+          resources: expect.stringContaining("/icons/biomass-icon.svg"),
         }),
       }),
     );

@@ -64,6 +64,9 @@ export interface PlayerState {
   gold: number;
   resources: ResourceState;
   resourceCapacity: ResourceState;
+  effectiveTroopCapacity: number;
+  biomassSupportedTroopCapacity: number;
+  troopIncreaseRate: number;
   troops: number;
   isTraitor: boolean;
   traitorRemainingTicks: number;

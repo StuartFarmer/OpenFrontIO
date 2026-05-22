@@ -74,6 +74,8 @@ export interface NukeMagnitude {
 const DEFENSE_DEBUFF_MIDPOINT = 150_000;
 const DEFENSE_DEBUFF_DECAY_RATE = Math.LN2 / 50000;
 const DEFAULT_SPAWN_IMMUNITY_TICKS = 5 * 10;
+const TROOP_LOGISTIC_GROWTH_RATE = 0.016;
+const BASELINE_BIOMASS_PRODUCTION_SHARE = 0.25;
 
 export const JwksSchema = z.object({
   keys: z
@@ -871,13 +873,40 @@ export class Config {
     );
   }
 
-  troopIncreaseRate(player: Player | PlayerView): number {
-    const max = this.maxTroops(player);
+  biomassSupportedTroopCapacity(game: Game, player: Player): number {
+    const weights = this.terrainResourceProductionSplit(game, player);
+    const totalWeight = weights.food + weights.energy + weights.materials;
+    if (totalWeight <= 0n) {
+      return 0;
+    }
 
-    let toAdd = 10 + Math.pow(player.troops(), 0.73) / 4;
+    const biomassShare = Number(weights.food) / Number(totalWeight);
+    return (
+      (Number(this.maxResources(player).food) * biomassShare) /
+      BASELINE_BIOMASS_PRODUCTION_SHARE
+    );
+  }
 
-    const ratio = 1 - player.troops() / max;
-    toAdd *= ratio;
+  effectiveTroopCapacity(game: Game, player: Player): number {
+    return Math.min(
+      this.maxTroops(player),
+      this.biomassSupportedTroopCapacity(game, player),
+    );
+  }
+
+  troopIncreaseRate(player: Player, game: Game): number;
+  troopIncreaseRate(player: Player | PlayerView): number;
+  troopIncreaseRate(player: Player | PlayerView, game?: Game): number {
+    const max = game
+      ? this.effectiveTroopCapacity(game, player as Player)
+      : this.maxTroops(player);
+    const troops = player.troops();
+
+    if (max <= 0) {
+      return -troops;
+    }
+
+    let toAdd = TROOP_LOGISTIC_GROWTH_RATE * troops * (1 - troops / max);
 
     if (player.type() === PlayerType.Bot) {
       toAdd *= 0.5;
@@ -902,7 +931,7 @@ export class Config {
       }
     }
 
-    return Math.min(player.troops() + toAdd, max) - player.troops();
+    return Math.min(troops + toAdd, max) - troops;
   }
 
   resourceIncreaseRate(game: Game, player: Player) {

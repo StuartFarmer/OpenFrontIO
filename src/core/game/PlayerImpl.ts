@@ -174,6 +174,13 @@ export class PlayerImpl implements Player {
       gold: this._gold,
       resources: this.resources(),
       resourceCapacity: this.mg.config().maxResources(this),
+      effectiveTroopCapacity: this.mg
+        .config()
+        .effectiveTroopCapacity(this.mg, this),
+      biomassSupportedTroopCapacity: this.mg
+        .config()
+        .biomassSupportedTroopCapacity(this.mg, this),
+      troopIncreaseRate: this.mg.config().troopIncreaseRate(this, this.mg),
       troops: this.troops(),
       allies: this.alliances().map((a) => a.other(this).smallID()),
       embargoes: new Set([...this.embargoes.keys()].map((p) => p.toString())),

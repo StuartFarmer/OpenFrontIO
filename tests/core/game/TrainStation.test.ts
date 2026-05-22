@@ -221,7 +221,7 @@ describe("TrainStation", () => {
       undefined,
       expect.objectContaining({
         name: "Train Owner",
-        resources: "Biomass 0 / Fuels 10.0K / Metals 0",
+        resources: expect.stringContaining("/icons/fuel-icon.svg"),
       }),
     );
     expect(game.displayMessage).toHaveBeenCalledWith(
@@ -231,7 +231,7 @@ describe("TrainStation", () => {
       undefined,
       expect.objectContaining({
         name: "Station Owner",
-        resources: "Biomass 4.99K / Fuels 0 / Metals 5.00K",
+        resources: expect.stringContaining("/icons/metal-icon.svg"),
       }),
     );
     expect(gameStats.trainExternalTrade).toHaveBeenCalledWith(

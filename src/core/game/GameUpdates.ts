@@ -192,6 +192,9 @@ export interface PlayerUpdate {
   gold?: Gold;
   resources?: ResourceStockpile;
   resourceCapacity?: ResourceStockpile;
+  effectiveTroopCapacity?: number;
+  biomassSupportedTroopCapacity?: number;
+  troopIncreaseRate?: number;
   troops?: number;
   allies?: number[];
   embargoes?: Set<PlayerID>;

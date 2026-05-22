@@ -73,7 +73,7 @@ export class PlayerExecution implements Execution {
       return;
     }
 
-    const troopInc = this.config.troopIncreaseRate(this.player);
+    const troopInc = this.config.troopIncreaseRate(this.player, this.mg);
     this.player.addTroops(troopInc);
     const resourcesFromWorkers = this.config.resourceIncreaseRate(
       this.mg,

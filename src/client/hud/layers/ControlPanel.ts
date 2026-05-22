@@ -161,7 +161,7 @@ export class ControlPanel extends LitElement implements Controller {
 
     this.updateTroopIncrease();
 
-    this._maxTroops = this.game.config().maxTroops(player);
+    this._maxTroops = player.effectiveTroopCapacity();
     this._gold = player.gold();
     const nextResources = player.resources();
     this.updateResourceRates(nextResources);
@@ -173,14 +173,14 @@ export class ControlPanel extends LitElement implements Controller {
       .outgoingAttacks()
       .map((a) => a.troops)
       .reduce((a, b) => a + b, 0);
-    this.troopRate = this.game.config().troopIncreaseRate(player) * 10;
+    this.troopRate = player.troopIncreaseRate() * 10;
     this.requestUpdate();
   }
 
   private updateTroopIncrease() {
     const player = this.game?.myPlayer();
     if (player === null) return;
-    const troopIncreaseRate = this.game.config().troopIncreaseRate(player);
+    const troopIncreaseRate = player.troopIncreaseRate();
     this._troopRateIsIncreasing =
       troopIncreaseRate >= this._lastTroopIncreaseRate;
     this._lastTroopIncreaseRate = troopIncreaseRate;

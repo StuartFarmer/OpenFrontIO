@@ -45,6 +45,18 @@ export function diffPlayerUpdate(
     "resourceCapacity",
     resourceStockpileEqual(prev.resourceCapacity, next.resourceCapacity),
   );
+  setIfDifferent(
+    "effectiveTroopCapacity",
+    prev.effectiveTroopCapacity === next.effectiveTroopCapacity,
+  );
+  setIfDifferent(
+    "biomassSupportedTroopCapacity",
+    prev.biomassSupportedTroopCapacity === next.biomassSupportedTroopCapacity,
+  );
+  setIfDifferent(
+    "troopIncreaseRate",
+    prev.troopIncreaseRate === next.troopIncreaseRate,
+  );
   setIfDifferent("troops", prev.troops === next.troops);
   setIfDifferent("isTraitor", prev.isTraitor === next.isTraitor);
   setIfDifferent(
@@ -113,6 +125,15 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
       energy: Number(pu.resourceCapacity.energy),
       materials: Number(pu.resourceCapacity.materials),
     };
+  }
+  if (pu.effectiveTroopCapacity !== undefined) {
+    target.effectiveTroopCapacity = pu.effectiveTroopCapacity;
+  }
+  if (pu.biomassSupportedTroopCapacity !== undefined) {
+    target.biomassSupportedTroopCapacity = pu.biomassSupportedTroopCapacity;
+  }
+  if (pu.troopIncreaseRate !== undefined) {
+    target.troopIncreaseRate = pu.troopIncreaseRate;
   }
   if (pu.troops !== undefined) target.troops = pu.troops;
   if (pu.isTraitor !== undefined) target.isTraitor = pu.isTraitor;

@@ -88,6 +88,9 @@ function stateFromUpdate(pu: PlayerUpdate): PlayerState {
       energy: Number(pu.resourceCapacity!.energy),
       materials: Number(pu.resourceCapacity!.materials),
     },
+    effectiveTroopCapacity: pu.effectiveTroopCapacity!,
+    biomassSupportedTroopCapacity: pu.biomassSupportedTroopCapacity!,
+    troopIncreaseRate: pu.troopIncreaseRate!,
     troops: pu.troops!,
     isTraitor: pu.isTraitor!,
     traitorRemainingTicks: Math.max(0, pu.traitorRemainingTicks ?? 0),
@@ -461,6 +464,18 @@ export class PlayerView {
       energy: BigInt(this.state.resourceCapacity.energy),
       materials: BigInt(this.state.resourceCapacity.materials),
     };
+  }
+
+  effectiveTroopCapacity(): number {
+    return this.state.effectiveTroopCapacity;
+  }
+
+  biomassSupportedTroopCapacity(): number {
+    return this.state.biomassSupportedTroopCapacity;
+  }
+
+  troopIncreaseRate(): number {
+    return this.state.troopIncreaseRate;
   }
 
   troops(): number {

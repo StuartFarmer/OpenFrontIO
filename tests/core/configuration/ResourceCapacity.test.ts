@@ -134,6 +134,56 @@ describe("resource capacity config", () => {
     );
   });
 
+  test("biomass-supported troop capacity follows terrain production blend", () => {
+    const plainsTile = game.ref(0, 0);
+    player.conquer(plainsTile);
+    const plainsTroopCapacity = game.config().maxTroops(player);
+    const plainsBiomassCapacity = game
+      .config()
+      .biomassSupportedTroopCapacity(game, player);
+
+    expect(plainsBiomassCapacity).toBeCloseTo(plainsTroopCapacity, 0);
+
+    const highlandGamePlayer = game.player("player_id");
+    const highlandTile = game.ref(1, 0);
+    game.setMagnitude(highlandTile, 15);
+    highlandGamePlayer.conquer(highlandTile);
+
+    expect(
+      game.config().biomassSupportedTroopCapacity(game, highlandGamePlayer),
+    ).toBeGreaterThan(game.config().maxTroops(highlandGamePlayer));
+  });
+
+  test("troopIncreaseRate uses classic logistic growth below carrying capacity", () => {
+    player.conquer(game.ref(0, 0));
+    const capacity = game.config().effectiveTroopCapacity(game, player);
+    player.setTroops(capacity / 2);
+
+    const rate = game.config().troopIncreaseRate(player, game);
+
+    expect(rate).toBeCloseTo(0.016 * player.troops() * 0.5, 5);
+    expect(rate).toBeGreaterThan(0);
+  });
+
+  test("troopIncreaseRate becomes negative above biomass-supported capacity", () => {
+    const tile = game.ref(0, 0);
+    player.conquer(tile);
+    const biomassCapacity = game
+      .config()
+      .biomassSupportedTroopCapacity(game, player);
+    player.buildUnit(UnitType.City, tile, {});
+
+    expect(game.config().maxTroops(player)).toBeGreaterThan(biomassCapacity);
+    expect(game.config().effectiveTroopCapacity(game, player)).toBeCloseTo(
+      biomassCapacity,
+      0,
+    );
+
+    player.setTroops(biomassCapacity * 1.1);
+
+    expect(game.config().troopIncreaseRate(player, game)).toBeLessThan(0);
+  });
+
   test("City, Port, Factory, Rail Station, and Silo split their legacy gold price into resource costs", () => {
     player.conquer(game.ref(0, 0));
 
@@ -183,6 +233,13 @@ describe("resource capacity config", () => {
       type: GameUpdateType.Player,
       id: "player_id",
       resourceCapacity: game.config().maxResources(player),
+      effectiveTroopCapacity: game
+        .config()
+        .effectiveTroopCapacity(game, player),
+      biomassSupportedTroopCapacity: game
+        .config()
+        .biomassSupportedTroopCapacity(game, player),
+      troopIncreaseRate: game.config().troopIncreaseRate(player, game),
     });
 
     player.buildUnit(UnitType.Silo, tile, {});

@@ -551,9 +551,13 @@ describe("RadialMenuElements", () => {
       const tooltipTexts = cityElement!.tooltipItems!.map((item) => item.text);
       expect(tooltipTexts).toContain("unit_type.city");
       expect(tooltipTexts).toContain("unit_type.city_desc");
-      expect(tooltipTexts.some((text) => text.includes("B 50"))).toBe(true);
-      expect(tooltipTexts.some((text) => text.includes("F 25"))).toBe(true);
-      expect(tooltipTexts.some((text) => text.includes("M 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("Biomass 50"))).toBe(
+        true,
+      );
+      expect(tooltipTexts.some((text) => text.includes("Fuels 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("Metals 25"))).toBe(
+        true,
+      );
       expect(tooltipTexts.some((text) => text.includes("5x"))).toBe(true);
     });
 
@@ -577,9 +581,13 @@ describe("RadialMenuElements", () => {
       );
       expect(tooltipTexts).toContain("unit_type.atom_bomb");
       expect(tooltipTexts).toContain("unit_type.atom_bomb_desc");
-      expect(tooltipTexts.some((text) => text.includes("B 50"))).toBe(true);
-      expect(tooltipTexts.some((text) => text.includes("F 25"))).toBe(true);
-      expect(tooltipTexts.some((text) => text.includes("M 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("Biomass 50"))).toBe(
+        true,
+      );
+      expect(tooltipTexts.some((text) => text.includes("Fuels 25"))).toBe(true);
+      expect(tooltipTexts.some((text) => text.includes("Metals 25"))).toBe(
+        true,
+      );
     });
   });
 

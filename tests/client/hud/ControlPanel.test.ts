@@ -23,6 +23,8 @@ describe("ControlPanel resources", () => {
       gold: 50n,
       resources: { food: 100n, energy: 200n, materials: 300n },
       resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
+      effectiveTroopCapacity: 750,
+      troopIncreaseRate: -2,
     });
     update.updates[GameUpdateType.Player] = [player];
     update.playerNameViewData[player.id] = makeNameViewData();
@@ -43,6 +45,8 @@ describe("ControlPanel resources", () => {
     expect(panel.textContent).toContain("200");
     expect(panel.textContent).toContain("300");
     expect(panel.textContent).toContain("50");
+    expect(panel.textContent).toContain("-2/s");
+    expect(panel.textContent).toContain("75");
   });
 
   it("switches the selected metric bar when a resource tab is clicked", async () => {
