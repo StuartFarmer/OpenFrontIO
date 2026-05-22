@@ -510,6 +510,56 @@ describe("NationStructureBehavior.shouldBuildStructure", () => {
   });
 });
 
+describe("NationStructureBehavior.structureCityCount", () => {
+  function makeStructureCityCountGame(): any {
+    return {
+      config: () => ({
+        gameConfig: () => ({ difficulty: Difficulty.Hard }),
+      }),
+    };
+  }
+
+  function makeCity(connected: boolean, underConstruction = false): any {
+    return {
+      hasTrainStation: () => connected,
+      isUnderConstruction: () => underConstruction,
+    };
+  }
+
+  function makeStructureCityCountPlayer(cities: any[]): any {
+    return {
+      units: (type: UnitType) => (type === UnitType.City ? cities : []),
+    };
+  }
+
+  it("counts only unconnected completed cities for RailStation demand", () => {
+    const behavior = makeBehavior(
+      makeStructureCityCountGame(),
+      makeStructureCityCountPlayer([
+        makeCity(false),
+        makeCity(false),
+        makeCity(true),
+        makeCity(false, true),
+      ]),
+    );
+
+    expect(
+      (behavior as any).structureCityCount(UnitType.RailStation, 10, false),
+    ).toBe(2);
+  });
+
+  it("uses the fallback count for non-RailStation structures", () => {
+    const behavior = makeBehavior(
+      makeStructureCityCountGame(),
+      makeStructureCityCountPlayer([makeCity(false)]),
+    );
+
+    expect((behavior as any).structureCityCount(UnitType.Port, 10, false)).toBe(
+      10,
+    );
+  });
+});
+
 // ── structure value functions ────────────────────────────────────────────────
 
 describe("NationStructureBehavior.structureSpawnTileValue", () => {

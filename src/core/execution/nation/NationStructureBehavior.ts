@@ -511,7 +511,12 @@ export class NationStructureBehavior {
         continue;
       }
 
-      if (this.shouldBuildStructure(structureType, cityCount)) {
+      if (
+        this.shouldBuildStructure(
+          structureType,
+          this.structureCityCount(structureType, cityCount, citiesDisabled),
+        )
+      ) {
         if (this.maybeSpawnStructure(structureType)) {
           return true;
         }
@@ -650,6 +655,20 @@ export class NationStructureBehavior {
     const targetCount = Math.floor(cityCount * ratio);
 
     return owned < targetCount;
+  }
+
+  private structureCityCount(
+    type: UnitType,
+    fallbackCityCount: number,
+    citiesDisabled: boolean,
+  ): number {
+    if (type !== UnitType.RailStation || citiesDisabled) {
+      return fallbackCityCount;
+    }
+    return this.player
+      .units(UnitType.City)
+      .filter((city) => !city.isUnderConstruction() && !city.hasTrainStation())
+      .length;
   }
 
   private cost(type: UnitType): Gold {

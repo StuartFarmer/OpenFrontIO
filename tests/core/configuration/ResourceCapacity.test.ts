@@ -9,6 +9,14 @@ import { GameUpdateType } from "../../../src/core/game/GameUpdates";
 import { resourceRegenDelta } from "../../../src/core/game/Resources";
 import { setup } from "../../util/Setup";
 
+function totalCapacity(capacity: {
+  food: bigint;
+  energy: bigint;
+  materials: bigint;
+}): bigint {
+  return capacity.food + capacity.energy + capacity.materials;
+}
+
 describe("resource capacity config", () => {
   let game: Game;
   let player: Player;
@@ -24,8 +32,14 @@ describe("resource capacity config", () => {
     player.conquer(game.ref(0, 0));
     const oneTileCapacity = game.config().maxResources(player);
 
-    for (let x = 1; x <= 10; x++) {
-      player.conquer(game.ref(x, 0));
+    let conquered = 1;
+    for (let y = 0; y < 100 && conquered < 1500; y++) {
+      for (let x = 0; x < 100 && conquered < 1500; x++) {
+        const tile = game.ref(x, y);
+        if (tile === game.ref(0, 0)) continue;
+        player.conquer(tile);
+        conquered++;
+      }
     }
     const expandedCapacity = game.config().maxResources(player);
 
@@ -34,7 +48,17 @@ describe("resource capacity config", () => {
       energy: expandedCapacity.food,
       materials: expandedCapacity.food,
     });
-    expect(expandedCapacity.food).toBeGreaterThan(oneTileCapacity.food);
+    expect(totalCapacity(expandedCapacity)).toBeGreaterThan(
+      totalCapacity(oneTileCapacity),
+    );
+  });
+
+  test("base resource capacity is much lower than per-resource troop capacity", () => {
+    player.conquer(game.ref(0, 0));
+    const resourceCapacity = game.config().maxResources(player);
+
+    expect(resourceCapacity.food).toBeLessThan(game.config().maxTroops(player));
+    expect(resourceCapacity.food).toBe(75_000n);
   });
 
   test("completed Silo levels increase resource capacity", () => {
@@ -142,7 +166,11 @@ describe("resource capacity config", () => {
       .config()
       .biomassSupportedTroopCapacity(game, player);
 
-    expect(plainsBiomassCapacity).toBeCloseTo(plainsTroopCapacity, 0);
+    expect(plainsBiomassCapacity).toBeLessThan(plainsTroopCapacity);
+    expect(plainsBiomassCapacity).toBeCloseTo(
+      Number(game.config().maxResources(player).food),
+      0,
+    );
 
     const highlandGamePlayer = game.player("player_id");
     const highlandTile = game.ref(1, 0);

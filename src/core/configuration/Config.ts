@@ -76,6 +76,7 @@ const DEFENSE_DEBUFF_DECAY_RATE = Math.LN2 / 50000;
 const DEFAULT_SPAWN_IMMUNITY_TICKS = 5 * 10;
 const TROOP_LOGISTIC_GROWTH_RATE = 0.016;
 const BASELINE_BIOMASS_PRODUCTION_SHARE = 0.25;
+const MIN_BASE_RESOURCE_CAPACITY = 75_000;
 
 export const JwksSchema = z.object({
   keys: z
@@ -864,8 +865,13 @@ export class Config {
       .filter((u) => !u.isUnderConstruction())
       .map((silo) => silo.level())
       .reduce((a, b) => a + b, 0);
+    const troopStyleTerritoryCapacity =
+      2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000);
     const baseCapacity =
-      2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
+      Math.max(
+        MIN_BASE_RESOURCE_CAPACITY,
+        Math.floor(troopStyleTerritoryCapacity / 3),
+      ) +
       siloLevels * Number(this.factoryResourceCapacityIncrease());
 
     return resourcesFromGoldAmount(
