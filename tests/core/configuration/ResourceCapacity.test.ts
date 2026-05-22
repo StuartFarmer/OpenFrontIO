@@ -37,35 +37,44 @@ describe("resource capacity config", () => {
     expect(expandedCapacity.food).toBeGreaterThan(oneTileCapacity.food);
   });
 
-  test("completed Factory levels increase resource capacity", () => {
+  test("completed Silo levels increase resource capacity", () => {
     const tile = game.ref(0, 0);
     player.conquer(tile);
-    const beforeFactory = game.config().maxResources(player);
-    const factory = player.buildUnit(UnitType.Factory, tile, {});
+    const beforeSilo = game.config().maxResources(player);
+    const silo = player.buildUnit(UnitType.Silo, tile, {});
 
-    expect(factory.isUnderConstruction()).toBe(false);
+    expect(silo.isUnderConstruction()).toBe(false);
 
-    const afterFactory = game.config().maxResources(player);
-    expect(afterFactory.food - beforeFactory.food).toBe(
+    const afterSilo = game.config().maxResources(player);
+    expect(afterSilo.food - beforeSilo.food).toBe(
       game.config().factoryResourceCapacityIncrease(),
     );
-    expect(afterFactory.energy).toBe(afterFactory.food);
-    expect(afterFactory.materials).toBe(afterFactory.food);
+    expect(afterSilo.energy).toBe(afterSilo.food);
+    expect(afterSilo.materials).toBe(afterSilo.food);
   });
 
-  test("under-construction Factories do not increase resource capacity", () => {
+  test("under-construction Silos do not increase resource capacity", () => {
+    const tile = game.ref(0, 0);
+    player.conquer(tile);
+    const beforeSilo = game.config().maxResources(player);
+    const silo = player.buildUnit(UnitType.Silo, tile, {});
+
+    silo.setUnderConstruction(true);
+    expect(game.config().maxResources(player)).toEqual(beforeSilo);
+
+    silo.setUnderConstruction(false);
+    expect(game.config().maxResources(player).food).toBeGreaterThan(
+      beforeSilo.food,
+    );
+  });
+
+  test("Factory levels do not increase resource capacity", () => {
     const tile = game.ref(0, 0);
     player.conquer(tile);
     const beforeFactory = game.config().maxResources(player);
-    const factory = player.buildUnit(UnitType.Factory, tile, {});
+    player.buildUnit(UnitType.Factory, tile, {});
 
-    factory.setUnderConstruction(true);
     expect(game.config().maxResources(player)).toEqual(beforeFactory);
-
-    factory.setUnderConstruction(false);
-    expect(game.config().maxResources(player).food).toBeGreaterThan(
-      beforeFactory.food,
-    );
   });
 
   test("resourceIncreaseRate favors fuels on lowland/plains tiles", () => {
@@ -125,7 +134,7 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("City, Port, and Factory split their legacy gold price into resource costs", () => {
+  test("City, Port, Factory, Rail Station, and Silo split their legacy gold price into resource costs", () => {
     player.conquer(game.ref(0, 0));
 
     expect(game.config().unitResourceCost(UnitType.City, game, player)).toEqual(
@@ -149,6 +158,20 @@ describe("resource capacity config", () => {
       energy: 62_500n,
       materials: 31_250n,
     });
+    expect(
+      game.config().unitResourceCost(UnitType.RailStation, game, player),
+    ).toEqual({
+      food: 31_250n,
+      energy: 31_250n,
+      materials: 62_500n,
+    });
+    expect(game.config().unitResourceCost(UnitType.Silo, game, player)).toEqual(
+      {
+        food: 31_250n,
+        energy: 31_250n,
+        materials: 62_500n,
+      },
+    );
   });
 
   test("player updates carry resource capacity and diff capacity changes", () => {
@@ -162,7 +185,7 @@ describe("resource capacity config", () => {
       resourceCapacity: game.config().maxResources(player),
     });
 
-    player.buildUnit(UnitType.Factory, tile, {});
+    player.buildUnit(UnitType.Silo, tile, {});
     const diff = player.toUpdate();
 
     expect(diff).toMatchObject({

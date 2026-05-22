@@ -1,12 +1,12 @@
 import { Execution, Game, Unit, UnitType } from "../game/Game";
 import { TrainStationExecution } from "./TrainStationExecution";
 
-export class FactoryExecution implements Execution {
-  private active: boolean = true;
+export class RailStationExecution implements Execution {
+  private active = true;
   private game: Game;
   private stationCreated = false;
 
-  constructor(private factory: Unit) {}
+  constructor(private railStation: Unit) {}
 
   init(mg: Game, ticks: number): void {
     this.game = mg;
@@ -17,7 +17,7 @@ export class FactoryExecution implements Execution {
       this.createStation();
       this.stationCreated = true;
     }
-    if (!this.factory.isActive()) {
+    if (!this.railStation.isActive()) {
       this.active = false;
       return;
     }
@@ -33,12 +33,12 @@ export class FactoryExecution implements Execution {
 
   private createStation(): void {
     const structures = this.game.nearbyUnits(
-      this.factory.tile()!,
+      this.railStation.tile(),
       this.game.config().trainStationMaxRange(),
-      [UnitType.City, UnitType.Port, UnitType.Factory],
+      [UnitType.City, UnitType.Port, UnitType.RailStation],
     );
 
-    this.game.addExecution(new TrainStationExecution(this.factory, true));
+    this.game.addExecution(new TrainStationExecution(this.railStation));
     for (const { unit } of structures) {
       if (!unit.hasTrainStation()) {
         this.game.addExecution(new TrainStationExecution(unit));

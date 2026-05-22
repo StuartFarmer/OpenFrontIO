@@ -2,11 +2,11 @@ import { Execution, Game, Player, Tick, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { CityExecution } from "./CityExecution";
 import { DefensePostExecution } from "./DefensePostExecution";
-import { FactoryExecution } from "./FactoryExecution";
 import { MirvExecution } from "./MIRVExecution";
 import { MissileSiloExecution } from "./MissileSiloExecution";
 import { NukeExecution } from "./NukeExecution";
 import { PortExecution } from "./PortExecution";
+import { RailStationExecution } from "./RailStationExecution";
 import { SAMLauncherExecution } from "./SAMLauncherExecution";
 import { WarshipExecution } from "./WarshipExecution";
 
@@ -142,10 +142,11 @@ export class ConstructionExecution implements Execution {
         this.mg.addExecution(new CityExecution(this.structure!));
         break;
       case UnitType.RailStation:
+        this.mg.addExecution(new RailStationExecution(this.structure!));
+        break;
       case UnitType.Silo:
         break;
       case UnitType.Factory:
-        this.mg.addExecution(new FactoryExecution(this.structure!));
         break;
       default:
         console.warn(

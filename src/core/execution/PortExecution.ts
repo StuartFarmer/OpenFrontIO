@@ -84,12 +84,12 @@ export class PortExecution implements Execution {
   }
 
   createStation(): void {
-    const nearbyFactory = this.mg.hasUnitNearby(
+    const nearbyRailStation = this.mg.hasUnitNearby(
       this.port.tile()!,
       this.mg.config().trainStationMaxRange(),
-      UnitType.Factory,
+      UnitType.RailStation,
     );
-    if (nearbyFactory) {
+    if (nearbyRailStation) {
       this.mg.addExecution(new TrainStationExecution(this.port));
     }
   }

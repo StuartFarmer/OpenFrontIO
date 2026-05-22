@@ -857,14 +857,14 @@ export class Config {
   }
 
   maxResources(player: Player | PlayerView) {
-    const factoryLevels = player
-      .units(UnitType.Factory)
+    const siloLevels = player
+      .units(UnitType.Silo)
       .filter((u) => !u.isUnderConstruction())
-      .map((factory) => factory.level())
+      .map((silo) => silo.level())
       .reduce((a, b) => a + b, 0);
     const baseCapacity =
       2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
-      factoryLevels * Number(this.factoryResourceCapacityIncrease());
+      siloLevels * Number(this.factoryResourceCapacityIncrease());
 
     return resourcesFromGoldAmount(
       BigInt(Math.floor(this.capacityMultiplierFor(player, baseCapacity))),
