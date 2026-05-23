@@ -1,6 +1,6 @@
 # W1: mdBook Foundation
 
-**Status**: TODO
+**Status**: DONE
 **Entry**: Analysis and plan are approved; existing docs and npm scripts are unchanged.
 **Exit**: A local mdBook can be built from `docs/` through npm scripts, with existing docs reachable.
 **Parallelization**: Sequential (1 owner) because `docs/` layout and `package.json` scripts are shared write hotspots.
@@ -12,6 +12,6 @@
 - S1.3-local-docs-workflow.md
 
 ## Exit Criteria
-- [ ] `npm run docs:build` builds the book when mdBook is installed.
-- [ ] Existing `docs/Architecture.md`, `docs/API.md`, and `docs/Auth.md` are represented in book navigation.
-- [ ] Missing-mdBook failure path gives a clear install instruction.
+- [x] `npm run docs:build` builds the book when mdBook is installed.
+- [x] Existing `docs/Architecture.md`, `docs/API.md`, and `docs/Auth.md` are represented in book navigation.
+- [x] Missing-mdBook failure path gives a clear install instruction.

@@ -5,11 +5,11 @@
 **Demo**:
 `npm run docs:build`
 **Acceptance Checks**:
-- [ ] `book.toml` and `docs/src/SUMMARY.md` define a working mechanics documentation book.
-- [ ] Existing docs are reachable from the book without losing their current content.
-- [ ] Local setup explains how to install the pinned mdBook version.
+- [x] `book.toml` and `docs/SUMMARY.md` define a working mechanics documentation book.
+- [x] Existing docs are reachable from the book without losing their current content.
+- [x] Local setup explains how to install the pinned mdBook version.
 **Dependencies**: None
-**Notes**: mdBook remains a rendering tool; game code should not depend on Rust tooling.
+**Notes**: mdBook remains a rendering tool; game code should not depend on Rust tooling. Completed with local `mdbook v0.5.2`.
 
 ## D2: Mechanics Metadata And Generator
 **Outcome**: A TypeScript-owned mechanics metadata model and generator can produce mdBook Markdown from side-effect-free code exports.
