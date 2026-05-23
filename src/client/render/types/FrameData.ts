@@ -44,6 +44,8 @@ export interface FrameData {
   readonly changedTiles?: TilePair[] | null;
   readonly railroadDirty: boolean;
   readonly revealedRailTiles: number[];
+  readonly connectedRailroadTiles: number[];
+  readonly disconnectedRailroadTiles: number[];
 
   /**
    * Trail dirty row range for partial GPU upload.

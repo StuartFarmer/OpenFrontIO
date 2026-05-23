@@ -778,7 +778,7 @@
     "attack_cancelled_retreat": "已取消进攻，在撤退时损失了 {troops} 兵力",
     "received_gold_from_captured_ship": "捕获了 {name} 的商船，获得 {gold} 黄金",
     "received_gold_from_trade": "与 {name} 贸易获得了 {gold} 黄金",
-    "received_gold_from_conquest": "征服了 {name} 并获得 {gold} 黄金",
+    "received_gold_from_conquest": "征服了 {name} 并获得 {gold} 黄金和 {resources}",
     "conquered_no_gold": "征服了 {name} （对方没在玩了，因此未掠夺到黄金）",
     "missile_intercepted": "已拦截导弹 {unit}",
     "mirv_warheads_intercepted": "{count, plural, one {{count} 个 MIRV 弹头被拦截} other {{count} 个 MIRV 弹头被拦截}}",

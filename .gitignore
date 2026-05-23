@@ -1,4 +1,5 @@
 build/
+book/
 node_modules/
 out/
 static/

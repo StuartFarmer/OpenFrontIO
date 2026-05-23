@@ -38,6 +38,12 @@ export interface BonusEvent {
   smallID: number;
   tile: number;
   gold: number;
+  resources?: {
+    food: number;
+    energy: number;
+    materials: number;
+  };
+  source?: "rail" | "ship";
   troops: number;
 }
 

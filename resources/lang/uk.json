@@ -823,7 +823,7 @@
     "attack_cancelled_retreat": "Атаку скасовано, {troops} солдатів загинули під час відступу",
     "received_gold_from_captured_ship": "Отримано {gold} золота з корабля, захопленого у {name}",
     "received_gold_from_trade": "Отримано {gold} золота від торгівлі з {name}",
-    "received_gold_from_conquest": "Завойовано {name}, отримано {gold} од. золота",
+    "received_gold_from_conquest": "Завойовано {name}, отримано {gold} од. золота і {resources}",
     "conquered_no_gold": "Завойовано {name} (не грав, золота не отримано)",
     "missile_intercepted": "{unit} перехоплює ракету",
     "mirv_warheads_intercepted": "{count, plural, one {Перехоплено {count} боєголовку РГЧ ІН} few {Перехоплено {count} боєголовки РГЧ ІН} many {Перехоплено {count} боєголовок РГЧ ІН} other {Перехоплено {count} боєголовок РГЧ ІН}}",

@@ -124,5 +124,10 @@ describe("Alliance Donation", () => {
 
     // Donation should have succeeded
     expect(player2.gold()).toBe(goldBefore + 100n);
+    expect(player2.resources()).toEqual({
+      food: goldBefore + 100n,
+      energy: goldBefore + 100n,
+      materials: goldBefore + 100n,
+    });
   });
 });

@@ -742,7 +742,7 @@
     "attack_cancelled_retreat": "攻撃はキャンセルされました、撤退中に{troops} 人の兵士が死亡しました",
     "received_gold_from_captured_ship": "{name} から捕獲した船から資金 {gold} を獲得しました",
     "received_gold_from_trade": "{name} との貿易で資金 {gold}を獲得しました",
-    "received_gold_from_conquest": "{name}を征服して、{gold}ゴールドを獲得しました",
+    "received_gold_from_conquest": "{name}を征服して、{gold}ゴールドと{resources}を獲得しました",
     "conquered_no_gold": "{name}を征服しました (相手がプレイしていなかったのでゴールドは獲得できません)",
     "missile_intercepted": "ミサイルが{unit}を迎撃しました",
     "mirv_warheads_intercepted": "{count, plural, other {{count}発の MIRV 弾頭を迎撃}}",

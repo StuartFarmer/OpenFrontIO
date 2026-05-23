@@ -616,11 +616,13 @@ describe("InputHandler AutoUpgrade", () => {
       expect(inputHandler["uiState"].ghostStructure).toBe(UnitType.City);
     });
 
-    test("Numpad5 sets ghost structure to MissileSilo when buildMissileSilo is Digit5", () => {
+    test("Numpad5 sets ghost structure to RailStation when buildRailStation is Digit5", () => {
       window.dispatchEvent(
         new KeyboardEvent("keyup", { code: "Numpad5", key: "5" }),
       );
-      expect(inputHandler["uiState"].ghostStructure).toBe(UnitType.MissileSilo);
+      expect(inputHandler["uiState"].ghostStructure).toBe(
+        UnitType.RailStation,
+      );
     });
 
     test("Numpad0 sets ghost structure to MIRV when buildMIRV is Digit0", () => {

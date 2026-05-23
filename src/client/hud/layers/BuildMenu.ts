@@ -12,6 +12,10 @@ import {
 } from "../../../core/game/Game";
 import { TileRef } from "../../../core/game/GameMap";
 import { GameView } from "../../../core/game/GameView";
+import {
+  createZeroResources,
+  ResourceStockpile,
+} from "../../../core/game/Resources";
 import { Controller } from "../../Controller";
 import {
   CloseViewEvent,
@@ -26,21 +30,20 @@ import {
 } from "../../Transport";
 import { UIState } from "../../UIState";
 import { renderNumber } from "../../Utils";
+import { renderResourceCostText } from "../ResourceDisplay";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
-const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
-const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const samlauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
 
 export interface BuildItemDisplay {
   unitType: PlayerBuildableUnitType;
-  icon: string;
+  icon?: string;
+  label?: string;
   description?: string;
   key?: string;
   countable?: boolean;
@@ -84,17 +87,17 @@ export const buildTable: BuildItemDisplay[][] = [
       countable: true,
     },
     {
-      unitType: UnitType.MissileSilo,
-      icon: missileSiloIcon,
-      description: "build_menu.desc.missile_silo",
-      key: "unit_type.missile_silo",
+      unitType: UnitType.RailStation,
+      label: "R",
+      description: "build_menu.desc.rail_station",
+      key: "unit_type.rail_station",
       countable: true,
     },
     {
-      unitType: UnitType.SAMLauncher,
-      icon: samlauncherIcon,
-      description: "build_menu.desc.sam_launcher",
-      key: "unit_type.sam_launcher",
+      unitType: UnitType.Silo,
+      label: "S",
+      description: "build_menu.desc.silo",
+      key: "unit_type.silo",
       countable: true,
     },
     {
@@ -187,6 +190,17 @@ export class BuildMenu extends LitElement implements Controller {
     }
     .build-description {
       font-size: 0.6rem;
+    }
+    .letter-icon {
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
     }
     .build-row {
       display: flex;
@@ -373,6 +387,15 @@ export class BuildMenu extends LitElement implements Controller {
     return 0n;
   }
 
+  public resourceCost(item: BuildItemDisplay): ResourceStockpile {
+    for (const bu of this.playerBuildables ?? []) {
+      if (bu.type === item.unitType) {
+        return bu.resourceCost;
+      }
+    }
+    return createZeroResources();
+  }
+
   public count(item: BuildItemDisplay): string {
     const player = this.game?.myPlayer();
     if (!player) {
@@ -432,12 +455,16 @@ export class BuildMenu extends LitElement implements Controller {
                       ? translateText("build_menu.not_enough_money")
                       : ""}
                   >
-                    <img
-                      src=${item.icon}
-                      alt="${item.unitType}"
-                      width="40"
-                      height="40"
-                    />
+                    ${item.icon
+                      ? html`<img
+                          src=${item.icon}
+                          alt="${item.unitType}"
+                          width="40"
+                          height="40"
+                        />`
+                      : html`<span class="letter-icon" aria-hidden="true"
+                          >${item.label}</span
+                        >`}
                     <span class="build-name"
                       >${item.key && translateText(item.key)}</span
                     >
@@ -446,16 +473,9 @@ export class BuildMenu extends LitElement implements Controller {
                       translateText(item.description)}</span
                     >
                     <span class="build-cost" translate="no">
-                      ${renderNumber(
-                        this.game && this.game.myPlayer() ? this.cost(item) : 0,
-                      )}
-                      <img
-                        src=${goldCoinIcon}
-                        alt="gold"
-                        width="12"
-                        height="12"
-                        class="align-middle"
-                      />
+                      ${this.game && this.game.myPlayer()
+                        ? renderResourceCostText(this.resourceCost(item))
+                        : renderNumber(0)}
                     </span>
                     ${item.countable
                       ? html`<div class="build-count-chip">

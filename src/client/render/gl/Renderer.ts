@@ -652,6 +652,15 @@ export class GPURenderer {
   uploadRailroadState(data: Uint8Array): void {
     this.railroadPass.uploadRailroadState(data);
   }
+  updateRailroadNetworkOverlay(
+    connectedTileRefs: readonly number[],
+    disconnectedTileRefs: readonly number[],
+  ): void {
+    this.railroadPass.updateNetworkOverlay(
+      connectedTileRefs,
+      disconnectedTileRefs,
+    );
+  }
 
   updateUnits(units: Map<number, UnitState>, gameTick: number): void {
     this.lastUnits = units;
@@ -895,6 +904,7 @@ export class GPURenderer {
     this.unitPass.setAltView(active);
     this.structurePass.setAltView(active);
     this.trailPass.setAltView(active);
+    this.railroadPass.setNetworkOverlayVisible(active);
   }
 
   setShowPatterns(active: boolean): void {

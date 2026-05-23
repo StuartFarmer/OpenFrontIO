@@ -778,7 +778,7 @@
     "attack_cancelled_retreat": "Атаката бе отменена, {troops} войници бяха убити по време на отстъплението",
     "received_gold_from_captured_ship": "Получи {gold} злато от лодка на {name}, превзета от теб",
     "received_gold_from_trade": "Получи {gold} злато от търговия с {name}",
-    "received_gold_from_conquest": "Превзе {name}, получи {gold} злато",
+    "received_gold_from_conquest": "Превзе {name}, получи {gold} злато и {resources}",
     "conquered_no_gold": "Превзе {name} (не е играл, не получаваш злато)",
     "missile_intercepted": "Противоракетната установка прихвана {unit}",
     "mirv_warheads_intercepted": "{count, plural, one {{count} МИРВ бе прихванат} other {{count} МИРВ-а бяха прихванати}}",

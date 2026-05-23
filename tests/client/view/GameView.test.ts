@@ -432,6 +432,35 @@ describe("GameView.frameData() — renderer contract", () => {
     expect(dead.map((d) => d.pos).sort((a, b) => a - b)).toEqual([20, 30]);
   });
 
+  it("frame.events.conquestEvents carries capped resource captures", () => {
+    const game = makeGameView();
+    const gu = withPlayers(
+      1,
+      [makePlayerUpdate({ id: "victim", smallID: 2 })],
+      { victim: makeNameViewData({ x: 7, y: 9 }) },
+    );
+    gu.updates[GameUpdateType.ConquestEvent] = [
+      {
+        type: GameUpdateType.ConquestEvent,
+        conquerorId: "conqueror",
+        conqueredId: "victim",
+        gold: 0n,
+        resources: { food: 5n, energy: 3n, materials: 1n },
+      },
+    ];
+
+    game.update(gu);
+
+    expect(game.frameData().events.conquestEvents).toEqual([
+      {
+        x: 7,
+        y: 9,
+        gold: 0,
+        resources: { food: 5, energy: 3, materials: 1 },
+      },
+    ]);
+  });
+
   it("frame.events arrays are cleared each tick (no event leakage)", () => {
     const game = makeGameView();
     const gu1 = makeEmptyGu(1);

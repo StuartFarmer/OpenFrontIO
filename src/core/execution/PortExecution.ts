@@ -35,13 +35,13 @@ export class PortExecution implements Execution {
       return;
     }
 
-    if (!this.port.hasTrainStation()) {
-      this.createStation();
-    }
-
     // Only check every 10 ticks for performance.
     if ((this.mg.ticks() + this.checkOffset) % 10 !== 0) {
       return;
+    }
+
+    if (!this.port.hasTrainStation()) {
+      this.createStation();
     }
 
     if (!this.shouldSpawnTradeShip()) {
@@ -84,12 +84,12 @@ export class PortExecution implements Execution {
   }
 
   createStation(): void {
-    const nearbyFactory = this.mg.hasUnitNearby(
+    const nearbyRailStation = this.mg.hasUnitNearby(
       this.port.tile()!,
       this.mg.config().trainStationMaxRange(),
-      UnitType.Factory,
+      UnitType.RailStation,
     );
-    if (nearbyFactory) {
+    if (nearbyRailStation) {
       this.mg.addExecution(new TrainStationExecution(this.port));
     }
   }

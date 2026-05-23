@@ -1,5 +1,6 @@
 import type { PlayerState } from "../../client/render/types";
 import { GameUpdateType, PlayerUpdate } from "./GameUpdates";
+import type { ResourceStockpile } from "./Resources";
 
 /**
  * Build a partial PlayerUpdate containing only fields whose value differs
@@ -36,6 +37,26 @@ export function diffPlayerUpdate(
   setIfDifferent("isDisconnected", prev.isDisconnected === next.isDisconnected);
   setIfDifferent("tilesOwned", prev.tilesOwned === next.tilesOwned);
   setIfDifferent("gold", prev.gold === next.gold);
+  setIfDifferent(
+    "resources",
+    resourceStockpileEqual(prev.resources, next.resources),
+  );
+  setIfDifferent(
+    "resourceCapacity",
+    resourceStockpileEqual(prev.resourceCapacity, next.resourceCapacity),
+  );
+  setIfDifferent(
+    "effectiveTroopCapacity",
+    prev.effectiveTroopCapacity === next.effectiveTroopCapacity,
+  );
+  setIfDifferent(
+    "biomassSupportedTroopCapacity",
+    prev.biomassSupportedTroopCapacity === next.biomassSupportedTroopCapacity,
+  );
+  setIfDifferent(
+    "troopIncreaseRate",
+    prev.troopIncreaseRate === next.troopIncreaseRate,
+  );
   setIfDifferent("troops", prev.troops === next.troops);
   setIfDifferent("isTraitor", prev.isTraitor === next.isTraitor);
   setIfDifferent(
@@ -91,6 +112,29 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
     target.isDisconnected = pu.isDisconnected;
   if (pu.tilesOwned !== undefined) target.tilesOwned = pu.tilesOwned;
   if (pu.gold !== undefined) target.gold = Number(pu.gold);
+  if (pu.resources !== undefined) {
+    target.resources = {
+      food: Number(pu.resources.food),
+      energy: Number(pu.resources.energy),
+      materials: Number(pu.resources.materials),
+    };
+  }
+  if (pu.resourceCapacity !== undefined) {
+    target.resourceCapacity = {
+      food: Number(pu.resourceCapacity.food),
+      energy: Number(pu.resourceCapacity.energy),
+      materials: Number(pu.resourceCapacity.materials),
+    };
+  }
+  if (pu.effectiveTroopCapacity !== undefined) {
+    target.effectiveTroopCapacity = pu.effectiveTroopCapacity;
+  }
+  if (pu.biomassSupportedTroopCapacity !== undefined) {
+    target.biomassSupportedTroopCapacity = pu.biomassSupportedTroopCapacity;
+  }
+  if (pu.troopIncreaseRate !== undefined) {
+    target.troopIncreaseRate = pu.troopIncreaseRate;
+  }
   if (pu.troops !== undefined) target.troops = pu.troops;
   if (pu.isTraitor !== undefined) target.isTraitor = pu.isTraitor;
   if (pu.traitorRemainingTicks !== undefined) {
@@ -142,6 +186,17 @@ function stringSetEqual(a?: Set<string>, b?: Set<string>): boolean {
   if (a.size !== b.size) return false;
   for (const v of a) if (!b.has(v)) return false;
   return true;
+}
+
+function resourceStockpileEqual(
+  a?: ResourceStockpile,
+  b?: ResourceStockpile,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.food === b.food && a.energy === b.energy && a.materials === b.materials
+  );
 }
 
 function jsonEqual(a: unknown, b: unknown): boolean {

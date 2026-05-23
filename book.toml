@@ -1,0 +1,12 @@
+[book]
+authors = ["OpenFront Contributors"]
+language = "en"
+src = "docs"
+title = "OpenFront Documentation"
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/openfrontio/OpenFrontIO"
+edit-url-template = "https://github.com/openfrontio/OpenFrontIO/edit/main/{path}"

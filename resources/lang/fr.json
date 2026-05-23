@@ -823,7 +823,7 @@
     "attack_cancelled_retreat": "Attaque annulée, {troops} soldats ont été tués pendant la retraite",
     "received_gold_from_captured_ship": "{gold} ors reçu pour la capture d'un navire de {name}",
     "received_gold_from_trade": "{gold} ors reçu pour le commerce avec {name}",
-    "received_gold_from_conquest": "{name} éliminé, {gold} d'or reçu",
+    "received_gold_from_conquest": "{name} éliminé, {gold} d'or et {resources} reçus",
     "conquered_no_gold": "Élimination de {name} (n'a pas joué, pas d'or reçu)",
     "missile_intercepted": "Le missile a intercepté {unit}",
     "mirv_warheads_intercepted": "{count, plural, one {{count} ogive nucléaire MIRV a été interceptée} other {{count} ogives nucléaire MIRV ont été interceptées}}",

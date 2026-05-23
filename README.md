@@ -115,6 +115,22 @@ npm run dev:prod
 
 ## 🛠️ Development Tools
 
+- **Build docs**:
+
+  Install `mdbook v0.5.2`, then run:
+
+  ```bash
+  npm run docs:build
+  ```
+
+  To serve the docs locally:
+
+  ```bash
+  npm run docs:serve
+  ```
+
+  See [Documentation Workflow](docs/DocsWorkflow.md) for install options.
+
 - **Format code**:
 
   ```bash

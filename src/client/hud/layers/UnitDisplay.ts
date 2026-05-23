@@ -4,28 +4,41 @@ import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import {
   BuildableUnit,
-  BuildMenus,
-  Gold,
   PlayerBuildableUnitType,
   UnitType,
 } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
+import {
+  createZeroResources,
+  ResourceStockpile,
+} from "../../../core/game/Resources";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { Controller } from "../../Controller";
 import { ToggleStructureEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { renderNumber, translateText } from "../../Utils";
+import { renderResourceCostText } from "../ResourceDisplay";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
-const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const mirvIcon = assetUrl("images/MIRVIcon.svg");
-const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
-const samLauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const defensePostIcon = assetUrl("images/ShieldIconWhite.svg");
+
+const visibleBuildTypes: PlayerBuildableUnitType[] = [
+  UnitType.City,
+  UnitType.Factory,
+  UnitType.Port,
+  UnitType.DefensePost,
+  UnitType.RailStation,
+  UnitType.Silo,
+  UnitType.Warship,
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.MIRV,
+];
 
 @customElement("unit-display")
 export class UnitDisplay extends LitElement implements Controller {
@@ -37,10 +50,10 @@ export class UnitDisplay extends LitElement implements Controller {
   private _cities = 0;
   private _warships = 0;
   private _factories = 0;
-  private _missileSilo = 0;
+  private _railStations = 0;
   private _port = 0;
   private _defensePost = 0;
-  private _samLauncher = 0;
+  private _silos = 0;
   private allDisabled = false;
   private _hoveredUnit: PlayerBuildableUnitType | null = null;
 
@@ -54,17 +67,29 @@ export class UnitDisplay extends LitElement implements Controller {
 
     this.keybinds = userSettings.parsedUserKeybinds();
 
-    this.allDisabled = BuildMenus.types.every((u) => config.isUnitDisabled(u));
+    this.allDisabled = visibleBuildTypes.every((u) => config.isUnitDisabled(u));
     this.requestUpdate();
   }
 
-  private cost(item: UnitType): Gold {
+  private resourceCost(item: UnitType): ResourceStockpile {
     for (const bu of this.playerBuildables ?? []) {
       if (bu.type === item) {
-        return bu.cost;
+        return bu.resourceCost;
       }
     }
-    return 0n;
+    return createZeroResources();
+  }
+
+  private canAfford(item: UnitType): boolean {
+    const player = this.game?.myPlayer();
+    if (!player) return false;
+    const resources = player.resources();
+    const cost = this.resourceCost(item);
+    return (
+      resources.food >= cost.food &&
+      resources.energy >= cost.energy &&
+      resources.materials >= cost.materials
+    );
   }
 
   private canBuild(item: UnitType): boolean {
@@ -75,30 +100,29 @@ export class UnitDisplay extends LitElement implements Controller {
       case UnitType.HydrogenBomb:
       case UnitType.MIRV:
         return (
-          this.cost(item) <= (player?.gold() ?? 0n) &&
+          this.canAfford(item) &&
           (player?.units(UnitType.MissileSilo).length ?? 0) > 0
         );
       case UnitType.Warship:
         return (
-          this.cost(item) <= (player?.gold() ?? 0n) &&
-          (player?.units(UnitType.Port).length ?? 0) > 0
+          this.canAfford(item) && (player?.units(UnitType.Port).length ?? 0) > 0
         );
       default:
-        return this.cost(item) <= (player?.gold() ?? 0n);
+        return this.canAfford(item);
     }
   }
 
   tick() {
     const player = this.game?.myPlayer();
     if (!player) return;
-    player.buildables(undefined, BuildMenus.types).then((buildables) => {
+    player.buildables(undefined, visibleBuildTypes).then((buildables) => {
       this.playerBuildables = buildables;
     });
     this._cities = player.totalUnitLevels(UnitType.City);
-    this._missileSilo = player.totalUnitLevels(UnitType.MissileSilo);
+    this._railStations = player.totalUnitLevels(UnitType.RailStation);
     this._port = player.totalUnitLevels(UnitType.Port);
     this._defensePost = player.totalUnitLevels(UnitType.DefensePost);
-    this._samLauncher = player.totalUnitLevels(UnitType.SAMLauncher);
+    this._silos = player.totalUnitLevels(UnitType.Silo);
     this._factories = player.totalUnitLevels(UnitType.Factory);
     this._warships = player.totalUnitLevels(UnitType.Warship);
     this.requestUpdate();
@@ -152,18 +176,20 @@ export class UnitDisplay extends LitElement implements Controller {
             this.keybinds["buildDefensePost"]?.key ?? "4",
           )}
           ${this.renderUnitItem(
-            missileSiloIcon,
-            this._missileSilo,
-            UnitType.MissileSilo,
-            "missile_silo",
-            this.keybinds["buildMissileSilo"]?.key ?? "5",
+            null,
+            this._railStations,
+            UnitType.RailStation,
+            "rail_station",
+            this.keybinds["buildRailStation"]?.key ?? "5",
+            "R",
           )}
           ${this.renderUnitItem(
-            samLauncherIcon,
-            this._samLauncher,
-            UnitType.SAMLauncher,
-            "sam_launcher",
-            this.keybinds["buildSamLauncher"]?.key ?? "6",
+            null,
+            this._silos,
+            UnitType.Silo,
+            "silo",
+            this.keybinds["buildSilo"]?.key ?? "6",
+            "S",
           )}
           ${this.renderUnitItem(
             warshipIcon,
@@ -199,11 +225,12 @@ export class UnitDisplay extends LitElement implements Controller {
   }
 
   private renderUnitItem(
-    icon: string,
+    icon: string | null,
     number: number | null,
     unitType: PlayerBuildableUnitType,
     structureKey: string,
     hotkey: string,
+    label?: string,
   ) {
     if (this.game.config().isUnitDisabled(unitType)) {
       return html``;
@@ -248,9 +275,10 @@ export class UnitDisplay extends LitElement implements Controller {
                     </div>`
                   : null}
                 <div class="flex items-center justify-center gap-1">
-                  <img src=${goldCoinIcon} width="13" height="13" />
                   <span class="text-yellow-300"
-                    >${renderNumber(this.cost(unitType))}</span
+                    >${renderResourceCostText(
+                      this.resourceCost(unitType),
+                    )}</span
                   >
                 </div>
               </div>
@@ -295,7 +323,17 @@ export class UnitDisplay extends LitElement implements Controller {
             ${displayHotkey}
           </div>`}
           <div class="flex items-center gap-0.5 pt-0.5">
-            <img src=${icon} alt=${structureKey} class="align-middle size-5" />
+            ${icon
+              ? html`<img
+                  src=${icon}
+                  alt=${structureKey}
+                  class="align-middle size-5"
+                />`
+              : html`<span
+                  class="inline-flex items-center justify-center size-5 text-sm font-extrabold leading-none text-white"
+                  aria-hidden="true"
+                  >${label}</span
+                >`}
             ${number !== null
               ? html`<span class="text-xs">${renderNumber(number)}</span>`
               : null}

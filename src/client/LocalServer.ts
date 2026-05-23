@@ -58,7 +58,8 @@ export class LocalServer {
   private allPlayersStats: AllPlayersStats = {};
 
   private turnsExecuted = 0;
-  private turnStartTime = 0;
+  private lastTurnQueuedAt = 0;
+  private nextTurnAt = 0;
 
   private turnCheckInterval: NodeJS.Timeout;
   private clientConnect: () => void;
@@ -80,9 +81,18 @@ export class LocalServer {
 
   start() {
     console.log("local server starting");
+    const now = Date.now();
+    this.lastTurnQueuedAt = now;
+    this.nextTurnAt = now;
     this.turnCheckInterval = setInterval(() => {
-      const turnIntervalMs =
-        ClientEnv.turnIntervalMs() * this.replaySpeedMultiplier;
+      const now = Date.now();
+      const turnIntervalMs = this.turnIntervalMs();
+      if (this.paused) {
+        this.lastTurnQueuedAt = now;
+        this.nextTurnAt = now + turnIntervalMs;
+        return;
+      }
+
       const backlog = Math.max(0, this.turns.length - this.turnsExecuted);
       const allowReplayBacklog =
         this.replaySpeedMultiplier === ReplaySpeedMultiplier.fastest &&
@@ -91,25 +101,23 @@ export class LocalServer {
 
       const canQueueNextTurn =
         backlog === 0 || (maxBacklog > 0 && backlog < maxBacklog);
-      if (
-        canQueueNextTurn &&
-        Date.now() > this.turnStartTime + turnIntervalMs
-      ) {
-        this.turnStartTime = Date.now();
+      if (canQueueNextTurn && now >= this.nextTurnAt) {
+        this.lastTurnQueuedAt = this.nextTurnAt;
+        this.nextTurnAt += turnIntervalMs;
         // End turn on the server means the client will start processing the turn.
         this.endTurn();
       }
     }, 5);
 
     this.eventBus.on(ReplaySpeedChangeEvent, (event) => {
-      this.replaySpeedMultiplier = event.replaySpeedMultiplier;
+      this.setReplaySpeedMultiplier(event.replaySpeedMultiplier);
     });
 
     if (!this.isReplay) {
       this.eventBus.on(GameSpeedUpIntentEvent, () => {
         const idx = SPEED_ORDER.indexOf(this.replaySpeedMultiplier);
         if (idx < 0 || idx >= SPEED_ORDER.length - 1) return;
-        this.replaySpeedMultiplier = SPEED_ORDER[idx + 1];
+        this.setReplaySpeedMultiplier(SPEED_ORDER[idx + 1]);
         this.eventBus.emit(
           new ReplaySpeedChangeEvent(this.replaySpeedMultiplier),
         );
@@ -118,7 +126,7 @@ export class LocalServer {
       this.eventBus.on(GameSpeedDownIntentEvent, () => {
         const idx = SPEED_ORDER.indexOf(this.replaySpeedMultiplier);
         if (idx <= 0) return;
-        this.replaySpeedMultiplier = SPEED_ORDER[idx - 1];
+        this.setReplaySpeedMultiplier(SPEED_ORDER[idx - 1]);
         this.eventBus.emit(
           new ReplaySpeedChangeEvent(this.replaySpeedMultiplier),
         );
@@ -235,6 +243,17 @@ export class LocalServer {
   // This is so the client can tell us when it finished processing the turn.
   public turnComplete() {
     this.turnsExecuted++;
+  }
+
+  private setReplaySpeedMultiplier(
+    replaySpeedMultiplier: ReplaySpeedMultiplier,
+  ) {
+    this.replaySpeedMultiplier = replaySpeedMultiplier;
+    this.nextTurnAt = this.lastTurnQueuedAt + this.turnIntervalMs();
+  }
+
+  private turnIntervalMs() {
+    return ClientEnv.turnIntervalMs() * this.replaySpeedMultiplier;
   }
 
   // endTurn in this context means the server has collected all the intents

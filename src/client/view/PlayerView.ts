@@ -27,6 +27,7 @@ import {
   AttackUpdate,
   PlayerUpdate,
 } from "../../core/game/GameUpdates";
+import type { ResourceStockpile } from "../../core/game/Resources";
 import { UserSettings } from "../../core/game/UserSettings";
 import { PlayerState, PlayerStatic, PlayerTypeEnum } from "../render/types";
 import { GameView } from "./GameView";
@@ -77,6 +78,19 @@ function stateFromUpdate(pu: PlayerUpdate): PlayerState {
     isDisconnected: pu.isDisconnected!,
     tilesOwned: pu.tilesOwned!,
     gold: Number(pu.gold!),
+    resources: {
+      food: Number(pu.resources!.food),
+      energy: Number(pu.resources!.energy),
+      materials: Number(pu.resources!.materials),
+    },
+    resourceCapacity: {
+      food: Number(pu.resourceCapacity!.food),
+      energy: Number(pu.resourceCapacity!.energy),
+      materials: Number(pu.resourceCapacity!.materials),
+    },
+    effectiveTroopCapacity: pu.effectiveTroopCapacity!,
+    biomassSupportedTroopCapacity: pu.biomassSupportedTroopCapacity!,
+    troopIncreaseRate: pu.troopIncreaseRate!,
     troops: pu.troops!,
     isTraitor: pu.isTraitor!,
     traitorRemainingTicks: Math.max(0, pu.traitorRemainingTicks ?? 0),
@@ -434,6 +448,34 @@ export class PlayerView {
     // Engine Gold is bigint; renderer state stores number. Convert back at the
     // accessor for game-code that still expects bigint semantics.
     return BigInt(this.state.gold);
+  }
+
+  resources(): ResourceStockpile {
+    return {
+      food: BigInt(this.state.resources.food),
+      energy: BigInt(this.state.resources.energy),
+      materials: BigInt(this.state.resources.materials),
+    };
+  }
+
+  resourceCapacity(): ResourceStockpile {
+    return {
+      food: BigInt(this.state.resourceCapacity.food),
+      energy: BigInt(this.state.resourceCapacity.energy),
+      materials: BigInt(this.state.resourceCapacity.materials),
+    };
+  }
+
+  effectiveTroopCapacity(): number {
+    return this.state.effectiveTroopCapacity;
+  }
+
+  biomassSupportedTroopCapacity(): number {
+    return this.state.biomassSupportedTroopCapacity;
+  }
+
+  troopIncreaseRate(): number {
+    return this.state.troopIncreaseRate;
   }
 
   troops(): number {

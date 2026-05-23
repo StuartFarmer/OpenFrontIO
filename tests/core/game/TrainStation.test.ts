@@ -41,15 +41,29 @@ describe("TrainStation", () => {
       config: vi.fn().mockReturnValue({
         trainGold: (rel: string, _tradeStopsVisited: number) =>
           rel !== "other" ? BigInt(1000) : BigInt(500),
+        maxResources: () => ({
+          food: 100_000n,
+          energy: 100_000n,
+          materials: 100_000n,
+        }),
       }),
       addUpdate: vi.fn(),
       addExecution: vi.fn(),
+      displayMessage: vi.fn(),
       stats: vi.fn().mockReturnValue(gameStats),
     } as any;
 
     player = {
       addGold: vi.fn(),
-      id: 1,
+      addResources: vi.fn(),
+      removeResources: vi.fn(),
+      resources: vi.fn().mockReturnValue({
+        food: 300n,
+        energy: 200n,
+        materials: 500n,
+      }),
+      id: vi.fn().mockReturnValue("player-id"),
+      displayName: vi.fn().mockReturnValue("Player"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
@@ -72,40 +86,186 @@ describe("TrainStation", () => {
     } as any;
   });
 
-  it("handles City stop", () => {
+  it("does not convert resources on same-owner City stop", () => {
     unit.type.mockReturnValue(UnitType.City);
     const station = new TrainStation(game, unit);
 
     station.onTrainStop(trainExecution);
 
-    expect(unit.owner().addGold).toHaveBeenCalledWith(1000n, unit.tile());
+    expect(unit.owner().removeResources).not.toHaveBeenCalled();
+    expect(unit.owner().addResources).not.toHaveBeenCalled();
+    expect(game.displayMessage).not.toHaveBeenCalled();
   });
 
-  it("handles allied trade", () => {
+  it("does not convert resources on same-owner allied trade", () => {
     unit.type.mockReturnValue(UnitType.City);
     player.isFriendly.mockReturnValue(true);
     const station = new TrainStation(game, unit);
 
     station.onTrainStop(trainExecution);
 
-    expect(unit.owner().addGold).toHaveBeenCalledWith(1000n, unit.tile());
-    expect(trainExecution.owner().addGold).toHaveBeenCalledWith(
-      1000n,
-      unit.tile(),
-    );
+    expect(unit.owner().removeResources).not.toHaveBeenCalled();
+    expect(unit.owner().addResources).not.toHaveBeenCalled();
+    expect(game.displayMessage).not.toHaveBeenCalled();
   });
 
   it("records external trade on the station owner", () => {
     const stationOwner = {
       addGold: vi.fn(),
-      id: 1,
+      addResources: vi.fn(),
+      removeResources: vi.fn().mockReturnValue({
+        food: 4_999n,
+        energy: 0n,
+        materials: 5_001n,
+      }),
+      resources: vi.fn().mockReturnValue({
+        food: 45_000n,
+        energy: 10_000n,
+        materials: 45_000n,
+      }),
+      id: vi.fn().mockReturnValue("station-owner-id"),
+      displayName: vi.fn().mockReturnValue("Station Owner"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
     } as any;
     const trainOwner = {
       addGold: vi.fn(),
-      id: 2,
+      addResources: vi.fn(),
+      removeResources: vi.fn().mockReturnValue({
+        food: 0n,
+        energy: 10_000n,
+        materials: 0n,
+      }),
+      resources: vi.fn().mockReturnValue({
+        food: 25_000n,
+        energy: 50_000n,
+        materials: 25_000n,
+      }),
+      id: vi.fn().mockReturnValue("train-owner-id"),
+      displayName: vi.fn().mockReturnValue("Train Owner"),
+      canTrade: vi.fn().mockReturnValue(true),
+      isAlliedWith: vi.fn().mockReturnValue(false),
+      isOnSameTeam: vi.fn().mockReturnValue(false),
+    } as any;
+
+    unit.type.mockReturnValue(UnitType.City);
+    unit.owner.mockReturnValue(stationOwner);
+    trainExecution.owner.mockReturnValue(trainOwner);
+    (game.config as any).mockReturnValue({
+      trainGold: vi.fn().mockReturnValue(10_000n),
+      maxResources: () => ({
+        food: 100_000n,
+        energy: 100_000n,
+        materials: 100_000n,
+      }),
+    });
+    const station = new TrainStation(game, unit);
+
+    station.onTrainStop(trainExecution);
+
+    expect(trainOwner.removeResources).toHaveBeenCalledWith(
+      {
+        food: 0n,
+        energy: 10_000n,
+        materials: 0n,
+      },
+      { updateGold: false },
+    );
+    expect(stationOwner.removeResources).toHaveBeenCalledWith(
+      {
+        food: 4_999n,
+        energy: 0n,
+        materials: 5_001n,
+      },
+      { updateGold: false },
+    );
+    expect(stationOwner.addResources).toHaveBeenCalledWith(
+      {
+        food: 0n,
+        energy: 10_000n,
+        materials: 0n,
+      },
+      unit.tile(),
+      {
+        bonusResources: {
+          food: 0n,
+          energy: 10_000n,
+          materials: 0n,
+        },
+        bonusSource: "rail",
+        updateGold: false,
+      },
+    );
+    expect(trainOwner.addResources).toHaveBeenCalledWith(
+      {
+        food: 4_999n,
+        energy: 0n,
+        materials: 5_001n,
+      },
+      unit.tile(),
+      {
+        bonusResources: {
+          food: 4_999n,
+          energy: 0n,
+          materials: 5_001n,
+        },
+        bonusSource: "rail",
+        updateGold: false,
+      },
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_trade",
+      expect.anything(),
+      "station-owner-id",
+      undefined,
+      expect.objectContaining({
+        name: "Train Owner",
+        resources: expect.stringContaining("/icons/fuel-icon.svg"),
+      }),
+    );
+    expect(game.displayMessage).toHaveBeenCalledWith(
+      "events_display.received_resources_from_trade",
+      expect.anything(),
+      "train-owner-id",
+      undefined,
+      expect.objectContaining({
+        name: "Station Owner",
+        resources: expect.stringContaining("/icons/metal-icon.svg"),
+      }),
+    );
+    expect(gameStats.trainExternalTrade).toHaveBeenCalledWith(
+      stationOwner,
+      10_000n,
+    );
+    expect(gameStats.trainSelfTrade).toHaveBeenCalledWith(trainOwner, 10_000n);
+  });
+
+  it("skips train trade when no reciprocal exchange is available", () => {
+    const stationOwner = {
+      addResources: vi.fn(),
+      removeResources: vi.fn(),
+      resources: vi.fn().mockReturnValue({
+        food: 33_000n,
+        energy: 33_000n,
+        materials: 33_000n,
+      }),
+      id: vi.fn().mockReturnValue("station-owner-id"),
+      displayName: vi.fn().mockReturnValue("Station Owner"),
+      canTrade: vi.fn().mockReturnValue(true),
+      isAlliedWith: vi.fn().mockReturnValue(false),
+      isOnSameTeam: vi.fn().mockReturnValue(false),
+    } as any;
+    const trainOwner = {
+      addResources: vi.fn(),
+      removeResources: vi.fn(),
+      resources: vi.fn().mockReturnValue({
+        food: 25_000n,
+        energy: 50_000n,
+        materials: 25_000n,
+      }),
+      id: vi.fn().mockReturnValue("train-owner-id"),
+      displayName: vi.fn().mockReturnValue("Train Owner"),
       canTrade: vi.fn().mockReturnValue(true),
       isAlliedWith: vi.fn().mockReturnValue(false),
       isOnSameTeam: vi.fn().mockReturnValue(false),
@@ -118,20 +278,63 @@ describe("TrainStation", () => {
 
     station.onTrainStop(trainExecution);
 
-    expect(stationOwner.addGold).toHaveBeenCalledWith(500n, unit.tile());
-    expect(trainOwner.addGold).toHaveBeenCalledWith(500n, unit.tile());
-    expect(gameStats.trainExternalTrade).toHaveBeenCalledWith(
-      stationOwner,
-      500n,
-    );
-    expect(gameStats.trainSelfTrade).toHaveBeenCalledWith(trainOwner, 500n);
+    expect(stationOwner.removeResources).not.toHaveBeenCalled();
+    expect(trainOwner.removeResources).not.toHaveBeenCalled();
+    expect(stationOwner.addResources).not.toHaveBeenCalled();
+    expect(trainOwner.addResources).not.toHaveBeenCalled();
+    expect(game.displayMessage).not.toHaveBeenCalled();
+    expect(gameStats.trainExternalTrade).not.toHaveBeenCalled();
+    expect(gameStats.trainSelfTrade).not.toHaveBeenCalled();
   });
 
   it("passes tradeStopsVisited to trainGold", () => {
     unit.type.mockReturnValue(UnitType.City);
     const trainGoldSpy = vi.fn().mockReturnValue(500n);
+    const stationOwner = {
+      resources: vi.fn().mockReturnValue({
+        food: 45_000n,
+        energy: 10_000n,
+        materials: 45_000n,
+      }),
+      removeResources: vi.fn().mockReturnValue({
+        food: 249n,
+        energy: 0n,
+        materials: 251n,
+      }),
+      addResources: vi.fn(),
+      id: vi.fn().mockReturnValue("station-owner-id"),
+      displayName: vi.fn().mockReturnValue("Station Owner"),
+      canTrade: vi.fn().mockReturnValue(true),
+      isAlliedWith: vi.fn().mockReturnValue(false),
+      isOnSameTeam: vi.fn().mockReturnValue(false),
+    } as any;
+    const trainOwner = {
+      resources: vi.fn().mockReturnValue({
+        food: 25_000n,
+        energy: 50_000n,
+        materials: 25_000n,
+      }),
+      removeResources: vi.fn().mockReturnValue({
+        food: 0n,
+        energy: 500n,
+        materials: 0n,
+      }),
+      addResources: vi.fn(),
+      id: vi.fn().mockReturnValue("train-owner-id"),
+      displayName: vi.fn().mockReturnValue("Train Owner"),
+      canTrade: vi.fn().mockReturnValue(true),
+      isAlliedWith: vi.fn().mockReturnValue(false),
+      isOnSameTeam: vi.fn().mockReturnValue(false),
+    } as any;
+    unit.owner.mockReturnValue(stationOwner);
+    trainExecution.owner.mockReturnValue(trainOwner);
     (game.config as any).mockReturnValue({
       trainGold: trainGoldSpy,
+      maxResources: () => ({
+        food: 100_000n,
+        energy: 100_000n,
+        materials: 100_000n,
+      }),
     });
     (trainExecution as any).tradeStopsVisited = vi.fn().mockReturnValue(3);
     const station = new TrainStation(game, unit);

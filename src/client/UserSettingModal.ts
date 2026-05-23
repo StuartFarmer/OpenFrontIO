@@ -448,22 +448,22 @@ export class UserSettingModal extends BaseModal {
       ></setting-keybind>
 
       <setting-keybind
-        action="buildMissileSilo"
-        label=${translateText("user_setting.build_missile_silo")}
-        description=${translateText("user_setting.build_missile_silo_desc")}
-        defaultKey=${this.defaultKeybinds.buildMissileSilo}
-        .value=${this.getKeyValue("buildMissileSilo")}
-        .display=${this.getKeyChar("buildMissileSilo")}
+        action="buildRailStation"
+        label=${translateText("user_setting.build_rail_station")}
+        description=${translateText("user_setting.build_rail_station_desc")}
+        defaultKey=${this.defaultKeybinds.buildRailStation}
+        .value=${this.getKeyValue("buildRailStation")}
+        .display=${this.getKeyChar("buildRailStation")}
         @change=${this.handleKeybindChange}
       ></setting-keybind>
 
       <setting-keybind
-        action="buildSamLauncher"
-        label=${translateText("user_setting.build_sam_launcher")}
-        description=${translateText("user_setting.build_sam_launcher_desc")}
-        defaultKey=${this.defaultKeybinds.buildSamLauncher}
-        .value=${this.getKeyValue("buildSamLauncher")}
-        .display=${this.getKeyChar("buildSamLauncher")}
+        action="buildSilo"
+        label=${translateText("user_setting.build_silo")}
+        description=${translateText("user_setting.build_silo_desc")}
+        defaultKey=${this.defaultKeybinds.buildSilo}
+        .value=${this.getKeyValue("buildSilo")}
+        .display=${this.getKeyChar("buildSilo")}
         @change=${this.handleKeybindChange}
       ></setting-keybind>
 

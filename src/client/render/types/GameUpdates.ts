@@ -51,6 +51,12 @@ export const MessageType = {
 
 export type PlayerType = "HUMAN" | "NATION" | "BOT";
 
+export interface ResourceEventStockpile {
+  food: bigint;
+  energy: bigint;
+  materials: bigint;
+}
+
 export interface UnitEventUpdate {
   id: number;
   unitType: string;
@@ -85,6 +91,11 @@ export interface PlayerEventUpdate {
   isAlive: boolean;
   troops: number;
   gold: bigint;
+  resources?: ResourceEventStockpile;
+  resourceCapacity?: ResourceEventStockpile;
+  effectiveTroopCapacity?: number;
+  biomassSupportedTroopCapacity?: number;
+  troopIncreaseRate?: number;
   tilesOwned: number;
   outgoingAttacks?: AttackEventUpdate[];
   incomingAttacks?: AttackEventUpdate[];
@@ -131,6 +142,8 @@ export interface BonusUpdate {
   player: string;
   tile?: number;
   gold: number;
+  resources?: ResourceEventStockpile;
+  source?: "rail" | "ship";
   troops: number;
 }
 

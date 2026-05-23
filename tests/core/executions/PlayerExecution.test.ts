@@ -31,6 +31,70 @@ describe("PlayerExecution", () => {
     game.addExecution(new PlayerExecution(otherPlayer));
   });
 
+  test("passive income adds terrain-weighted resources without accumulating gold", () => {
+    player.conquer(game.ref(50, 50));
+    const expectedResources = game.config().resourceIncreaseRate(game, player);
+
+    executeTicks(game, 2);
+
+    expect(player.resources()).toEqual(expectedResources);
+    expect(player.gold()).toBe(0n);
+  });
+
+  test("passive resource regen clamps each resource to capacity", () => {
+    player.conquer(game.ref(50, 50));
+    const capacity = game.config().maxResources(player);
+    player.addResources(
+      {
+        food: capacity.food - 1n,
+        energy: capacity.energy - 100n,
+        materials: capacity.materials - 1_000n,
+      },
+      undefined,
+      { updateGold: false },
+    );
+
+    executeTicks(game, 2);
+
+    const resources = player.resources();
+    expect(resources.food).toBe(capacity.food);
+    expect(resources.energy).toBeLessThanOrEqual(capacity.energy);
+    expect(resources.materials).toBeLessThanOrEqual(capacity.materials);
+    expect(resources.energy).toBeGreaterThan(capacity.energy - 100n);
+    expect(resources.materials).toBeGreaterThan(capacity.materials - 1_000n);
+  });
+
+  test("passive resource regen does not increase over-cap resources", () => {
+    player.conquer(game.ref(50, 50));
+    const capacity = game.config().maxResources(player);
+    const overCap = {
+      food: capacity.food + 10n,
+      energy: capacity.energy + 20n,
+      materials: capacity.materials + 30n,
+    };
+    player.addResources(overCap, undefined, { updateGold: false });
+
+    executeTicks(game, 2);
+
+    expect(player.resources()).toEqual(overCap);
+    expect(player.gold()).toBe(0n);
+  });
+
+  test("biomass-constrained logistic growth reduces over-supported troops", () => {
+    const tile = game.ref(50, 50);
+    player.conquer(tile);
+    player.buildUnit(UnitType.City, tile, {});
+    const biomassCapacity = game
+      .config()
+      .biomassSupportedTroopCapacity(game, player);
+    player.setTroops(biomassCapacity * 1.1);
+    const before = player.troops();
+
+    executeTicks(game, 2);
+
+    expect(player.troops()).toBeLessThan(before);
+  });
+
   test("DefensePost lv. 1 is destroyed when tile owner changes", () => {
     const tile = game.ref(50, 50);
     player.conquer(tile);

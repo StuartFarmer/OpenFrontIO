@@ -32,12 +32,12 @@ export class CityExecution implements Execution {
   }
 
   private createStation(): void {
-    const nearbyFactory = this.mg.hasUnitNearby(
+    const nearbyRailStation = this.mg.hasUnitNearby(
       this.city.tile()!,
       this.mg.config().trainStationMaxRange(),
-      UnitType.Factory,
+      UnitType.RailStation,
     );
-    if (nearbyFactory) {
+    if (nearbyRailStation) {
       this.mg.addExecution(new TrainStationExecution(this.city));
     }
   }

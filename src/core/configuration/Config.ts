@@ -17,6 +17,13 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
+import {
+  clampResourceDeltaToCapacity,
+  createZeroResources,
+  resourceRegenDelta,
+  resourcesFromGoldAmount,
+  ResourceStockpile,
+} from "../game/Resources";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
@@ -67,6 +74,9 @@ export interface NukeMagnitude {
 const DEFENSE_DEBUFF_MIDPOINT = 150_000;
 const DEFENSE_DEBUFF_DECAY_RATE = Math.LN2 / 50000;
 const DEFAULT_SPAWN_IMMUNITY_TICKS = 5 * 10;
+const TROOP_LOGISTIC_GROWTH_RATE = 0.016;
+const BASELINE_BIOMASS_PRODUCTION_SHARE = 0.25;
+const MIN_BASE_RESOURCE_CAPACITY = 75_000;
 
 export const JwksSchema = z.object({
   keys: z
@@ -131,6 +141,10 @@ export class Config {
 
   cityTroopIncrease(): number {
     return 250_000;
+  }
+
+  factoryResourceCapacityIncrease(): bigint {
+    return 250_000n;
   }
 
   falloutDefenseModifier(falloutRatio: number): number {
@@ -312,7 +326,7 @@ export class Config {
             (numUnits: number) =>
               Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
             UnitType.Port,
-            UnitType.Factory,
+            UnitType.RailStation,
           ),
           constructionDuration: this.instantBuild() ? 0 : 5 * 10,
           upgradable: true,
@@ -397,7 +411,29 @@ export class Config {
             (numUnits: number) =>
               Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
             UnitType.Factory,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.RailStation:
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) =>
+              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+            UnitType.RailStation,
             UnitType.Port,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.Silo:
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) =>
+              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+            UnitType.Silo,
           ),
           constructionDuration: this.instantBuild() ? 0 : 2 * 10,
           upgradable: true,
@@ -485,6 +521,44 @@ export class Config {
         0,
       );
       return BigInt(costFn(numUnits));
+    };
+  }
+
+  unitResourceCost(
+    type: UnitType,
+    game: Game,
+    player: Player,
+  ): ResourceStockpile {
+    const goldCost = this.unitInfo(type).cost(game, player);
+    switch (type) {
+      case UnitType.Port:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
+      case UnitType.City:
+        return this.splitResourceCost(goldCost, 2, 1, 1);
+      case UnitType.Factory:
+        return this.splitResourceCost(goldCost, 1, 2, 1);
+      case UnitType.RailStation:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
+      case UnitType.Silo:
+        return this.splitResourceCost(goldCost, 1, 1, 2);
+      default:
+        return this.splitResourceCost(goldCost, 1, 1, 1);
+    }
+  }
+
+  private splitResourceCost(
+    cost: Gold,
+    foodWeight: number,
+    energyWeight: number,
+    materialsWeight: number,
+  ): ResourceStockpile {
+    const totalWeight = BigInt(foodWeight + energyWeight + materialsWeight);
+    const food = (cost * BigInt(foodWeight)) / totalWeight;
+    const energy = (cost * BigInt(energyWeight)) / totalWeight;
+    return {
+      food,
+      energy,
+      materials: cost - food - energy,
     };
   }
 
@@ -785,13 +859,60 @@ export class Config {
     }
   }
 
-  troopIncreaseRate(player: Player | PlayerView): number {
-    const max = this.maxTroops(player);
+  maxResources(player: Player | PlayerView) {
+    const siloLevels = player
+      .units(UnitType.Silo)
+      .filter((u) => !u.isUnderConstruction())
+      .map((silo) => silo.level())
+      .reduce((a, b) => a + b, 0);
+    const troopStyleTerritoryCapacity =
+      2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000);
+    const baseCapacity =
+      Math.max(
+        MIN_BASE_RESOURCE_CAPACITY,
+        Math.floor(troopStyleTerritoryCapacity / 3),
+      ) +
+      siloLevels * Number(this.factoryResourceCapacityIncrease());
 
-    let toAdd = 10 + Math.pow(player.troops(), 0.73) / 4;
+    return resourcesFromGoldAmount(
+      BigInt(Math.floor(this.capacityMultiplierFor(player, baseCapacity))),
+    );
+  }
 
-    const ratio = 1 - player.troops() / max;
-    toAdd *= ratio;
+  biomassSupportedTroopCapacity(game: Game, player: Player): number {
+    const weights = this.terrainResourceProductionSplit(game, player);
+    const totalWeight = weights.food + weights.energy + weights.materials;
+    if (totalWeight <= 0n) {
+      return 0;
+    }
+
+    const biomassShare = Number(weights.food) / Number(totalWeight);
+    return (
+      (Number(this.maxResources(player).food) * biomassShare) /
+      BASELINE_BIOMASS_PRODUCTION_SHARE
+    );
+  }
+
+  effectiveTroopCapacity(game: Game, player: Player): number {
+    return Math.min(
+      this.maxTroops(player),
+      this.biomassSupportedTroopCapacity(game, player),
+    );
+  }
+
+  troopIncreaseRate(player: Player, game: Game): number;
+  troopIncreaseRate(player: Player | PlayerView): number;
+  troopIncreaseRate(player: Player | PlayerView, game?: Game): number {
+    const max = game
+      ? this.effectiveTroopCapacity(game, player as Player)
+      : this.maxTroops(player);
+    const troops = player.troops();
+
+    if (max <= 0) {
+      return -troops;
+    }
+
+    let toAdd = TROOP_LOGISTIC_GROWTH_RATE * troops * (1 - troops / max);
 
     if (player.type() === PlayerType.Bot) {
       toAdd *= 0.5;
@@ -816,7 +937,121 @@ export class Config {
       }
     }
 
-    return Math.min(player.troops() + toAdd, max) - player.troops();
+    return Math.min(troops + toAdd, max) - troops;
+  }
+
+  resourceIncreaseRate(game: Game, player: Player) {
+    const equalRegen = resourceRegenDelta(
+      player.resources(),
+      this.maxResources(player),
+      this.resourceRegenMultiplierFor(player) / 3,
+    );
+    const terrainSplit = this.terrainResourceProductionSplit(game, player);
+    const totalRegen =
+      equalRegen.food + equalRegen.energy + equalRegen.materials;
+    return clampResourceDeltaToCapacity(
+      player.resources(),
+      this.splitTotalResourceProduction(totalRegen, terrainSplit),
+      this.maxResources(player),
+    );
+  }
+
+  private terrainResourceProductionSplit(
+    game: Game,
+    player: Player,
+  ): ResourceStockpile {
+    const weights = createZeroResources();
+
+    for (const tile of player.tiles()) {
+      switch (game.terrainType(tile)) {
+        case TerrainType.Plains:
+          weights.food += 1n;
+          weights.energy += 2n;
+          weights.materials += 1n;
+          break;
+        case TerrainType.Highland:
+          weights.food += 2n;
+          weights.energy += 1n;
+          weights.materials += 1n;
+          break;
+        case TerrainType.Mountain:
+          weights.food += 1n;
+          weights.energy += 1n;
+          weights.materials += 2n;
+          break;
+        default:
+          break;
+      }
+    }
+
+    return weights;
+  }
+
+  private splitTotalResourceProduction(
+    total: bigint,
+    weights: ResourceStockpile,
+  ): ResourceStockpile {
+    const totalWeight = weights.food + weights.energy + weights.materials;
+    if (total <= 0n || totalWeight <= 0n) {
+      return createZeroResources();
+    }
+
+    const food = (total * weights.food) / totalWeight;
+    const energy = (total * weights.energy) / totalWeight;
+    return {
+      food,
+      energy,
+      materials: total - food - energy,
+    };
+  }
+
+  private capacityMultiplierFor(
+    player: Player | PlayerView,
+    capacity: number,
+  ): number {
+    if (player.type() === PlayerType.Bot) {
+      return capacity / 3;
+    }
+
+    if (player.type() === PlayerType.Human) {
+      return capacity;
+    }
+
+    switch (this._gameConfig.difficulty) {
+      case Difficulty.Easy:
+        return capacity * 0.5;
+      case Difficulty.Medium:
+        return capacity * 0.75;
+      case Difficulty.Hard:
+        return capacity * 1;
+      case Difficulty.Impossible:
+        return capacity * 1.25;
+      default:
+        assertNever(this._gameConfig.difficulty);
+    }
+  }
+
+  private resourceRegenMultiplierFor(player: Player | PlayerView): number {
+    if (player.type() === PlayerType.Bot) {
+      return 0.5;
+    }
+
+    if (player.type() !== PlayerType.Nation) {
+      return 1;
+    }
+
+    switch (this._gameConfig.difficulty) {
+      case Difficulty.Easy:
+        return 0.9;
+      case Difficulty.Medium:
+        return 0.95;
+      case Difficulty.Hard:
+        return 1;
+      case Difficulty.Impossible:
+        return 1.05;
+      default:
+        assertNever(this._gameConfig.difficulty);
+    }
   }
 
   goldAdditionRate(player: Player | PlayerView): Gold {

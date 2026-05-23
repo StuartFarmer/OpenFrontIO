@@ -51,6 +51,13 @@ import {
   PlayerUpdate,
 } from "./GameUpdates";
 import {
+  addResourceDelta,
+  AddResourcesOptions,
+  cloneResources,
+  resourcesFromGoldAmount,
+  ResourceStockpile,
+} from "./Resources";
+import {
   bestShoreDeploymentSource,
   canBuildTransportShip,
 } from "./TransportShipUtils";
@@ -73,6 +80,7 @@ export class PlayerImpl implements Player {
   public _pseudo_random: PseudoRandom;
 
   private _gold: bigint;
+  private _resources: ResourceStockpile;
   private _troops: bigint;
 
   markedTraitorTick = -1;
@@ -121,7 +129,9 @@ export class PlayerImpl implements Player {
     private readonly _team: Team | null,
   ) {
     this._troops = toInt(startTroops);
-    this._gold = mg.config().startingGold(playerInfo);
+    const startingGold = mg.config().startingGold(playerInfo);
+    this._gold = startingGold;
+    this._resources = resourcesFromGoldAmount(startingGold);
     this._pseudo_random = new PseudoRandom(simpleHash(this.playerInfo.id));
   }
 
@@ -162,6 +172,15 @@ export class PlayerImpl implements Player {
       isDisconnected: this.isDisconnected(),
       tilesOwned: this.numTilesOwned(),
       gold: this._gold,
+      resources: this.resources(),
+      resourceCapacity: this.mg.config().maxResources(this),
+      effectiveTroopCapacity: this.mg
+        .config()
+        .effectiveTroopCapacity(this.mg, this),
+      biomassSupportedTroopCapacity: this.mg
+        .config()
+        .biomassSupportedTroopCapacity(this.mg, this),
+      troopIncreaseRate: this.mg.config().troopIncreaseRate(this, this.mg),
       troops: this.troops(),
       allies: this.alliances().map((a) => a.other(this).smallID()),
       embargoes: new Set([...this.embargoes.keys()].map((p) => p.toString())),
@@ -841,9 +860,9 @@ export class PlayerImpl implements Player {
 
   donateGold(recipient: Player, gold: Gold): boolean {
     if (gold <= 0n) return false;
-    const removed = this.removeGold(gold);
+    const removed = this.removeResources(resourcesFromGoldAmount(gold)).food;
     if (removed === 0n) return false;
-    recipient.addGold(removed);
+    recipient.addResources(resourcesFromGoldAmount(removed));
 
     this.sentDonations.push(new Donation(recipient, this.mg.ticks()));
     this.mg.displayMessage(
@@ -979,14 +998,36 @@ export class PlayerImpl implements Player {
     return this._gold;
   }
 
+  resources(): ResourceStockpile {
+    return cloneResources(this._resources);
+  }
+
   addGold(toAdd: Gold, tile?: TileRef): void {
     this._gold += toAdd;
+    this.addResources(resourcesFromGoldAmount(toAdd), tile, {
+      updateGold: false,
+    });
+  }
+
+  addResources(
+    toAdd: ResourceStockpile,
+    tile?: TileRef,
+    options: AddResourcesOptions = {},
+  ): void {
+    this._resources = addResourceDelta(this._resources, toAdd);
+    if (options.updateGold !== false) {
+      this._gold += this.compatibilityGoldAmount(toAdd);
+    }
     if (tile) {
       this.mg.addUpdate({
         type: GameUpdateType.BonusEvent,
         player: this.id(),
         tile,
-        gold: Number(toAdd),
+        gold: Number(
+          options.bonusGoldAmount ?? this.legacyResourceEventGold(toAdd),
+        ),
+        resources: options.bonusResources,
+        source: options.bonusSource,
         troops: 0,
       });
     }
@@ -998,7 +1039,76 @@ export class PlayerImpl implements Player {
     }
     const actualRemoved = minInt(this._gold, toRemove);
     this._gold -= actualRemoved;
+    this._resources = addResourceDelta(this._resources, {
+      food: -minInt(this._resources.food, actualRemoved),
+      energy: -minInt(this._resources.energy, actualRemoved),
+      materials: -minInt(this._resources.materials, actualRemoved),
+    });
     return actualRemoved;
+  }
+
+  removeResources(
+    toRemove: ResourceStockpile,
+    options: AddResourcesOptions = {},
+  ): ResourceStockpile {
+    if (options.updateGold === false) {
+      const actualRemoved = {
+        food: minInt(this._resources.food, toRemove.food),
+        energy: minInt(this._resources.energy, toRemove.energy),
+        materials: minInt(this._resources.materials, toRemove.materials),
+      };
+      this._resources = addResourceDelta(this._resources, {
+        food: -actualRemoved.food,
+        energy: -actualRemoved.energy,
+        materials: -actualRemoved.materials,
+      });
+      return actualRemoved;
+    }
+
+    const compatibilityGold = this.compatibilityGoldAmount(toRemove);
+    if (compatibilityGold <= 0n) {
+      return resourcesFromGoldAmount(0n);
+    }
+    let actualRemoved = minInt(this._gold, compatibilityGold);
+    actualRemoved = minInt(actualRemoved, this._resources.food);
+    actualRemoved = minInt(actualRemoved, this._resources.energy);
+    actualRemoved = minInt(actualRemoved, this._resources.materials);
+    this._resources = addResourceDelta(
+      this._resources,
+      resourcesFromGoldAmount(-actualRemoved),
+    );
+    this._gold -= actualRemoved;
+    return resourcesFromGoldAmount(actualRemoved);
+  }
+
+  canAffordResources(cost: ResourceStockpile): boolean {
+    return (
+      this._resources.food >= cost.food &&
+      this._resources.energy >= cost.energy &&
+      this._resources.materials >= cost.materials
+    );
+  }
+
+  private legacyResourceEventGold(resources: ResourceStockpile): Gold {
+    if (
+      resources.food === resources.energy &&
+      resources.food === resources.materials
+    ) {
+      return resources.food;
+    }
+    return 0n;
+  }
+
+  private compatibilityGoldAmount(resources: ResourceStockpile): Gold {
+    if (
+      resources.food !== resources.energy ||
+      resources.food !== resources.materials
+    ) {
+      throw new Error(
+        `Non-uniform resource payloads are not supported while gold compatibility is active: food=${resources.food}, energy=${resources.energy}, materials=${resources.materials}`,
+      );
+    }
+    return resources.food;
   }
 
   troops(): number {
@@ -1039,7 +1149,7 @@ export class PlayerImpl implements Player {
       );
     }
 
-    const cost = this.mg.unitInfo(type).cost(this.mg, this);
+    const cost = this.mg.config().unitResourceCost(type, this.mg, this);
     const b = new UnitImpl(
       type,
       this.mg,
@@ -1050,7 +1160,7 @@ export class PlayerImpl implements Player {
     );
     this._units.push(b);
     this.recordUnitConstructed(type);
-    this.removeGold(cost);
+    this.removeResources(cost, { updateGold: false });
     this.removeTroops("troops" in params ? (params.troops ?? 0) : 0);
     this.mg.addUpdate(b.toUpdate());
     this.mg.addUnit(b);
@@ -1086,13 +1196,14 @@ export class PlayerImpl implements Player {
 
   private canBuildUnitType(
     unitType: UnitType,
-    knownCost: Gold | null = null,
+    knownCost: ResourceStockpile | null = null,
   ): boolean {
     if (this.mg.config().isUnitDisabled(unitType)) {
       return false;
     }
-    const cost = knownCost ?? this.mg.unitInfo(unitType).cost(this.mg, this);
-    if (this._gold < cost) {
+    const cost =
+      knownCost ?? this.mg.config().unitResourceCost(unitType, this.mg, this);
+    if (!this.canAffordResources(cost)) {
       return false;
     }
     if (unitType !== UnitType.MIRVWarhead && !this.isAlive()) {
@@ -1132,8 +1243,8 @@ export class PlayerImpl implements Player {
   }
 
   upgradeUnit(unit: Unit) {
-    const cost = this.mg.unitInfo(unit.type()).cost(this.mg, this);
-    this.removeGold(cost);
+    const cost = this.mg.config().unitResourceCost(unit.type(), this.mg, this);
+    this.removeResources(cost, { updateGold: false });
     unit.increaseLevel();
     this.recordUnitConstructed(unit.type());
   }
@@ -1158,7 +1269,7 @@ export class PlayerImpl implements Player {
     for (let i = 0; i < len; i++) {
       const u = units[i];
 
-      const cost = config.unitInfo(u).cost(mg, this);
+      const cost = config.unitResourceCost(u, mg, this);
       let canUpgrade: number | false = false;
       let canBuild: TileRef | false = false;
 
@@ -1181,7 +1292,8 @@ export class PlayerImpl implements Player {
         type: u,
         canBuild,
         canUpgrade,
-        cost,
+        cost: config.unitInfo(u).cost(mg, this),
+        resourceCost: cost,
         overlappingRailroads: buildNew
           ? rail.overlappingRailroads(canBuild as TileRef)
           : [],
@@ -1239,6 +1351,8 @@ export class PlayerImpl implements Player {
       case UnitType.DefensePost:
       case UnitType.SAMLauncher:
       case UnitType.City:
+      case UnitType.RailStation:
+      case UnitType.Silo:
       case UnitType.Factory:
         return this.landBasedStructureSpawn(targetTile, validTiles);
       default:

@@ -37,33 +37,35 @@ describe("Construction economy", () => {
     other.conquer(game.ref(10, 10));
   });
 
-  test("City charges gold once and no refund thereafter (allow passive income)", () => {
+  test("City charges resources once and does not spend gold", () => {
     const target = game.ref(0, 10);
-    const cost = game.unitInfo(UnitType.City).cost(game, player);
-    player.addGold(cost);
-    expect(player.gold()).toBe(cost);
+    const cost = game.config().unitResourceCost(UnitType.City, game, player);
+    player.addResources(cost, undefined, { updateGold: false });
+    expect(player.gold()).toBe(0n);
+    expect(player.resources()).toEqual(cost);
 
-    const startTick = game.ticks();
     game.addExecution(new ConstructionExecution(player, UnitType.City, target));
 
     // First tick usually initializes the execution, second tick performs build and deduction
     game.executeNextTick();
     game.executeNextTick();
-    const afterBuild = player.gold();
-    const ticksAfterBuild = BigInt(game.ticks() - startTick);
-    const passivePerTick = 100n; // DefaultConfig goldAdditionRate for humans
-    expect(afterBuild < cost).toBe(true); // cost was deducted
-    expect(afterBuild <= ticksAfterBuild * passivePerTick).toBe(true); // only passive income allowed
+    expect(player.gold()).toBe(0n);
+    expect(player.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
 
     // Advance through construction duration
     const duration = game.unitInfo(UnitType.City).constructionDuration ?? 0;
     for (let i = 0; i <= duration + 2; i++) game.executeNextTick();
 
-    const finalGold = player.gold();
-    const ticksElapsed = BigInt(game.ticks() - startTick);
-    // Ensure no refund equal to cost snuck back in; only passive income accumulated
-    expect(finalGold < cost).toBe(true);
-    expect(finalGold <= ticksElapsed * passivePerTick).toBe(true);
+    expect(player.gold()).toBe(0n);
+    expect(player.resources()).toEqual({
+      food: 0n,
+      energy: 0n,
+      materials: 0n,
+    });
 
     // Structure exists and is active
     expect(player.units(UnitType.City)).toHaveLength(1);

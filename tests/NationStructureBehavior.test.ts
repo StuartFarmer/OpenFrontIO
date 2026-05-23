@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { ConstructionExecution } from "../src/core/execution/ConstructionExecution";
 import { NationStructureBehavior } from "../src/core/execution/nation/NationStructureBehavior";
-import { Difficulty, PlayerType } from "../src/core/game/Game";
+import { Difficulty, PlayerType, UnitType } from "../src/core/game/Game";
 import { Cluster } from "../src/core/game/TrainStation";
 import { PseudoRandom } from "../src/core/PseudoRandom";
 
@@ -312,6 +312,296 @@ describe("NationStructureBehavior.buildReachableStations", () => {
   });
 });
 
+// ── capacity pressure structures ─────────────────────────────────────────────
+
+describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
+  function makeCapacityGame(disabled: Set<UnitType> = new Set()): any {
+    return {
+      config: () => ({
+        isUnitDisabled: (type: UnitType) => disabled.has(type),
+        maxTroops: () => 100,
+        maxResources: () => ({ food: 100n, energy: 100n, materials: 100n }),
+      }),
+    };
+  }
+
+  function makeCapacityPlayer(
+    troops: number,
+    resources = { food: 0n, energy: 0n, materials: 0n },
+  ): any {
+    return {
+      troops: () => troops,
+      resources: () => resources,
+    };
+  }
+
+  it("prioritizes City when troops are near troop capacity", () => {
+    const behavior = makeBehavior(makeCapacityGame(), makeCapacityPlayer(90));
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.City);
+  });
+
+  it("prioritizes Silo when any resource is near resource capacity", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(10, { food: 10n, energy: 92n, materials: 20n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Silo);
+  });
+
+  it("falls back to the other pressured capacity structure if the first cannot build", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(90, { food: 10n, energy: 96n, materials: 20n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      true,
+    );
+    expect(maybeSpawn).toHaveBeenNthCalledWith(1, UnitType.Silo);
+    expect(maybeSpawn).toHaveBeenNthCalledWith(2, UnitType.City);
+  });
+
+  it("does not build capacity structures below pressure threshold", () => {
+    const behavior = makeBehavior(
+      makeCapacityGame(),
+      makeCapacityPlayer(50, { food: 40n, energy: 50n, materials: 60n }),
+    );
+    const maybeSpawn = vi.spyOn(behavior as any, "maybeSpawnStructure");
+
+    expect((behavior as any).tryBuildCapacityPressureStructure(false)).toBe(
+      false,
+    );
+    expect(maybeSpawn).not.toHaveBeenCalled();
+  });
+});
+
+// ── production pressure structures ──────────────────────────────────────────
+
+describe("NationStructureBehavior.tryBuildProductionPressureStructure", () => {
+  function makeProductionGame(disabled: Set<UnitType> = new Set()): any {
+    return {
+      config: () => ({
+        isUnitDisabled: (type: UnitType) => disabled.has(type),
+        maxResources: () => ({ food: 100n, energy: 100n, materials: 100n }),
+      }),
+    };
+  }
+
+  function makeProductionPlayer(resources: {
+    food: bigint;
+    energy: bigint;
+    materials: bigint;
+  }): any {
+    return {
+      resources: () => resources,
+    };
+  }
+
+  it("waits for repeated low-resource checks before building a Factory", () => {
+    const behavior = makeBehavior(
+      makeProductionGame(),
+      makeProductionPlayer({ food: 20n, energy: 50n, materials: 50n }),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(true);
+    expect(maybeSpawn).toHaveBeenCalledTimes(1);
+    expect(maybeSpawn).toHaveBeenCalledWith(UnitType.Factory);
+  });
+
+  it("resets the low-resource streak when resources recover", () => {
+    const resources = { food: 20n, energy: 50n, materials: 50n };
+    const behavior = makeBehavior(
+      makeProductionGame(),
+      makeProductionPlayer(resources),
+    );
+    const maybeSpawn = vi
+      .spyOn(behavior as any, "maybeSpawnStructure")
+      .mockReturnValue(true);
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    resources.food = 80n;
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    resources.food = 20n;
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(true);
+    expect(maybeSpawn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not build factories when Factory is disabled", () => {
+    const behavior = makeBehavior(
+      makeProductionGame(new Set([UnitType.Factory])),
+      makeProductionPlayer({ food: 20n, energy: 50n, materials: 50n }),
+    );
+    const maybeSpawn = vi.spyOn(behavior as any, "maybeSpawnStructure");
+
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect((behavior as any).tryBuildProductionPressureStructure()).toBe(false);
+    expect(maybeSpawn).not.toHaveBeenCalled();
+  });
+});
+
+// ── structure ratio decisions ────────────────────────────────────────────────
+
+describe("NationStructureBehavior.shouldBuildStructure", () => {
+  function makeRatioGame(): any {
+    return {
+      config: () => ({
+        gameConfig: () => ({ difficulty: Difficulty.Hard }),
+      }),
+    };
+  }
+
+  function makeRatioPlayer(owned: Partial<Record<UnitType, number>>): any {
+    return {
+      unitsOwned: (type: UnitType) => owned[type] ?? 0,
+    };
+  }
+
+  it("wants an early RailStation once it has a few cities", () => {
+    const behavior = makeBehavior(makeRatioGame(), makeRatioPlayer({}));
+
+    expect(
+      (behavior as any).shouldBuildStructure(UnitType.RailStation, 2),
+    ).toBe(true);
+  });
+
+  it("does not overbuild RailStations past the city ratio", () => {
+    const behavior = makeBehavior(
+      makeRatioGame(),
+      makeRatioPlayer({ [UnitType.RailStation]: 1 }),
+    );
+
+    expect(
+      (behavior as any).shouldBuildStructure(UnitType.RailStation, 2),
+    ).toBe(false);
+  });
+
+  it("does not build Factories from the generic city-ratio path", () => {
+    const behavior = makeBehavior(makeRatioGame(), makeRatioPlayer({}));
+
+    expect((behavior as any).shouldBuildStructure(UnitType.Factory, 10)).toBe(
+      false,
+    );
+  });
+});
+
+describe("NationStructureBehavior.structureCityCount", () => {
+  function makeStructureCityCountGame(): any {
+    return {
+      config: () => ({
+        gameConfig: () => ({ difficulty: Difficulty.Hard }),
+      }),
+    };
+  }
+
+  function makeCity(connected: boolean, underConstruction = false): any {
+    return {
+      hasTrainStation: () => connected,
+      isUnderConstruction: () => underConstruction,
+    };
+  }
+
+  function makeStructureCityCountPlayer(cities: any[]): any {
+    return {
+      units: (type: UnitType) => (type === UnitType.City ? cities : []),
+    };
+  }
+
+  it("counts only unconnected completed cities for RailStation demand", () => {
+    const behavior = makeBehavior(
+      makeStructureCityCountGame(),
+      makeStructureCityCountPlayer([
+        makeCity(false),
+        makeCity(false),
+        makeCity(true),
+        makeCity(false, true),
+      ]),
+    );
+
+    expect(
+      (behavior as any).structureCityCount(UnitType.RailStation, 10, false),
+    ).toBe(2);
+  });
+
+  it("uses the fallback count for non-RailStation structures", () => {
+    const behavior = makeBehavior(
+      makeStructureCityCountGame(),
+      makeStructureCityCountPlayer([makeCity(false)]),
+    );
+
+    expect((behavior as any).structureCityCount(UnitType.Port, 10, false)).toBe(
+      10,
+    );
+  });
+});
+
+// ── structure value functions ────────────────────────────────────────────────
+
+describe("NationStructureBehavior.structureSpawnTileValue", () => {
+  function makeValueGame(): any {
+    return {
+      config: () => ({
+        nukeMagnitudes: () => ({ outer: 50 }),
+      }),
+      x: (tile: number) => tile,
+      y: () => 0,
+      magnitude: () => 1,
+      manhattanDist: (a: number, b: number) => Math.abs(a - b),
+    };
+  }
+
+  function makeValuePlayer(): any {
+    return {
+      borderTiles: () => [0],
+      units: (...types: UnitType[]) => {
+        if (types.includes(UnitType.City)) {
+          return [makeUnit(10)];
+        }
+        if (types.includes(UnitType.Factory)) {
+          return [makeUnit(20)];
+        }
+        if (types.includes(UnitType.Silo)) {
+          return [makeUnit(30)];
+        }
+        return [];
+      },
+    };
+  }
+
+  it("provides a placement value function for Silo", () => {
+    const behavior = makeBehavior(makeValueGame(), makeValuePlayer());
+
+    expect(
+      (behavior as any).structureSpawnTileValue(UnitType.Silo)(40),
+    ).toBeGreaterThan(0);
+  });
+});
+
 // ── tryBuildDefensePost — early-exit guards ──────────────────────────────────
 
 describe("NationStructureBehavior.tryBuildDefensePost", () => {
@@ -339,6 +629,8 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
         gameConfig: () => ({ difficulty }),
         isUnitDisabled: () => false,
         nukeMagnitudes: () => ({ outer: 50 }),
+        unitInfo: () => ({ upgradable: false }),
+        unitResourceCost: () => ({ food: 0n, energy: 0n, materials: 0n }),
       }),
       unitInfo: () => ({ cost: () => 0n }),
       euclideanDistSquared: () => Number.MAX_VALUE,
@@ -350,7 +642,9 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
       troops: () => troops,
       incomingAttacks: () => attacks,
       gold: () => 1_000_000n,
+      canAffordResources: () => true,
       units: () => [],
+      numTilesOwned: () => 1000,
     };
   }
 
@@ -465,7 +759,7 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
     const canBuild = vi.fn(() => true);
     const player = {
       ...makeMinimalPlayer(1000, [makeLandAttack(1000)]),
-      gold: () => 1_000_000n,
+      gold: () => 0n,
       canBuild,
     };
     const behavior = makeBehavior(game, player);
@@ -480,15 +774,13 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
     expect(exec).toBeInstanceOf(ConstructionExecution);
   });
 
-  it("returns false when player.gold() is below cost", () => {
+  it("returns false when player cannot afford the resource cost", () => {
     const game = {
       ...makeMinimalGame(Difficulty.Hard),
-      // cost > 0 so gold check fails
-      unitInfo: () => ({ cost: () => 1_000_000n }),
     };
     const player = {
       ...makeMinimalPlayer(1000, [makeLandAttack(1000)]),
-      gold: () => 0n,
+      canAffordResources: () => false,
     };
     const behavior = makeBehavior(game, player);
     (behavior as any).placementsCount = 1;
@@ -516,6 +808,26 @@ describe("NationStructureBehavior.tryBuildDefensePost", () => {
 
     expect((behavior as any).tryBuildDefensePost()).toBe(false);
     expect(addExecution).not.toHaveBeenCalled();
+  });
+
+  it("builds normal structures with resources even when gold is zero", () => {
+    const addExecution = vi.fn();
+    const game = {
+      ...makeMinimalGame(Difficulty.Hard),
+      addExecution,
+    };
+    const player = {
+      ...makeMinimalPlayer(1000, []),
+      gold: () => 0n,
+      canAffordResources: () => true,
+      canBuild: () => 42,
+    };
+    const behavior = makeBehavior(game, player);
+    vi.spyOn(behavior as any, "structureSpawnTile").mockReturnValue(42);
+
+    expect((behavior as any).maybeSpawnStructure(UnitType.City)).toBe(true);
+    expect(addExecution).toHaveBeenCalledTimes(1);
+    expect(addExecution.mock.calls[0][0]).toBeInstanceOf(ConstructionExecution);
   });
 });
 

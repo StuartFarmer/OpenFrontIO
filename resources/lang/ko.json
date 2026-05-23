@@ -742,7 +742,7 @@
     "attack_cancelled_retreat": "공격 취소됨, 퇴각 중 %s명의 병사 사망",
     "received_gold_from_captured_ship": "{name}에게서 나포한 함선으로부터 {gold} 금을 받았습니다",
     "received_gold_from_trade": "{name}님과의 거래로 {gold} 금을 받았습니다",
-    "received_gold_from_conquest": "{name}을 정복하여 {gold} 금을 획득했습니다",
+    "received_gold_from_conquest": "{name}을 정복하여 {gold} 금과 {resources}을 획득했습니다",
     "conquered_no_gold": "{name} 정복 (플레이하지 않음, 금 미지급)",
     "missile_intercepted": "{unit} 요격됨",
     "mirv_warheads_intercepted": "{count, plural, one {{count}개의 다탄두 미사일의 탄두가 요격됨} other {{count}개의 다탄두 미사일의 탄두가 요격됨}}",

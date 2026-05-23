@@ -73,13 +73,18 @@ export class PlayerExecution implements Execution {
       return;
     }
 
-    const troopInc = this.config.troopIncreaseRate(this.player);
+    const troopInc = this.config.troopIncreaseRate(this.player, this.mg);
     this.player.addTroops(troopInc);
-    const goldFromWorkers = this.config.goldAdditionRate(this.player);
-    this.player.addGold(goldFromWorkers);
+    const resourcesFromWorkers = this.config.resourceIncreaseRate(
+      this.mg,
+      this.player,
+    );
+    this.player.addResources(resourcesFromWorkers, undefined, {
+      updateGold: false,
+    });
 
     // Record stats
-    this.mg.stats().goldWork(this.player, goldFromWorkers);
+    this.mg.stats().goldWork(this.player, resourcesFromWorkers.food);
 
     for (const alliance of this.player.alliances()) {
       if (alliance.expiresAt() <= this.mg.ticks()) {

@@ -111,7 +111,7 @@ export class GameRunner {
       this.game.addExecution(...this.execManager.nationExecutions());
     }
     this.game.addExecution(new WinCheckExecution());
-    if (!this.game.config().isUnitDisabled(UnitType.Factory)) {
+    if (!this.game.config().isUnitDisabled(UnitType.RailStation)) {
       this.game.addExecution(
         new RecomputeRailClusterExecution(this.game.railNetwork()),
       );

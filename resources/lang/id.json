@@ -778,7 +778,7 @@
     "attack_cancelled_retreat": "Penyerangan dibatalkan, {troops} pasukan terbunuh saat mundur",
     "received_gold_from_captured_ship": "Menerima {gold} emas dari kapal yang di tawan dari {name}",
     "received_gold_from_trade": "Menerima {gold} emas dari perdagangan dengan {name}",
-    "received_gold_from_conquest": "Menaklukan {name}, mendapatkan {gold} emas",
+    "received_gold_from_conquest": "Menaklukan {name}, mendapatkan {gold} emas dan {resources}",
     "conquered_no_gold": "Menaklukan {name} (tidak main, tidak ada emas yang diberikan)",
     "missile_intercepted": "Rudal dicegat {unit}",
     "mirv_warheads_intercepted": "{count, plural, one {{count} hulu ledak MIRV berhasil dicegat} other {{count} hulu ledak MIRV berhasil dicegat}}",

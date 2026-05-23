@@ -12,6 +12,7 @@ import {
 } from "./GameUpdates";
 import { MotionPlanRecord } from "./MotionPlans";
 import { RailNetwork } from "./RailNetwork";
+import { AddResourcesOptions, ResourceStockpile } from "./Resources";
 import { Stats } from "./Stats";
 import { UnitPredicate } from "./UnitGrid";
 
@@ -344,6 +345,8 @@ export enum UnitType {
   MIRV = "MIRV",
   MIRVWarhead = "MIRV Warhead",
   Train = "Train",
+  RailStation = "Rail Station",
+  Silo = "Silo",
   Factory = "Factory",
 }
 
@@ -373,6 +376,8 @@ export const Structures = unitTypeGroup([
   UnitType.SAMLauncher,
   UnitType.MissileSilo,
   UnitType.Port,
+  UnitType.RailStation,
+  UnitType.Silo,
   UnitType.Factory,
 ] as const);
 
@@ -434,6 +439,10 @@ export interface UnitParamsMap {
   };
 
   [UnitType.Factory]: Record<string, never>;
+
+  [UnitType.RailStation]: Record<string, never>;
+
+  [UnitType.Silo]: Record<string, never>;
 
   [UnitType.MissileSilo]: Record<string, never>;
 
@@ -722,8 +731,19 @@ export interface Player {
 
   // Resources & Troops
   gold(): Gold;
+  resources(): ResourceStockpile;
   addGold(toAdd: Gold, tile?: TileRef): void;
   removeGold(toRemove: Gold): Gold;
+  addResources(
+    toAdd: ResourceStockpile,
+    tile?: TileRef,
+    options?: AddResourcesOptions,
+  ): void;
+  removeResources(
+    toRemove: ResourceStockpile,
+    options?: AddResourcesOptions,
+  ): ResourceStockpile;
+  canAffordResources(cost: ResourceStockpile): boolean;
   troops(): number;
   setTroops(troops: number): void;
   addTroops(troops: number): void;
@@ -983,6 +1003,7 @@ export interface BuildableUnit {
   canUpgrade: number | false;
   type: PlayerBuildableUnitType;
   cost: Gold;
+  resourceCost: ResourceStockpile;
   overlappingRailroads: number[];
   ghostRailPaths: TileRef[][];
 }

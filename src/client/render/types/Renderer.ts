@@ -50,12 +50,23 @@ export interface EmojiData {
   createdAt: number;
 }
 
+export interface ResourceState {
+  food: number;
+  energy: number;
+  materials: number;
+}
+
 export interface PlayerState {
   smallID: number;
   isAlive: boolean;
   isDisconnected: boolean;
   tilesOwned: number;
   gold: number;
+  resources: ResourceState;
+  resourceCapacity: ResourceState;
+  effectiveTroopCapacity: number;
+  biomassSupportedTroopCapacity: number;
+  troopIncreaseRate: number;
   troops: number;
   isTraitor: boolean;
   traitorRemainingTicks: number;
@@ -113,6 +124,11 @@ export interface ConquestFx {
   x: number; // world tile X (conquered player's name location)
   y: number; // world tile Y
   gold: number; // gold amount awarded
+  resources?: {
+    food: number;
+    energy: number;
+    materials: number;
+  };
   /** Ticks since the event occurred (0 = this frame, >0 = seeked past it). */
   tickAge?: number;
 }

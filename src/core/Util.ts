@@ -234,8 +234,9 @@ export function sanitize(name: string): string {
 export function onlyImages(html: string) {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ["span", "img"],
-    ALLOWED_ATTR: ["src", "alt", "class", "style"],
-    ALLOWED_URI_REGEXP: /^https:\/\/cdn\.jsdelivr\.net\/gh\/twitter\/twemoji/,
+    ALLOWED_ATTR: ["src", "alt", "class", "style", "title", "aria-label"],
+    ALLOWED_URI_REGEXP:
+      /^(https:\/\/cdn\.jsdelivr\.net\/gh\/twitter\/twemoji|\/(icons|assets)\/)/,
     ADD_ATTR: ["style"],
   });
 }

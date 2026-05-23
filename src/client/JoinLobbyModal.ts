@@ -628,6 +628,8 @@ export class JoinLobbyModal extends BaseModal {
       City: "unit_type.city",
       Port: "unit_type.port",
       "Defense Post": "unit_type.defense_post",
+      "Rail Station": "unit_type.rail_station",
+      Silo: "unit_type.silo",
       "SAM Launcher": "unit_type.sam_launcher",
       "Missile Silo": "unit_type.missile_silo",
       Warship: "unit_type.warship",

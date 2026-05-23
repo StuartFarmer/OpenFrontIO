@@ -33,6 +33,11 @@ describe("PlayerView accessors", () => {
         isLobbyCreator: true,
         tilesOwned: 42,
         gold: 999n,
+        resources: { food: 100n, energy: 200n, materials: 300n },
+        resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
+        effectiveTroopCapacity: 800,
+        biomassSupportedTroopCapacity: 900,
+        troopIncreaseRate: -3.5,
         troops: 250,
       },
     });
@@ -48,6 +53,19 @@ describe("PlayerView accessors", () => {
     expect(p.isLobbyCreator()).toBe(true);
     expect(p.numTilesOwned()).toBe(42);
     expect(p.gold()).toBe(999n);
+    expect(p.resources()).toEqual({
+      food: 100n,
+      energy: 200n,
+      materials: 300n,
+    });
+    expect(p.resourceCapacity()).toEqual({
+      food: 1000n,
+      energy: 2000n,
+      materials: 3000n,
+    });
+    expect(p.effectiveTroopCapacity()).toBe(800);
+    expect(p.biomassSupportedTroopCapacity()).toBe(900);
+    expect(p.troopIncreaseRate()).toBe(-3.5);
     expect(p.troops()).toBe(250);
   });
 

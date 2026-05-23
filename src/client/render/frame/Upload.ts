@@ -27,6 +27,10 @@ export interface FrameUploadTarget {
   applyFullTiles(tileState: Uint16Array, trailState: Uint8Array): void;
   applyDelta(changedTiles: TilePair[], trailState: Uint8Array): void;
   uploadRailroadState(data: Uint8Array): void;
+  updateRailroadNetworkOverlay(
+    connectedTileRefs: readonly number[],
+    disconnectedTileRefs: readonly number[],
+  ): void;
   applyRailroadDust(tileRefs: number[]): void;
   updateUnits(units: ReadonlyMap<number, UnitState>, gameTick: number): void;
   updateStructures(units: ReadonlyMap<number, UnitState>): void;
@@ -102,6 +106,10 @@ export function uploadFrameData(
       view.applyRailroadDust(frame.revealedRailTiles);
     }
   }
+  view.updateRailroadNetworkOverlay(
+    frame.connectedRailroadTiles,
+    frame.disconnectedRailroadTiles,
+  );
 
   // --- Units + structures ---
   view.updateUnits(frame.units, frame.tick);

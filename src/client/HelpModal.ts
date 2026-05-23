@@ -1024,34 +1024,34 @@ export class HelpModal extends BaseModal {
                   </tr>
                   <tr class="bg-white/5 hover:bg-white/10 transition-colors">
                     <td class="py-3 pl-4 border-b border-white/5 font-medium">
+                      ${translateText("help_modal.build_rail_station")}
+                    </td>
+                    <td class="py-3 border-b border-white/5">
+                      <span
+                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
+                        >R</span
+                      >
+                    </td>
+                    <td
+                      class="py-3 border-b border-white/5 text-white/60 text-sm"
+                    >
+                      ${translateText("help_modal.build_rail_station_desc")}
+                    </td>
+                  </tr>
+                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
+                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
                       ${translateText("help_modal.build_silo")}
                     </td>
                     <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/MissileSiloIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
+                      <span
+                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
+                        >S</span
+                      >
                     </td>
                     <td
                       class="py-3 border-b border-white/5 text-white/60 text-sm"
                     >
                       ${translateText("help_modal.build_silo_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_sam")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/SamLauncherIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_sam_desc")}
                     </td>
                   </tr>
                   <tr class="bg-white/5 hover:bg-white/10 transition-colors">

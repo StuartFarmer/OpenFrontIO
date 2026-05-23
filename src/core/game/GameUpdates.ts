@@ -15,6 +15,7 @@ import {
   WarshipState,
 } from "./Game";
 import { TileRef } from "./GameMap";
+import type { ResourceStockpile } from "./Resources";
 
 export interface GameUpdateViewData {
   tick: number;
@@ -99,6 +100,8 @@ export interface BonusEventUpdate {
   player: PlayerID;
   tile: TileRef;
   gold: number;
+  resources?: ResourceStockpile;
+  source?: "rail" | "ship";
   troops: number;
 }
 
@@ -127,6 +130,7 @@ export interface ConquestUpdate {
   conquerorId: PlayerID;
   conqueredId: PlayerID;
   gold: Gold;
+  resources?: ResourceStockpile;
 }
 
 export interface UnitUpdate {
@@ -186,6 +190,11 @@ export interface PlayerUpdate {
   isDisconnected?: boolean;
   tilesOwned?: number;
   gold?: Gold;
+  resources?: ResourceStockpile;
+  resourceCapacity?: ResourceStockpile;
+  effectiveTroopCapacity?: number;
+  biomassSupportedTroopCapacity?: number;
+  troopIncreaseRate?: number;
   troops?: number;
   allies?: number[];
   embargoes?: Set<PlayerID>;
