@@ -9,6 +9,14 @@ import {
   ReplaySpeedMultiplier,
 } from "../../utilities/ReplaySpeedMultiplier";
 import { translateText } from "../../Utils";
+import {
+  HUD_SEGMENT,
+  HUD_SEGMENT_ACTIVE,
+  HUD_SEGMENTED,
+  HUD_SURFACE,
+  HUD_SURFACE_BODY,
+  HUD_SURFACE_HEADER,
+} from "../ui/HudTheme";
 
 export class ShowReplayPanelEvent {
   constructor(
@@ -70,34 +78,35 @@ export class ReplayPanel extends LitElement implements Controller {
 
     return html`
       <div
-        class="p-2 bg-gray-800/92 backdrop-blur-sm shadow-xs min-[1200px]:rounded-lg rounded-l-lg"
+        class="overflow-hidden ${HUD_SURFACE}"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <label class="block mb-2 text-white" translate="no">
+        <label class="${HUD_SURFACE_HEADER}" translate="no">
           ${this.game?.config()?.isReplay()
             ? translateText("replay_panel.replay_speed")
             : translateText("replay_panel.game_speed")}
         </label>
-        <div class="grid grid-cols-4 gap-2">
-          ${this.renderSpeedButton(ReplaySpeedMultiplier.slow, "×0.5")}
-          ${this.renderSpeedButton(ReplaySpeedMultiplier.normal, "×1")}
-          ${this.renderSpeedButton(ReplaySpeedMultiplier.fast, "×2")}
-          ${this.renderSpeedButton(
-            ReplaySpeedMultiplier.fastest,
-            translateText("replay_panel.fastest_game_speed"),
-          )}
+        <div class="${HUD_SURFACE_BODY}">
+          <div class="${HUD_SEGMENTED} w-full">
+            ${this.renderSpeedButton(ReplaySpeedMultiplier.slow, "×0.5")}
+            ${this.renderSpeedButton(ReplaySpeedMultiplier.normal, "×1")}
+            ${this.renderSpeedButton(ReplaySpeedMultiplier.fast, "×2")}
+            ${this.renderSpeedButton(
+              ReplaySpeedMultiplier.fastest,
+              translateText("replay_panel.fastest_game_speed"),
+            )}
+          </div>
         </div>
       </div>
     `;
   }
 
   private renderSpeedButton(value: ReplaySpeedMultiplier, label: string) {
-    const backgroundColor =
-      this._replaySpeedMultiplier === value ? "bg-malibu-blue" : "";
+    const isActive = this._replaySpeedMultiplier === value;
 
     return html`
       <button
-        class="py-0.5 px-1 text-sm text-white rounded-sm border transition border-gray-500 ${backgroundColor} hover:border-gray-200"
+        class="${HUD_SEGMENT} ${isActive ? HUD_SEGMENT_ACTIVE : ""}"
         @click=${() => this.onReplaySpeedChange(value)}
       >
         ${label}

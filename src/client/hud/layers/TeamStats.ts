@@ -10,6 +10,14 @@ import {
   renderTroops,
   translateText,
 } from "../../Utils";
+import {
+  HUD_BUTTON,
+  HUD_COMPACT_TABLE,
+  HUD_SURFACE,
+  HUD_TD,
+  HUD_TD_LEFT,
+  HUD_TH,
+} from "../ui/HudTheme";
 
 interface TeamEntry {
   teamName: string;
@@ -130,110 +138,76 @@ export class TeamStats extends LitElement implements Controller {
 
     return html`
       <div
-        class="max-h-[30vh] overflow-x-hidden overflow-y-auto grid bg-slate-800/85 w-full text-white text-xs md:text-sm mt-2 rounded-lg"
+        class="mt-2 max-h-[30vh] overflow-x-hidden overflow-y-auto w-full ${HUD_SURFACE}"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <div
-          class="grid w-full grid-cols-[repeat(var(--cols),1fr)]"
-          style="--cols:${this.showUnits ? 5 : 4};"
-        >
-          <!-- Header -->
-          <div class="contents font-bold bg-slate-700/60">
-            <div class="p-1.5 md:p-2.5 text-center border-b border-slate-500">
-              ${translateText("leaderboard.team")}
-            </div>
-            ${this.showUnits
-              ? html`
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.launchers")}
-                  </div>
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.sams")}
-                  </div>
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.warships")}
-                  </div>
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.cities")}
-                  </div>
-                `
-              : html`
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.owned")}
-                  </div>
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.gold")}
-                  </div>
-                  <div
-                    class="p-1.5 md:p-2.5 text-center border-b border-slate-500"
-                  >
-                    ${translateText("leaderboard.maxtroops")}
-                  </div>
-                `}
-          </div>
-
-          <!-- Data rows -->
-          ${this.teams.map((team) =>
-            this.showUnits
-              ? html`
-                  <div
-                    class="contents hover:bg-slate-600/60 text-center cursor-pointer ${team.isMyTeam
-                      ? "font-bold"
-                      : ""}"
-                  >
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.teamName}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalLaunchers}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalSAMs}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalWarShips}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalCities}
-                    </div>
-                  </div>
-                `
-              : html`
-                  <div
-                    class="contents hover:bg-slate-600/60 text-center cursor-pointer ${team.isMyTeam
-                      ? "font-bold"
-                      : ""}"
-                  >
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.teamName}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalScoreStr}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalGold}
-                    </div>
-                    <div class="py-1.5 border-b border-slate-500">
-                      ${team.totalMaxTroops}
-                    </div>
-                  </div>
-                `,
-          )}
-        </div>
+        <table class="${HUD_COMPACT_TABLE} table-fixed">
+          <thead>
+            <tr>
+              <th class="${HUD_TH} text-left">
+                ${translateText("leaderboard.team")}
+              </th>
+              ${this.showUnits
+                ? html`
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.launchers")}
+                    </th>
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.sams")}
+                    </th>
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.warships")}
+                    </th>
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.cities")}
+                    </th>
+                  `
+                : html`
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.owned")}
+                    </th>
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.gold")}
+                    </th>
+                    <th class="${HUD_TH}">
+                      ${translateText("leaderboard.maxtroops")}
+                    </th>
+                  `}
+            </tr>
+          </thead>
+          <tbody>
+            ${this.teams.map((team) =>
+              this.showUnits
+                ? html`
+                    <tr
+                      class="hover:bg-white/10 ${team.isMyTeam
+                        ? "font-bold text-aquarius"
+                        : ""}"
+                    >
+                      <td class="${HUD_TD_LEFT}">${team.teamName}</td>
+                      <td class="${HUD_TD}">${team.totalLaunchers}</td>
+                      <td class="${HUD_TD}">${team.totalSAMs}</td>
+                      <td class="${HUD_TD}">${team.totalWarShips}</td>
+                      <td class="${HUD_TD}">${team.totalCities}</td>
+                    </tr>
+                  `
+                : html`
+                    <tr
+                      class="hover:bg-white/10 ${team.isMyTeam
+                        ? "font-bold text-aquarius"
+                        : ""}"
+                    >
+                      <td class="${HUD_TD_LEFT}">${team.teamName}</td>
+                      <td class="${HUD_TD}">${team.totalScoreStr}</td>
+                      <td class="${HUD_TD}">${team.totalGold}</td>
+                      <td class="${HUD_TD}">${team.totalMaxTroops}</td>
+                    </tr>
+                  `,
+            )}
+          </tbody>
+        </table>
         <button
-          class="team-stats-button"
+          class="m-2 ${HUD_BUTTON}"
           aria-pressed=${String(this.showUnits)}
           @click=${() => {
             this.showUnits = !this.showUnits;

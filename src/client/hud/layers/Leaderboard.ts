@@ -15,6 +15,16 @@ import { Controller } from "../../Controller";
 import { AlternateViewEvent } from "../../InputHandler";
 import { GoToPlayerEvent } from "../../TransformHandler";
 import { formatPercentage, renderNumber } from "../../Utils";
+import {
+  HUD_BUTTON,
+  HUD_COMPACT_TABLE,
+  HUD_SURFACE,
+  HUD_SURFACE_BODY,
+  HUD_SURFACE_HEADER,
+  HUD_TD,
+  HUD_TD_LEFT,
+  HUD_TH,
+} from "../ui/HudTheme";
 
 interface Entry {
   name: string;
@@ -408,6 +418,11 @@ export class Leaderboard extends LitElement implements Controller {
     this.eventBus.emit(new GoToPlayerEvent(player));
   }
 
+  private sortMark(key: "tiles" | "gold" | "maxtroops") {
+    if (this._sortKey !== key) return "";
+    return this._sortOrder === "asc" ? " ▲" : " ▼";
+  }
+
   render() {
     if (!this.visible) {
       return html``;
@@ -417,120 +432,73 @@ export class Leaderboard extends LitElement implements Controller {
     }
     return html`
       <div
-        class="max-h-[35vh] overflow-y-auto text-white text-xs md:text-xs lg:text-sm md:max-h-[50vh] mt-2 ${this
+        class="mt-2 max-h-[35vh] md:max-h-[50vh] overflow-y-auto ${HUD_SURFACE} ${this
           .visible
           ? ""
           : "hidden"}"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <div
-          class="grid bg-gray-800/85 w-full text-xs md:text-xs lg:text-sm rounded-lg overflow-hidden"
-          style="grid-template-columns: minmax(24px, 30px) minmax(60px, 100px) minmax(45px, 70px) minmax(40px, 55px) minmax(55px, 105px);"
-        >
-          <div class="contents font-bold bg-gray-700/60">
-            <div class="py-1 md:py-2 text-center border-b border-slate-500">
-              #
-            </div>
-            <div
-              class="py-1 md:py-2 text-center border-b border-slate-500 truncate"
-            >
-              ${translateText("leaderboard.player")}
-            </div>
-            <div
-              class="py-1 md:py-2 text-center border-b border-slate-500 cursor-pointer whitespace-nowrap truncate"
-              @click=${() => this.setSort("tiles")}
-            >
-              ${translateText("leaderboard.owned")}
-              ${this._sortKey === "tiles"
-                ? this._sortOrder === "asc"
-                  ? "⬆️"
-                  : "⬇️"
-                : ""}
-            </div>
-            <div
-              class="py-1 md:py-2 text-center border-b border-slate-500 cursor-pointer whitespace-nowrap truncate"
-              @click=${() => this.setSort("gold")}
-            >
-              ${translateText("leaderboard.gold")}
-              ${this._sortKey === "gold"
-                ? this._sortOrder === "asc"
-                  ? "⬆️"
-                  : "⬇️"
-                : ""}
-            </div>
-            <div
-              class="py-1 md:py-2 text-center border-b border-slate-500 cursor-pointer whitespace-nowrap truncate"
-              @click=${() => this.setSort("maxtroops")}
-            >
-              ${translateText("leaderboard.maxtroops")}
-              ${this._sortKey === "maxtroops"
-                ? this._sortOrder === "asc"
-                  ? "⬆️"
-                  : "⬇️"
-                : ""}
-            </div>
-          </div>
-
-          ${repeat(
-            this.players,
-            (p) => p.player.id(),
-            (player, index) => html`
-              <div
-                class="contents hover:bg-slate-600/60 ${player.isOnSameTeam
-                  ? "font-bold"
-                  : ""} cursor-pointer"
-                @click=${() => this.handleRowClickPlayer(player.player)}
+        <table class="${HUD_COMPACT_TABLE} table-fixed">
+          <colgroup>
+            <col class="w-7" />
+            <col class="w-24" />
+            <col class="w-16" />
+            <col class="w-14" />
+            <col class="w-20" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="${HUD_TH} text-center">#</th>
+              <th class="${HUD_TH} text-left truncate">
+                ${translateText("leaderboard.player")}
+              </th>
+              <th
+                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                @click=${() => this.setSort("tiles")}
               >
-                <div
-                  class="py-1 md:py-2 text-center ${index <
-                  this.players.length - 1
-                    ? "border-b border-slate-500"
+                ${translateText("leaderboard.owned")}${this.sortMark("tiles")}
+              </th>
+              <th
+                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                @click=${() => this.setSort("gold")}
+              >
+                ${translateText("leaderboard.gold")}${this.sortMark("gold")}
+              </th>
+              <th
+                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                @click=${() => this.setSort("maxtroops")}
+              >
+                ${translateText("leaderboard.maxtroops")}${this.sortMark(
+                  "maxtroops",
+                )}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            ${repeat(
+              this.players,
+              (p) => p.player.id(),
+              (player) => html`
+                <tr
+                  class="cursor-pointer hover:bg-white/10 ${player.isOnSameTeam
+                    ? "font-bold text-aquarius"
                     : ""}"
+                  @click=${() => this.handleRowClickPlayer(player.player)}
                 >
-                  ${player.position}
-                </div>
-                <div
-                  class="py-1 md:py-2 text-center ${index <
-                  this.players.length - 1
-                    ? "border-b border-slate-500"
-                    : ""} truncate"
-                >
-                  ${player.name}
-                </div>
-                <div
-                  class="py-1 md:py-2 text-center ${index <
-                  this.players.length - 1
-                    ? "border-b border-slate-500"
-                    : ""}"
-                >
-                  ${player.score}
-                </div>
-                <div
-                  class="py-1 md:py-2 text-center ${index <
-                  this.players.length - 1
-                    ? "border-b border-slate-500"
-                    : ""}"
-                >
-                  ${player.gold}
-                </div>
-                <div
-                  class="py-1 md:py-2 text-center ${index <
-                  this.players.length - 1
-                    ? "border-b border-slate-500"
-                    : ""}"
-                >
-                  ${player.maxTroops}
-                </div>
-              </div>
-            `,
-          )}
-        </div>
+                  <td class="${HUD_TD} text-center">${player.position}</td>
+                  <td class="${HUD_TD_LEFT} truncate">${player.name}</td>
+                  <td class="${HUD_TD}">${player.score}</td>
+                  <td class="${HUD_TD}">${player.gold}</td>
+                  <td class="${HUD_TD}">${player.maxTroops}</td>
+                </tr>
+              `,
+            )}
+          </tbody>
+        </table>
       </div>
 
       <button
-        class="mt-2 p-0.5 px-1.5 md:px-2 text-xs md:text-xs lg:text-sm 
-        border rounded-md border-slate-500 transition-colors
-        text-white mx-auto block hover:bg-white/10 bg-gray-700/50"
+        class="mt-2 mx-auto block ${HUD_BUTTON}"
         @click=${() => {
           this.showTopFive = !this.showTopFive;
           this.updateLeaderboard();
@@ -557,16 +525,14 @@ export class Leaderboard extends LitElement implements Controller {
 
     return html`
       <div
-        class="mt-2 w-[320px] max-w-[42vw] text-white text-xs md:text-xs lg:text-sm bg-gray-800/85 rounded-lg overflow-hidden"
+        class="mt-2 w-[320px] max-w-[42vw] overflow-hidden ${HUD_SURFACE}"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <div class="px-3 py-2 bg-gray-700/70 font-bold">
-          Economy
-          <span class="float-right font-normal text-slate-300"
-            >${capacityText}</span
-          >
+        <div class="${HUD_SURFACE_HEADER}">
+          <span>Economy</span>
+          <span class="font-normal text-slate-300">${capacityText}</span>
         </div>
-        <div class="divide-y divide-slate-600/70">
+        <div class="${HUD_SURFACE_BODY} space-y-2">
           ${this.economyRows.map((row) => this.renderEconomyRow(row))}
         </div>
       </div>
@@ -579,7 +545,7 @@ export class Leaderboard extends LitElement implements Controller {
         ? 0
         : Math.max(0, Math.min(100, (row.stock / row.capacity) * 100));
     return html`
-      <div class="px-3 py-2">
+      <div>
         <div class="flex items-center justify-between gap-2">
           <div class="font-semibold">${row.label}</div>
           <div class="text-slate-200">

@@ -39,6 +39,18 @@ import { renderNumber } from "../../Utils";
 import { PlaySoundEffectEvent } from "../../sound/Sounds";
 import { UIState } from "../../UIState";
 import { getMessageTypeClasses, translateText } from "../../Utils";
+import {
+  HUD_ACTION_GROUP,
+  HUD_BUTTON,
+  HUD_COMPACT_TABLE,
+  HUD_PILL,
+  HUD_PILL_RED,
+  HUD_SEGMENT_ACTIVE,
+  HUD_SEGMENT_ICON,
+  HUD_SEGMENTED,
+  HUD_SURFACE,
+  HUD_TD_LEFT,
+} from "../ui/HudTheme";
 const allianceIcon = assetUrl("images/AllianceIconWhite.svg");
 const chatIcon = assetUrl("images/ChatIconWhite.svg");
 const donateGoldIcon = assetUrl("images/DonateGoldIconWhite.svg");
@@ -139,16 +151,15 @@ export class EventsDisplay extends LitElement implements Controller {
   private renderToggleButton(src: string, category: MessageCategory) {
     // Adding the literal for the default size ensures tailwind will generate the class
     const toggleButtonSizeMap = { default: "h-5" };
+    const isFiltered = this.eventsFilters.get(category);
     return this.renderButton({
       content: html`<img
         src="${src}"
-        class="${toggleButtonSizeMap["default"]}"
-        style="${this.eventsFilters.get(category)
-          ? "filter: grayscale(1) opacity(0.5);"
-          : ""}"
+        class="${toggleButtonSizeMap["default"]} mx-auto"
+        style="${isFiltered ? "filter: grayscale(1) opacity(0.5);" : ""}"
       />`,
       onClick: () => this.toggleEventFilter(category),
-      className: "cursor-pointer pointer-events-auto",
+      className: `${HUD_SEGMENT_ICON} ${isFiltered ? "" : HUD_SEGMENT_ACTIVE}`,
     });
   }
 
@@ -821,30 +832,26 @@ export class EventsDisplay extends LitElement implements Controller {
                   <span class="flex items-center gap-2">
                     ${translateText("events_display.events")}
                     ${this.newEvents > 0
-                      ? html`<span
-                          class="inline-block px-2 bg-red-500 rounded-lg text-sm"
+                      ? html`<span class="${HUD_PILL} ${HUD_PILL_RED}"
                           >${this.newEvents}</span
                         >`
                       : ""}
                   </span>
                 `,
                 onClick: this.toggleHidden,
-                className:
-                  "text-white cursor-pointer pointer-events-auto w-fit p-2 lg:p-3 min-[1200px]:rounded-lg sm:rounded-tl-lg bg-gray-800/92 backdrop-blur-sm",
+                className: `${HUD_SURFACE} ${HUD_BUTTON} w-fit min-h-8 pointer-events-auto`,
               })}
             </div>
           `
         : html`
             <!-- Main Events Display -->
-            <div
-              class="relative w-full z-50 min-[1200px]:w-96 backdrop-blur-sm"
-            >
+            <div class="relative w-full z-50 min-[1200px]:w-96 ${HUD_SURFACE}">
               <!-- Button Bar -->
               <div
-                class="w-full p-2 lg:p-3 bg-gray-800/92 backdrop-blur-sm sm:rounded-tl-lg min-[1200px]:rounded-t-lg"
+                class="flex items-center justify-between gap-2 min-h-[30px] px-2 py-1 border-b border-white/10 bg-slate-900/50"
               >
-                <div class="flex justify-between items-center gap-3">
-                  <div class="flex gap-4">
+                <div class="flex w-full justify-between items-center gap-3">
+                  <div class="${HUD_SEGMENTED}">
                     ${this.renderToggleButton(
                       swordIcon,
                       MessageCategory.ATTACK,
@@ -863,7 +870,7 @@ export class EventsDisplay extends LitElement implements Controller {
                   <div class="flex items-center gap-3">
                     ${this.latestGoldAmount !== null
                       ? html`<span
-                          class="text-green-400 font-semibold transition-all duration-300 ${this
+                          class="${HUD_PILL} border-green-400/70 bg-green-500/20 text-green-300 transition-all duration-300 ${this
                             .goldAmountAnimating
                             ? "animate-pulse scale-110"
                             : "scale-100"}"
@@ -876,8 +883,7 @@ export class EventsDisplay extends LitElement implements Controller {
                     ${this.renderButton({
                       content: translateText("leaderboard.hide"),
                       onClick: this.toggleHidden,
-                      className:
-                        "text-white cursor-pointer pointer-events-auto",
+                      className: HUD_BUTTON,
                     })}
                   </div>
                 </div>
@@ -885,18 +891,18 @@ export class EventsDisplay extends LitElement implements Controller {
 
               <!-- Content Area -->
               <div
-                class="bg-gray-800/92 backdrop-blur-sm max-h-[15vh] lg:max-h-[30vh] overflow-y-auto w-full h-full min-[1200px]:rounded-b-xl events-container"
+                class="max-h-[15vh] lg:max-h-[30vh] overflow-y-auto w-full h-full events-container"
               >
                 <div>
                   <table
-                    class="w-full max-h-none border-collapse text-white shadow-lg text-xs lg:text-sm pointer-events-auto"
+                    class="${HUD_COMPACT_TABLE} max-h-none pointer-events-auto"
                   >
                     <tbody>
                       ${filteredEvents.map(
                         (event, index) => html`
                           <tr>
                             <td
-                              class="lg:px-2 lg:py-1 p-1 text-left ${getMessageTypeClasses(
+                              class="${HUD_TD_LEFT} ${getMessageTypeClasses(
                                 event.type,
                               )}"
                             >
@@ -907,7 +913,8 @@ export class EventsDisplay extends LitElement implements Controller {
                                       if (event.focusID)
                                         this.emitGoToPlayerEvent(event.focusID);
                                     },
-                                    className: "text-left",
+                                    className:
+                                      "text-left text-inherit hover:text-white",
                                   })
                                 : event.unitView
                                   ? this.renderButton({
@@ -918,24 +925,25 @@ export class EventsDisplay extends LitElement implements Controller {
                                             event.unitView,
                                           );
                                       },
-                                      className: "text-left",
+                                      className:
+                                        "text-left text-inherit hover:text-white",
                                     })
                                   : this.getEventDescription(event)}
                               <!-- Events with buttons (Alliance requests) -->
                               ${event.buttons
                                 ? html`
-                                    <div class="flex flex-wrap gap-1.5 mt-1">
+                                    <div class="${HUD_ACTION_GROUP} mt-1">
                                       ${event.buttons.map(
                                         (btn) => html`
                                           <button
-                                            class="inline-block px-3 py-1 text-white rounded-sm text-xs lg:text-sm cursor-pointer transition-colors duration-300
+                                            class="${HUD_BUTTON}
                             ${btn.className.includes("btn-info")
-                                              ? "bg-blue-500 hover:bg-blue-600"
+                                              ? "bg-blue-500/60 hover:bg-blue-500/75"
                                               : btn.className.includes(
                                                     "btn-gray",
                                                   )
-                                                ? "bg-gray-500 hover:bg-gray-600"
-                                                : "bg-green-600 hover:bg-green-700"}"
+                                                ? "bg-gray-500/60 hover:bg-gray-500/75"
+                                                : "bg-green-600/60 hover:bg-green-600/75"}"
                                             @click=${() => {
                                               btn.action();
                                               if (!btn.preventClose) {
@@ -973,8 +981,8 @@ export class EventsDisplay extends LitElement implements Controller {
                         );
                       })()
                         ? html`
-                            <tr class="lg:px-2 lg:py-1 p-1">
-                              <td class="lg:px-2 lg:py-1 p-1 text-left">
+                            <tr>
+                              <td class="${HUD_TD_LEFT}">
                                 ${this.renderBetrayalDebuffTimer()}
                               </td>
                             </tr>
@@ -993,11 +1001,7 @@ export class EventsDisplay extends LitElement implements Controller {
                       })()
                         ? html`
                             <tr>
-                              <td
-                                class="lg:px-2 lg:py-1 p-1 min-w-72 text-left"
-                              >
-                                &nbsp;
-                              </td>
+                              <td class="${HUD_TD_LEFT} min-w-72">&nbsp;</td>
                             </tr>
                           `
                         : ""}

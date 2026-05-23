@@ -15,6 +15,14 @@ import { Controller } from "../../Controller";
 import { AttackRatioEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { renderNumber, renderTroops } from "../../Utils";
+import {
+  HUD_PILL,
+  HUD_PILL_BLUE,
+  HUD_PILL_GOLD,
+  HUD_SEGMENT,
+  HUD_SEGMENT_ACTIVE,
+  HUD_SEGMENTED,
+} from "../ui/HudTheme";
 const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
@@ -494,7 +502,7 @@ export class ControlPanel extends LitElement implements Controller {
     const { greenPercent, orangePercent } = this.calculateMetricBar(metric);
     return html`
       <div
-        class="w-full h-6 border border-gray-600 rounded-md bg-gray-900/60 overflow-hidden relative"
+        class="w-full h-6 border border-white/20 rounded-[2px] bg-gray-900/60 overflow-hidden relative"
       >
         <div class="h-full flex">
           ${greenPercent > 0
@@ -562,36 +570,29 @@ export class ControlPanel extends LitElement implements Controller {
   private renderRatePill(metric: MetricView, compact = false) {
     return html`
       <div
-        class="flex items-center gap-1 shrink-0 border rounded-md font-bold py-0.5 px-1 ${compact
-          ? "text-xs w-[4.75rem]"
-          : "text-sm w-[5.5rem]"} ${metric.rateIsIncreasing
-          ? "border-green-400"
-          : "border-orange-400"}"
+        class="${HUD_PILL} shrink-0 ${compact
+          ? "w-[4.75rem]"
+          : "w-[5.5rem]"} ${metric.rateIsIncreasing
+          ? "border-green-400/70 bg-green-500/20 text-green-300"
+          : "border-orange-400/70 bg-orange-500/20 text-orange-300"}"
         translate="no"
       >
         ${metric.icon}
-        <span
-          class="font-bold tabular-nums ${compact
-            ? "text-xs"
-            : "text-sm"} ${metric.rateIsIncreasing
-            ? "text-green-400"
-            : "text-orange-400"}"
-          >${this.metricRateText(metric)}</span
-        >
+        <span class="tabular-nums">${this.metricRateText(metric)}</span>
       </div>
     `;
   }
 
   private renderMetricTabs() {
     return html`
-      <div class="grid grid-cols-4 gap-1 mb-1">
+      <div class="${HUD_SEGMENTED} w-full mb-1">
         ${this.metricTabs().map((metric) => {
           const selected = metric.key === this._selectedMetric;
           return html`
             <button
-              class="flex min-w-0 items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold transition-colors ${metric.borderClass} ${metric.textClass} ${selected
-                ? "bg-white/15 ring-1 ring-white/60"
-                : "bg-gray-900/30 hover:bg-white/10"}"
+              class="${HUD_SEGMENT} ${selected
+                ? HUD_SEGMENT_ACTIVE
+                : ""} ${metric.textClass}"
               type="button"
               aria-pressed=${selected ? "true" : "false"}
               @click=${() => {
@@ -620,7 +621,7 @@ export class ControlPanel extends LitElement implements Controller {
         <div
           class="${compact
             ? "flex flex-col items-center shrink-0 gap-0.5 w-8"
-            : "flex items-center gap-1 shrink-0 border border-gray-600 rounded-md px-1 py-0.5 text-sm font-bold text-white cursor-pointer w-[8rem]"}"
+            : `${HUD_PILL} ${HUD_PILL_BLUE} shrink-0 w-[8rem]`}"
         >
           <img
             src=${swordIcon}
@@ -633,7 +634,7 @@ export class ControlPanel extends LitElement implements Controller {
           <span
             class="text-white ${compact
               ? "text-xs"
-              : ""} font-bold tabular-nums"
+              : "text-[10px]"} font-bold tabular-nums"
             >${(this.attackRatio * 100).toFixed(0)}%${compact
               ? ""
               : ` (${renderTroops(
@@ -827,7 +828,7 @@ export class ControlPanel extends LitElement implements Controller {
         ${this.renderRatePill(metric)}
         <div class="flex-1">${this.renderMetricBar(metric, false)}</div>
         <div
-          class="flex items-center gap-1 shrink-0 border rounded-md border-yellow-400 font-bold text-yellow-400 text-sm py-0.5 px-1 w-[4.5rem]"
+          class="${HUD_PILL} ${HUD_PILL_GOLD} shrink-0 w-[4.5rem]"
           translate="no"
         >
           <img src=${goldCoinIcon} width="13" height="13" class="shrink-0" />
@@ -850,7 +851,7 @@ export class ControlPanel extends LitElement implements Controller {
             ${this.renderMetricBar(metric, true)}
           </div>
           <div
-            class="flex items-center justify-center p-1 gap-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-xs w-[3.75rem] shrink-0"
+            class="${HUD_PILL} ${HUD_PILL_GOLD} justify-center w-[3.75rem] shrink-0"
             translate="no"
           >
             <img src=${goldCoinIcon} width="13" height="13" />

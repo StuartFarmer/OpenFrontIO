@@ -32,6 +32,16 @@ import {
   getPlayerIcons,
   IMAGE_ICON_KIND,
 } from "../PlayerIcons";
+import {
+  HUD_COMPACT_TABLE,
+  HUD_PILL,
+  HUD_PILL_BLUE,
+  HUD_PILL_GOLD,
+  HUD_SURFACE,
+  HUD_SURFACE_BODY,
+  HUD_TD,
+  HUD_TD_LEFT,
+} from "../ui/HudTheme";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { CloseRadialMenuEvent } from "./RadialMenu";
 import "./RelationSmiley";
@@ -210,14 +220,8 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
 
   private displayUnitCount(player: PlayerView, type: UnitType, icon: string) {
     return !this.game.config().isUnitDisabled(type)
-      ? html`<div
-          class="flex items-center justify-center gap-0.5 lg:gap-1 p-0.5 lg:p-1 border rounded-md border-gray-500 text-[10px] lg:text-xs w-9 lg:w-12 h-6 lg:h-7"
-          translate="no"
-        >
-          <img
-            src=${icon}
-            class="w-3 h-3 lg:w-4 lg:h-4 object-contain shrink-0"
-          />
+      ? html`<div class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
+          <img src=${icon} class="w-3 h-3 object-contain shrink-0" />
           <span>${player.totalUnitLevels(type)}</span>
         </div>`
       : "";
@@ -279,9 +283,9 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
         .find((alliance) => alliance.other === player.id());
       if (alliance !== undefined) {
         allianceHtml = html` <div
-          class="flex items-center ml-auto mr-0 gap-1 text-sm font-bold leading-tight"
+          class="${HUD_PILL} border-sky-400/70 bg-sky-500/20 text-sky-200"
         >
-          <img src=${allianceIcon} width="20" height="20" />
+          <img src=${allianceIcon} width="12" height="12" />
           ${this.allianceExpirationText(alliance)}
         </div>`;
       }
@@ -301,95 +305,101 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
     const playerTeam = getTranslatedPlayerTeamLabel(player.team());
 
     return html`
-      <div class="flex items-start gap-1 lg:gap-2 p-1 lg:p-1.5">
-        <!-- Left: Gold & Troop bar -->
-        <div class="flex flex-col gap-1 shrink-0 w-28 md:w-36">
-          <div class="flex items-center gap-1">
-            <div
-              class="flex flex-1 items-center justify-center px-1 py-0.5 border rounded-md border-yellow-400 font-bold text-yellow-400 text-sm lg:gap-1"
-              translate="no"
-            >
-              <img src=${goldCoinIcon} width="13" height="13" />
-              <span class="px-0.5">${renderNumber(player.gold())}</span>
-            </div>
-            <div
-              class="flex flex-1 flex-col items-center justify-center text-xs font-bold ${attackingTroops >
-              0
-                ? "text-aquarius"
-                : "text-white/40"} drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-              translate="no"
-            >
-              <span class="flex items-center gap-px leading-none text-xs"
-                ><img
-                  class="w-2.5 h-2.5 inline-block ${attackingTroops > 0
-                    ? ""
-                    : "brightness-0 invert opacity-40"}"
-                  src=${attackingTroops > 0 ? soldierIconAquarius : soldierIcon}
-                  alt=""
-                  aria-hidden="true"
-                />↑</span
-              >
-              <span class="tabular-nums leading-none text-sm mt-0.5"
-                >${renderTroops(attackingTroops)}</span
-              >
-            </div>
-          </div>
-          <div class="w-28 md:w-36" translate="no">
-            ${this.renderTroopBar(totalTroops, attackingTroops, maxTroops)}
-          </div>
-        </div>
-        <!-- Right: Player identity + Units below -->
-        <div class="flex flex-col justify-between self-stretch">
+      <div class="${HUD_SURFACE_BODY} space-y-2">
+        <div class="flex items-center gap-2 min-w-0">
           <div
-            class="flex items-center gap-2 font-bold text-sm lg:text-lg ${this.getPlayerNameColor(
+            class="flex min-w-0 flex-1 items-center gap-2 font-bold text-xs ${this.getPlayerNameColor(
               isFriendly ?? false,
             )}"
           >
             ${player.cosmetics.flag
               ? html`<img
-                  class="h-6 object-contain"
+                  class="h-4 object-contain"
                   src=${assetUrl(player.cosmetics.flag!)}
                 />`
               : html``}
-            <span>${player.displayName()}</span>
+            <span class="truncate">${player.displayName()}</span>
             ${this.getRelationSmiley(player, myPlayer)}
-            ${playerTeam !== "" && player.type() !== PlayerType.Bot
-              ? html`<div class="flex flex-col leading-tight">
-                  <span class="text-gray-400 text-xs font-normal"
-                    >${playerType}</span
-                  >
-                  <span class="text-xs font-normal text-gray-400"
-                    >[<span
-                      style="color: ${this.game
-                        .config()
-                        .theme()
-                        .teamColor(player.team()!)
-                        .toHex()}"
-                      >${playerTeam}</span
-                    >]</span
-                  >
-                </div>`
-              : html`<span class="text-gray-400 text-xs font-normal"
-                  >${playerType}</span
-                >`}
-            ${this.renderPlayerNameIcons(player)} ${allianceHtml ?? ""}
+            ${this.renderPlayerNameIcons(player)}
           </div>
-          <div class="flex gap-0.5 lg:gap-1 items-center mt-0.5">
-            ${this.displayUnitCount(player, UnitType.City, cityIcon)}
-            ${this.displayUnitCount(player, UnitType.Factory, factoryIcon)}
-            ${this.displayUnitCount(player, UnitType.Port, portIcon)}
-            ${this.displayUnitCount(
-              player,
-              UnitType.MissileSilo,
-              missileSiloIcon,
-            )}
-            ${this.displayUnitCount(
-              player,
-              UnitType.SAMLauncher,
-              samLauncherIcon,
-            )}
-            ${this.displayUnitCount(player, UnitType.Warship, warshipIcon)}
-          </div>
+          ${allianceHtml ?? ""}
+        </div>
+
+        <table class="${HUD_COMPACT_TABLE}">
+          <tbody>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">
+                ${translateText("leaderboard.player")}
+              </td>
+              <td class="${HUD_TD}">
+                ${playerTeam !== "" && player.type() !== PlayerType.Bot
+                  ? html`${playerType}
+                      <span
+                        style="color: ${this.game
+                          .config()
+                          .theme()
+                          .teamColor(player.team()!)
+                          .toHex()}"
+                        >${playerTeam}</span
+                      >`
+                  : playerType}
+              </td>
+            </tr>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">
+                ${translateText("leaderboard.gold")}
+              </td>
+              <td class="${HUD_TD}">
+                <span class="${HUD_PILL} ${HUD_PILL_GOLD}" translate="no">
+                  <img src=${goldCoinIcon} width="11" height="11" />
+                  ${renderNumber(player.gold())}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">
+                ${translateText("leaderboard.maxtroops")}
+              </td>
+              <td class="${HUD_TD}" translate="no">
+                ${this.renderTroopBar(totalTroops, attackingTroops, maxTroops)}
+              </td>
+            </tr>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">Attack</td>
+              <td class="${HUD_TD}">
+                <span class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
+                  <img
+                    class="w-3 h-3 ${attackingTroops > 0
+                      ? ""
+                      : "brightness-0 invert opacity-40"}"
+                    src=${attackingTroops > 0
+                      ? soldierIconAquarius
+                      : soldierIcon}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  ${renderTroops(attackingTroops)}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="flex flex-wrap gap-1 items-center">
+          ${this.displayUnitCount(player, UnitType.City, cityIcon)}
+          ${this.displayUnitCount(player, UnitType.Factory, factoryIcon)}
+          ${this.displayUnitCount(player, UnitType.Port, portIcon)}
+          ${this.displayUnitCount(
+            player,
+            UnitType.MissileSilo,
+            missileSiloIcon,
+          )}
+          ${this.displayUnitCount(
+            player,
+            UnitType.SAMLauncher,
+            samLauncherIcon,
+          )}
+          ${this.displayUnitCount(player, UnitType.Warship, warshipIcon)}
         </div>
       </div>
     `;
@@ -412,7 +422,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
 
     return html`
       <div
-        class="w-full h-5 lg:h-6 border border-gray-600 rounded-md bg-gray-900/60 overflow-hidden relative"
+        class="inline-block w-36 h-[18px] border border-white/20 rounded-[2px] bg-gray-900/60 overflow-hidden relative align-middle"
       >
         <div class="h-full flex">
           ${greenPercent > 0
@@ -429,7 +439,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
             : ""}
         </div>
         <div
-          class="absolute inset-0 flex items-center justify-between px-1.5 text-sm font-bold leading-none pointer-events-none"
+          class="absolute inset-0 flex items-center justify-between px-1.5 text-[10px] font-bold leading-none pointer-events-none"
           translate="no"
         >
           <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
@@ -443,8 +453,8 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
           src=${soldierIcon}
           alt=""
           aria-hidden="true"
-          width="14"
-          height="14"
+          width="12"
+          height="12"
           class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 brightness-0 invert drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none"
         />
       </div>
@@ -458,23 +468,41 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
       false;
 
     return html`
-      <div class="p-2">
-        <div class="font-bold mb-1 ${isAlly ? "text-green-500" : "text-white"}">
-          ${unit.owner().displayName()}
-        </div>
-        <div class="mt-1">
-          <div class="text-sm opacity-80">${unit.type()}</div>
-          ${unit.hasHealth()
-            ? html` <div class="text-sm">Health: ${unit.health()}</div> `
-            : ""}
-          ${unit.type() === UnitType.TransportShip
-            ? html`
-                <div class="text-sm">
-                  Troops: ${renderTroops(unit.troops())}
-                </div>
-              `
-            : ""}
-        </div>
+      <div class="${HUD_SURFACE_BODY}">
+        <table class="${HUD_COMPACT_TABLE}">
+          <tbody>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">
+                ${translateText("leaderboard.player")}
+              </td>
+              <td
+                class="${HUD_TD} font-bold ${isAlly
+                  ? "text-green-500"
+                  : "text-white"}"
+              >
+                ${unit.owner().displayName()}
+              </td>
+            </tr>
+            <tr>
+              <td class="${HUD_TD_LEFT} text-slate-300/70">Unit</td>
+              <td class="${HUD_TD}">${unit.type()}</td>
+            </tr>
+            ${unit.hasHealth()
+              ? html`<tr>
+                  <td class="${HUD_TD_LEFT} text-slate-300/70">Health</td>
+                  <td class="${HUD_TD}">${unit.health()}</td>
+                </tr>`
+              : ""}
+            ${unit.type() === UnitType.TransportShip
+              ? html`
+                  <tr>
+                    <td class="${HUD_TD_LEFT} text-slate-300/70">Troops</td>
+                    <td class="${HUD_TD}">${renderTroops(unit.troops())}</td>
+                  </tr>
+                `
+              : ""}
+          </tbody>
+        </table>
       </div>
     `;
   }
@@ -496,7 +524,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
         <div
-          class="bg-gray-800/92 backdrop-blur-sm shadow-xs min-[1200px]:rounded-lg sm:rounded-b-lg shadow-lg text-white text-lg lg:text-base w-full sm:w-[500px] overflow-hidden ${containerClasses}"
+          class="${HUD_SURFACE} shadow-lg w-full sm:w-[500px] overflow-hidden ${containerClasses}"
         >
           ${this.player !== null ? this.renderPlayerInfo(this.player) : ""}
           ${this.unit !== null ? this.renderUnitInfo(this.unit) : ""}

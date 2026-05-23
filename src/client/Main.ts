@@ -76,6 +76,10 @@ import "./components/PlayPage";
 import "./components/RankedModal";
 import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
+import "./hud/demo/HudLiveComponentsDemo";
+import "./hud/demo/HudPanelWorkbench";
+import "./hud/demo/HudStyleDemo";
+import "./hud/demo/HudUiKitCatalog";
 import "./styles.css";
 import "./styles/core/typography.css";
 import "./styles/core/variables.css";
@@ -1067,8 +1071,65 @@ const hideCrazyGamesElements = () => {
   }
 };
 
+const isHudDemoRoute = () =>
+  window.location.pathname === "/hud-demo" ||
+  window.location.pathname === "/hud-demo.html" ||
+  window.location.search.includes("hud-demo");
+
+const isHudKitRoute = () =>
+  window.location.pathname === "/hud-kit" ||
+  window.location.pathname === "/hud-kit.html" ||
+  window.location.search.includes("hud-kit");
+
+const isHudLiveDemoRoute = () =>
+  window.location.pathname === "/hud-live-demo" ||
+  window.location.pathname === "/hud-live-demo.html" ||
+  window.location.search.includes("hud-live-demo");
+
+const isHudPanelsRoute = () =>
+  window.location.pathname === "/hud-panels" ||
+  window.location.pathname === "/hud-panels.html" ||
+  window.location.search.includes("hud-panels");
+
+const renderHudDemo = () => {
+  document.body.innerHTML = "<hud-style-demo></hud-style-demo>";
+};
+
+const renderHudKit = () => {
+  document.body.innerHTML = "<hud-ui-kit-catalog></hud-ui-kit-catalog>";
+};
+
+const renderHudLiveDemo = () => {
+  document.body.innerHTML =
+    "<hud-live-components-demo></hud-live-components-demo>";
+};
+
+const renderHudPanels = () => {
+  document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
+};
+
 // Initialize the client when the DOM is loaded
 const bootstrap = () => {
+  if (isHudKitRoute()) {
+    renderHudKit();
+    return;
+  }
+
+  if (isHudPanelsRoute()) {
+    renderHudPanels();
+    return;
+  }
+
+  if (isHudLiveDemoRoute()) {
+    renderHudLiveDemo();
+    return;
+  }
+
+  if (isHudDemoRoute()) {
+    renderHudDemo();
+    return;
+  }
+
   // Prevent Safari's page-level pinch-zoom, which ignores `user-scalable=no`
   // on iOS and can softlock the HUD. See issue #2330.
   installSafariPinchZoomBlocker();

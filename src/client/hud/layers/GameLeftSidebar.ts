@@ -8,6 +8,7 @@ import { GameView } from "../../../core/game/GameView";
 import { Controller } from "../../Controller";
 import { Platform } from "../../Platform";
 import { getTranslatedPlayerTeamLabel, translateText } from "../../Utils";
+import { HUD_ICON_BUTTON, HUD_SURFACE } from "../ui/HudTheme";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { SpawnBarVisibleEvent } from "./SpawnTimer";
 const leaderboardRegularIcon = assetUrl(
@@ -105,17 +106,15 @@ export class GameLeftSidebar extends LitElement implements Controller {
   render() {
     return html`
       <aside
-        class=${`fixed top-0 min-[1200px]:top-4 left-0 min-[1200px]:left-4 z-900 flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto p-2 bg-gray-800/92 backdrop-blur-sm shadow-xs min-[1200px]:rounded-lg rounded-br-lg ${this.isLeaderboardShow || this.isTeamLeaderboardShow ? "max-[400px]:w-full max-[400px]:rounded-none" : ""} transition-all duration-300 ease-out transform ${
+        class=${`fixed top-0 min-[1200px]:top-4 left-0 min-[1200px]:left-4 z-900 flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto p-2 ${HUD_SURFACE} ${this.isLeaderboardShow || this.isTeamLeaderboardShow ? "max-[400px]:w-full max-[400px]:rounded-none" : ""} transition-all duration-300 ease-out transform ${
           this.isVisible ? "translate-x-0" : "hidden"
         }`}
         style="margin-top: ${this.barOffset}px;"
       >
-        <div class="flex items-center gap-4 xl:gap-6 text-white">
-          <div
-            class="cursor-pointer p-0.5 bg-gray-700/50 hover:bg-gray-600 border rounded-md border-slate-500 transition-colors"
+        <div class="flex items-center gap-2">
+          <button
+            class="${HUD_ICON_BUTTON}"
             @click=${this.toggleLeaderboard}
-            role="button"
-            tabindex="0"
             @keydown=${(e: KeyboardEvent) => {
               if (e.key === "Enter" || e.key === " " || e.code === "Space") {
                 e.preventDefault();
@@ -132,14 +131,12 @@ export class GameLeftSidebar extends LitElement implements Controller {
               width="20"
               height="20"
             />
-          </div>
+          </button>
           ${this.isTeamGame
             ? html`
-                <div
-                  class="cursor-pointer p-0.5 bg-gray-700/50 hover:bg-gray-600 border rounded-md border-slate-500 transition-colors"
+                <button
+                  class="${HUD_ICON_BUTTON}"
                   @click=${this.toggleTeamLeaderboard}
-                  role="button"
-                  tabindex="0"
                   @keydown=${(e: KeyboardEvent) => {
                     if (
                       e.key === "Enter" ||
@@ -161,7 +158,7 @@ export class GameLeftSidebar extends LitElement implements Controller {
                     width="20"
                     height="20"
                   />
-                </div>
+                </button>
               `
             : null}
           ${this.isLeaderboardShow || this.isTeamLeaderboardShow
