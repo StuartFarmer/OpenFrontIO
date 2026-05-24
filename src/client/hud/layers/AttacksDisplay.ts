@@ -24,15 +24,12 @@ import {
 import { UIState } from "../../UIState";
 import { renderTroops, translateText } from "../../Utils";
 import { getColoredSprite } from "../SpriteLoader";
+import "../ui/HudComponents";
 import {
   HUD_ATTACK_ACTION,
-  HUD_ATTACK_MAIN,
-  HUD_ATTACK_QUANTITY_LABEL,
-  HUD_ATTACK_ROW,
   HUD_FONT,
   HUD_ICON_ATOM,
   HUD_ICON_MD,
-  HUD_TEXT_LABEL,
 } from "../ui/HudTheme";
 import { renderLucideIcon } from "../ui/LucideIcon";
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
@@ -292,24 +289,26 @@ export class AttacksDisplay extends LitElement implements Controller {
     action?: unknown;
     retreating?: boolean;
   }) {
-    const textClass = options.tone === "red" ? "text-red-400" : "text-aquarius";
     const label = options.retreating
       ? `${options.label} (${translateText("events_display.retreating")}...)`
       : options.label;
 
     return html`
-      <div class="${HUD_ATTACK_ROW}">
-        <button
-          class="${HUD_ATTACK_MAIN} ${textClass}"
-          @click=${options.onClick}
-          translate="no"
-        >
-          ${options.primaryIcon} ${options.directionIcon}
-          <span class="${HUD_ATTACK_QUANTITY_LABEL}">${options.amount}</span>
-          <span class="${HUD_TEXT_LABEL}">${label}</span>
-        </button>
-        ${options.action}
-      </div>
+      <hud-attack-row
+        .tone=${options.tone}
+        .amount=${options.amount}
+        .label=${label}
+        @row-click=${options.onClick}
+        style="--hud-attack-color: ${options.tone === "red"
+          ? "#f87171"
+          : "#7dd3fc"}"
+      >
+        <span slot="primary-icon">${options.primaryIcon}</span>
+        <span slot="direction-icon">${options.directionIcon}</span>
+        ${options.action
+          ? html`<span slot="action">${options.action}</span>`
+          : html``}
+      </hud-attack-row>
     `;
   }
 

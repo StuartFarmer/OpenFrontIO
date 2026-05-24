@@ -15,25 +15,14 @@ import { Controller } from "../../Controller";
 import { AttackRatioEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { renderNumber, renderTroops } from "../../Utils";
+import { renderHudIconPill, renderHudMaskIcon, renderHudMeter } from "../ui";
 import {
-  HUD_ATTACK_RATIO_COMPACT,
-  HUD_ATTACK_RATIO_PILL,
   HUD_BLEND_BAR,
   HUD_BLEND_CONTROL,
   HUD_BLEND_LABEL,
   HUD_BLEND_ROW,
   HUD_BLEND_SEGMENT,
   HUD_CONTROL_ROW,
-  HUD_DUAL_RANGE,
-  HUD_DUAL_RANGE_INPUT,
-  HUD_METER,
-  HUD_METER_FILL,
-  HUD_METER_STACK,
-  HUD_METER_TEXT,
-  HUD_PILL,
-  HUD_PILL_GOLD,
-  HUD_PILL_MASK_ICON,
-  HUD_PILL_VALUE,
   HUD_RANGE,
   HUD_SEGMENT,
   HUD_SEGMENT_ACTIVE,
@@ -420,11 +409,7 @@ export class ControlPanel extends LitElement implements Controller {
   }
 
   private renderMaskIcon(src: string, sizeClass: string) {
-    return html`<span
-      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
-      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
-      aria-hidden="true"
-    ></span>`;
+    return renderHudMaskIcon(src, sizeClass);
   }
 
   private selectedMetric(): MetricView {
@@ -442,85 +427,62 @@ export class ControlPanel extends LitElement implements Controller {
 
   private renderMetricBar(metric: MetricView, compact: boolean) {
     const { greenPercent, orangePercent } = this.calculateMetricBar(metric);
-    return html`
-      <div class="${HUD_METER}">
-        <div class="${HUD_METER_STACK}">
-          ${greenPercent > 0
-            ? html`<div
-                class="${HUD_METER_FILL} ${metric.barClass}"
-                style="width: ${greenPercent}%;"
-              ></div>`
-            : ""}
-          ${orangePercent > 0
-            ? html`<div
-                class="${HUD_METER_FILL} bg-aquarius"
-                style="width: ${orangePercent}%;"
-              ></div>`
-            : ""}
-        </div>
-        <div
-          class="${HUD_METER_TEXT} ${compact
-            ? "justify-between px-1.5 text-xs"
-            : "text-lg"}"
-          translate="no"
-        >
-          ${compact
-            ? html`
-                <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-                  >${this.metricValueText(metric)}</span
-                >
-                <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-                  >${this.metricValueText({
-                    ...metric,
-                    value: metric.capacity,
-                  })}</span
-                >
-              `
-            : html`
-                <span
-                  class="flex-1 flex justify-end h-full items-center pr-0.5"
-                >
-                  <span
-                    class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-                    >${this.metricValueText(metric)}</span
-                  >
-                </span>
-                <span
-                  class="h-full flex items-center px-0.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-                  >/</span
-                >
-                <span
-                  class="flex-1 flex justify-start h-full items-center pl-0.5 gap-0.5"
-                >
-                  <span
-                    class="text-white tabular-nums w-[3.5rem] drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-                    >${this.metricValueText({
-                      ...metric,
-                      value: metric.capacity,
-                    })}</span
-                  >
-                  <span class="ml-1.5">${metric.icon}</span>
-                </span>
-              `}
-        </div>
-      </div>
-    `;
+    const label = compact
+      ? html`
+          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+            >${this.metricValueText(metric)}</span
+          >
+          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+            >${this.metricValueText({
+              ...metric,
+              value: metric.capacity,
+            })}</span
+          >
+        `
+      : html`
+          <span class="flex-1 flex justify-end h-full items-center pr-0.5">
+            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+              >${this.metricValueText(metric)}</span
+            >
+          </span>
+          <span
+            class="h-full flex items-center px-0.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+            >/</span
+          >
+          <span
+            class="flex-1 flex justify-start h-full items-center pl-0.5 gap-0.5"
+          >
+            <span
+              class="text-white tabular-nums w-[3.5rem] drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+              >${this.metricValueText({
+                ...metric,
+                value: metric.capacity,
+              })}</span
+            >
+            <span class="ml-1.5">${metric.icon}</span>
+          </span>
+        `;
+
+    return renderHudMeter({
+      segments: [
+        { width: greenPercent, className: metric.barClass },
+        { width: orangePercent, className: "bg-aquarius" },
+      ].filter((segment) => segment.width > 0),
+      label,
+      labelClassName: `${compact ? "justify-between px-1.5 text-xs" : "text-lg"}`,
+    });
   }
 
   private renderRatePill(metric: MetricView, compact = false) {
-    return html`
-      <div
-        class="${HUD_PILL} shrink-0 ${compact
-          ? "w-[4.75rem]"
-          : "w-[5.5rem]"} ${metric.rateIsIncreasing
+    return renderHudIconPill({
+      icon: metric.icon,
+      value: this.metricRateText(metric),
+      className: `shrink-0 ${compact ? "w-[4.75rem]" : "w-[5.5rem]"} ${
+        metric.rateIsIncreasing
           ? "border-green-400/70 bg-green-500/20 text-green-300"
-          : "border-orange-400/70 bg-orange-500/20 text-orange-300"}"
-        translate="no"
-      >
-        ${metric.icon}
-        <span class="${HUD_PILL_VALUE}">${this.metricRateText(metric)}</span>
-      </div>
-    `;
+          : "border-orange-400/70 bg-orange-500/20 text-orange-300"
+      }`,
+    });
   }
 
   private renderMetricTabs() {
@@ -564,21 +526,24 @@ export class ControlPanel extends LitElement implements Controller {
   private renderAttackRatioControl(compact = false) {
     return html`
       <div class="${HUD_CONTROL_ROW}" translate="no">
-        <div
-          class="${compact ? HUD_ATTACK_RATIO_COMPACT : HUD_ATTACK_RATIO_PILL}"
-        >
-          ${this.renderMaskIcon(swordIcon, compact ? "h-2.5 w-2.5" : "h-3 w-3")}
-          <span
-            class="text-white ${compact
-              ? "text-xs"
-              : "text-[10px]"} font-bold ${HUD_PILL_VALUE}"
-            >${(this.attackRatio * 100).toFixed(0)}%${compact
+        <hud-pill
+          tone="blue"
+          .value=${`${(this.attackRatio * 100).toFixed(0)}%${
+            compact
               ? ""
               : ` (${renderTroops(
                   (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
-                )})`}</span
-          >
-        </div>
+                )})`
+          }`}
+          style=${compact ? "width: 4.75rem" : "width: 8rem"}
+        >
+          <span slot="icon">
+            ${this.renderMaskIcon(
+              swordIcon,
+              compact ? "h-2.5 w-2.5" : "h-3 w-3",
+            )}
+          </span>
+        </hud-pill>
         <div class="flex-1">
           <input
             type="range"
@@ -701,70 +666,53 @@ export class ControlPanel extends LitElement implements Controller {
     blend: ResourceBlendPercents,
     handles: { kind: BlendKind; first: number; second: number },
   ) {
-    return html`
-      <div
-        class="${HUD_DUAL_RANGE} h-9 flex-1"
-        role="slider"
-        aria-label="${handles.kind} resource blend"
-        aria-valuetext="Biomass ${blend.food}%, Fuels ${blend.energy}%, Metals ${blend.materials}%"
-        translate="no"
-      >
-        <div
-          class="absolute left-0 right-0 top-3 h-1.5 -translate-y-1/2 overflow-hidden rounded-full border border-white/20 bg-slate-950/50"
-        >
-          <div class="flex h-full">
-            <div
-              class="h-full bg-green-500"
-              style="width: ${blend.food}%"
-            ></div>
-            <div
-              class="h-full bg-cyan-500"
-              style="width: ${blend.energy}%"
-            ></div>
-            <div
-              class="h-full bg-stone-300"
-              style="width: ${blend.materials}%"
-            ></div>
-          </div>
-        </div>
-        <input
-          class="${HUD_DUAL_RANGE_INPUT} control-panel-blend-range-input"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(handles.first)}
-          @input=${(e: Event) =>
-            this.handleBlendRangeInput(handles.kind, "first", e)}
-          aria-label="Biomass and fuels split"
-        />
-        <input
-          class="${HUD_DUAL_RANGE_INPUT} control-panel-blend-range-input"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(handles.second)}
-          @input=${(e: Event) =>
-            this.handleBlendRangeInput(handles.kind, "second", e)}
-          aria-label="Fuels and metals split"
-        />
-        <div
-          class="pointer-events-none absolute bottom-0 left-0 right-0 flex overflow-hidden text-[10px] font-bold leading-none tabular-nums text-slate-200"
-        >
-          ${this.renderBlendRangeLabel("food", blend.food)}
-          ${this.renderBlendRangeLabel("energy", blend.energy)}
-          ${this.renderBlendRangeLabel("materials", blend.materials)}
-        </div>
-      </div>
-    `;
+    return html`<hud-blend-slider
+      class="flex-1"
+      .first=${handles.first}
+      .second=${handles.second}
+      .inputClass=${"control-panel-blend-range-input"}
+      .segments=${[
+        {
+          tone: "food",
+          width: blend.food,
+          iconSrc: biomassIcon,
+          label: `${blend.food}%`,
+        },
+        {
+          tone: "energy",
+          width: blend.energy,
+          iconSrc: fuelIcon,
+          label: `${blend.energy}%`,
+        },
+        {
+          tone: "materials",
+          width: blend.materials,
+          iconSrc: metalIcon,
+          label: `${blend.materials}%`,
+        },
+      ]}
+      @blend-change=${(
+        event: CustomEvent<{
+          first: number;
+          second: number;
+          changed: "first" | "second";
+        }>,
+      ) =>
+        this.handleBlendRangeInput(
+          handles.kind,
+          event.detail.changed,
+          event.detail.changed === "first"
+            ? event.detail.first
+            : event.detail.second,
+        )}
+    ></hud-blend-slider>`;
   }
 
   private handleBlendRangeInput(
     kind: BlendKind,
     handle: "first" | "second",
-    e: Event,
+    value: number,
   ) {
-    const value = Number((e.target as HTMLInputElement).value);
-
     if (kind === "import") {
       if (handle === "first") {
         this._importBlendFirst = Math.min(value, this._importBlendSecond - 1);
@@ -781,20 +729,6 @@ export class ControlPanel extends LitElement implements Controller {
       this._exportBlendSecond = Math.max(value, this._exportBlendFirst + 1);
     }
     this.updateResourceExportBlend();
-  }
-
-  private renderBlendRangeLabel(kind: ResourceKind, percent: number) {
-    return html`
-      <span
-        class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
-        style="width: ${percent}%"
-      >
-        ${percent >= 8
-          ? html`${this.renderResourceIcon(kind, "h-3 w-3")}
-              <span>${percent}%</span>`
-          : ""}
-      </span>
-    `;
   }
 
   private renderBlendSegmentText(kind: ResourceKind, percent: number) {
@@ -822,13 +756,12 @@ export class ControlPanel extends LitElement implements Controller {
       <div class="flex gap-1.5 items-center mb-1">
         ${this.renderRatePill(metric)}
         <div class="flex-1">${this.renderMetricBar(metric, false)}</div>
-        <div
-          class="${HUD_PILL} ${HUD_PILL_GOLD} shrink-0 w-[4.5rem]"
-          translate="no"
-        >
-          ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
-          <span class="${HUD_PILL_VALUE}">${renderNumber(this._gold)}</span>
-        </div>
+        ${renderHudIconPill({
+          tone: "gold",
+          icon: this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]"),
+          value: renderNumber(this._gold),
+          className: "shrink-0 w-[4.5rem]",
+        })}
       </div>
       <!-- Row 3: attack ratio or resource import/export blends -->
       ${this.renderSelectedActionControl(false)}
@@ -845,13 +778,13 @@ export class ControlPanel extends LitElement implements Controller {
           <div class="min-w-0 flex-1 flex items-center">
             ${this.renderMetricBar(metric, true)}
           </div>
-          <div
-            class="${HUD_PILL} ${HUD_PILL_GOLD} justify-center w-[3.75rem] shrink-0"
-            translate="no"
-          >
-            ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
-            <span class="px-0.5">${renderNumber(this._gold)}</span>
-          </div>
+          ${renderHudIconPill({
+            tone: "gold",
+            icon: this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]"),
+            value: renderNumber(this._gold),
+            className: "justify-center w-[3.75rem] shrink-0",
+            valueClassName: "px-0.5",
+          })}
         </div>
         <div class="mt-1">${this.renderSelectedActionControl(true)}</div>
       </div>

@@ -78,7 +78,6 @@ import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
 import "./hud/demo/HudLiveComponentsDemo";
 import "./hud/demo/HudPanelWorkbench";
-import "./hud/demo/HudStyleDemo";
 import "./styles.css";
 import "./styles/core/typography.css";
 import "./styles/core/variables.css";
@@ -1091,7 +1090,7 @@ const isHudPanelsRoute = () =>
   window.location.search.includes("hud-panels");
 
 const renderHudDemo = () => {
-  document.body.innerHTML = "<hud-style-demo></hud-style-demo>";
+  document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
 
 const renderHudKit = () => {

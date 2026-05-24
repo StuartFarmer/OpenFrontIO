@@ -9,7 +9,12 @@ import { crazyGamesSDK } from "../../CrazyGamesSDK";
 import { TogglePauseIntentEvent } from "../../InputHandler";
 import { PauseGameIntentEvent, SendWinnerEvent } from "../../Transport";
 import { translateText } from "../../Utils";
-import { HUD_ICON_BUTTON, HUD_ICON_MD, HUD_SURFACE } from "../ui/HudTheme";
+import {
+  HUD_ICON_BUTTON,
+  HUD_ICON_MD,
+  HUD_TIMER_LABEL,
+  HUD_TOOLBAR,
+} from "../ui/HudTheme";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { ShowReplayPanelEvent } from "./ReplayPanel";
 import { ShowSettingsModalEvent } from "./SettingsModal";
@@ -223,15 +228,13 @@ export class GameRightSidebar extends LitElement implements Controller {
 
     return html`
       <aside
-        class=${`w-fit flex flex-row items-center gap-2 px-2 py-1 ${HUD_SURFACE} transition-transform duration-300 ease-out transform ${
+        class=${`${HUD_TOOLBAR} transition-transform duration-300 ease-out transform ${
           this._isVisible ? "translate-x-0" : "translate-x-full"
         }`}
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
         <!-- In-game time -->
-        <div
-          class=${`min-w-10 text-center text-xs font-semibold ${timerColor}`}
-        >
+        <div class=${`${HUD_TIMER_LABEL} ${timerColor}`}>
           ${this.secondsToHms(this.timer)}
         </div>
 

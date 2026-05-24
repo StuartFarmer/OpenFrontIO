@@ -18,6 +18,9 @@ import { formatPercentage, renderNumber } from "../../Utils";
 import {
   HUD_BUTTON,
   HUD_COMPACT_TABLE,
+  HUD_STAT_GRID,
+  HUD_STAT_LABEL,
+  HUD_STAT_VALUE,
   HUD_SURFACE,
   HUD_SURFACE_BODY,
   HUD_SURFACE_HEADER,
@@ -565,7 +568,7 @@ export class Leaderboard extends LitElement implements Controller {
             style="width: ${fillPercent}%"
           ></div>
         </div>
-        <div class="mt-2 grid grid-cols-4 gap-2 text-[11px] leading-tight">
+        <div class="mt-2 ${HUD_STAT_GRID}">
           ${this.renderEconomyMetric("Net", row.netPerSecond)}
           ${this.renderEconomyMetric("Prod", row.productionPerSecond)}
           ${this.renderEconomyMetric("Rail", row.railPerSecond)}
@@ -584,8 +587,10 @@ export class Leaderboard extends LitElement implements Controller {
           : "text-slate-300";
     return html`
       <div>
-        <div class="text-slate-400">${label}</div>
-        <div class="${valueClass} tabular-nums">${formatSignedRate(value)}</div>
+        <div class="${HUD_STAT_LABEL}">${label}</div>
+        <div class="${valueClass} ${HUD_STAT_VALUE}">
+          ${formatSignedRate(value)}
+        </div>
       </div>
     `;
   }

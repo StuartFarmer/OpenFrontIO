@@ -1,6 +1,7 @@
 # Initiative: HUD Component Library
 
 ## Stack
+
 - Language: TypeScript
 - Package manager: npm
 - Test runner: Vitest
@@ -21,6 +22,7 @@ The HUD has started moving toward shared styling through `src/client/hud/ui/HudT
 The source of truth for HUD styling and reusable HUD UI building blocks lives under `src/client/hud/ui`, `/hud-kit` demonstrates those building blocks from primitives through complete HUD layers, and new HUD panels can be assembled from reusable exports without copying raw Tailwind structure for common controls.
 
 ## Non-Goals
+
 - Redesigning gameplay behavior.
 - Replacing Lit or Tailwind.
 - Reworking non-HUD app components outside the HUD surface.
@@ -28,6 +30,7 @@ The source of truth for HUD styling and reusable HUD UI building blocks lives un
 - Adding a broad design-system framework or package.
 
 ## Constraints
+
 - Keep the implementation lean and scoped to actual HUD reuse needs.
 - Preserve existing visual fidelity unless a change is explicitly required for standardization.
 - Work with the existing light-DOM Tailwind pattern used by the HUD components.
@@ -35,6 +38,7 @@ The source of truth for HUD styling and reusable HUD UI building blocks lives un
 - Do not revert unrelated in-progress HUD changes in the working tree.
 
 ## Assumptions
+
 - `HudPanelWorkbench` is the intended `/hud-kit` source of truth.
 - Existing `HudTheme.ts` constants are the seed for the component library, not throwaway code.
 - The first standardization pass should target the active HUD layers already identified as ad hoc rather than legacy demo pages.

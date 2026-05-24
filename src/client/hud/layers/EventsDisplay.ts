@@ -49,6 +49,7 @@ import {
   HUD_SEGMENT_ICON,
   HUD_SEGMENTED,
   HUD_SURFACE,
+  HUD_SURFACE_HEADER,
   HUD_TD_LEFT,
 } from "../ui/HudTheme";
 const allianceIcon = assetUrl("images/AllianceIconWhite.svg");
@@ -847,9 +848,7 @@ export class EventsDisplay extends LitElement implements Controller {
             <!-- Main Events Display -->
             <div class="relative w-full z-50 min-[1200px]:w-96 ${HUD_SURFACE}">
               <!-- Button Bar -->
-              <div
-                class="flex items-center justify-between gap-2 min-h-[30px] px-2 py-1 border-b border-white/10 bg-slate-900/50"
-              >
+              <div class="${HUD_SURFACE_HEADER} min-h-[30px]">
                 <div class="flex w-full justify-between items-center gap-3">
                   <div class="${HUD_SEGMENTED}">
                     ${this.renderToggleButton(

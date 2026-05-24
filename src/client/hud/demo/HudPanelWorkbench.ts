@@ -17,23 +17,15 @@ import "../layers/PlayerInfoOverlay";
 import "../layers/ReplayPanel";
 import "../layers/TeamStats";
 import "../layers/UnitDisplay";
+import { renderHudMaskIcon } from "../ui";
 import {
   HUD_ACTION_GROUP,
-  HUD_ATTACK_RATIO_PILL,
   HUD_BLEND_LABEL,
   HUD_BLEND_ROW,
-  HUD_BUILD_HOTKEY,
-  HUD_BUILD_ICON,
-  HUD_BUILD_ITEM,
-  HUD_BUILD_ITEM_ACTIVE,
   HUD_BUILD_STRIP,
   HUD_BUTTON,
   HUD_COMPACT_TABLE,
   HUD_CONTROL_ROW,
-  HUD_DUAL_RANGE,
-  HUD_DUAL_RANGE_FILL,
-  HUD_DUAL_RANGE_INPUT,
-  HUD_DUAL_RANGE_TRACK,
   HUD_EVENT_META,
   HUD_EVENT_ROW,
   HUD_EVENT_TEXT,
@@ -44,7 +36,6 @@ import {
   HUD_IDENTITY_NAME,
   HUD_IDENTITY_ROW,
   HUD_INPUT,
-  HUD_METER,
   HUD_METER_FILL,
   HUD_METER_STACK,
   HUD_METER_TEXT,
@@ -53,32 +44,20 @@ import {
   HUD_PILL,
   HUD_PILL_BLUE,
   HUD_PILL_GOLD,
-  HUD_PILL_GREEN,
-  HUD_PILL_MASK_ICON,
-  HUD_PILL_RED,
   HUD_PILL_VALUE,
   HUD_RANGE,
-  HUD_SEGMENT,
   HUD_SEGMENT_ACTIVE,
-  HUD_SEGMENT_CONTENT,
-  HUD_SEGMENT_LABEL,
-  HUD_SEGMENT_MAIN,
-  HUD_SEGMENT_VALUE,
   HUD_SEGMENTED,
   HUD_SELECT,
   HUD_STAT_GRID,
   HUD_STAT_LABEL,
   HUD_STAT_VALUE,
-  HUD_SURFACE,
   HUD_SURFACE_BODY,
-  HUD_SURFACE_HEADER,
   HUD_TD,
   HUD_TD_LEFT,
   HUD_TH,
   HUD_TIMER_LABEL,
   HUD_TOOLBAR,
-  HUD_TOOLTIP,
-  HUD_TOOLTIP_TITLE,
 } from "../ui/HudTheme";
 import { renderLucideIcon } from "../ui/LucideIcon";
 import {
@@ -165,6 +144,7 @@ export class HudPanelWorkbench extends LitElement {
   @state() private dualRangeEnd = 75;
   @state() private blendRangeFirst = 34;
   @state() private blendRangeSecond = 67;
+  @state() private selectedMetric = "troops";
 
   createRenderRoot() {
     return this;
@@ -1079,13 +1059,13 @@ export class HudPanelWorkbench extends LitElement {
   private renderHeaderAtoms() {
     return html`
       <div class="kit-stage">
-        <div class="${HUD_SURFACE} w-full max-w-[260px]">
-          <div class="${HUD_SURFACE_HEADER}">
+        <hud-surface style="width: 100%; max-width: 260px">
+          <hud-surface-header>
             <span>SECTION HEADER</span>
             <span class="text-slate-400">meta</span>
-          </div>
-          <div class="${HUD_SURFACE_BODY} text-slate-300">surface body</div>
-        </div>
+          </hud-surface-header>
+          <hud-surface-body>surface body</hud-surface-body>
+        </hud-surface>
       </div>
     `;
   }
@@ -1095,15 +1075,17 @@ export class HudPanelWorkbench extends LitElement {
       <div class="kit-stage">
         <div class="atom-row">
           <span class="atom-caption">surface</span>
-          <div class="surface-sample">
-            <div class="surface-sample-header">PANEL HEADER</div>
-            <div class="surface-sample-body">panel body</div>
-          </div>
+          <hud-surface style="width: 180px">
+            <hud-surface-header>PANEL HEADER</hud-surface-header>
+            <hud-surface-body>panel body</hud-surface-body>
+          </hud-surface>
         </div>
         <div class="atom-row" style="margin-top: 10px">
           <span class="atom-caption">control</span>
-          <button class="button-sample">ACTION</button>
-          <span class="atom-icon md">X</span>
+          <hud-button>ACTION</hud-button>
+          <hud-icon-button label="Close">
+            ${renderLucideIcon(X, "h-4 w-4")}
+          </hud-icon-button>
         </div>
       </div>
     `;
@@ -1114,28 +1096,32 @@ export class HudPanelWorkbench extends LitElement {
       <div class="kit-stage kit-stack">
         <div class="atom-row">
           <span class="atom-caption">sizes</span>
-          <span class="atom-icon sm">S</span>
-          <span class="atom-icon md">S</span>
-          <span class="atom-icon lg">S</span>
-          <span class="atom-icon xl">S</span>
+          <hud-icon .src=${sampleSwordIcon} size="sm" label="Small"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} size="md" label="Medium"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} size="lg" label="Large"></hud-icon>
+          <hud-icon
+            .src=${sampleSwordIcon}
+            size="xl"
+            label="Extra large"
+          ></hud-icon>
         </div>
         <div class="atom-row">
           <span class="atom-caption">red</span>
-          <span class="atom-icon red sm">v</span>
-          <span class="atom-icon red md">v</span>
-          <span class="atom-icon red lg">v</span>
-          <span class="atom-icon red xl">v</span>
+          <hud-icon .src=${sampleSwordIcon} tone="danger" size="sm"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="danger" size="md"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="danger" size="lg"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="danger" size="xl"></hud-icon>
         </div>
         <div class="atom-row">
           <span class="atom-caption">action</span>
-          <span class="atom-icon md">X</span>
-          <span class="atom-icon red md">X</span>
+          ${renderLucideIcon(ChevronUp, "h-5 w-5")}
+          <span class="text-red-300">${renderLucideIcon(X, "h-5 w-5")}</span>
         </div>
         <div class="actual-icon-grid">
           ${hudIconSamples.map(
             ([label, src]) => html`
               <div class="actual-icon-card" title=${label}>
-                <img src=${src} alt=${label} />
+                <hud-icon .src=${src} size="lg" .label=${label}></hud-icon>
                 <span>${label}</span>
               </div>
             `,
@@ -1150,16 +1136,16 @@ export class HudPanelWorkbench extends LitElement {
       <div class="kit-stage kit-stack">
         <div class="atom-row">
           <span class="atom-caption">number</span>
-          <span class="atom-label number">1.00K</span>
-          <span class="atom-label number">10.0K</span>
-          <span class="atom-label number">100K</span>
-          <span class="atom-label number">1.00M</span>
+          <hud-number value="1000" format></hud-number>
+          <hud-number value="10000" format></hud-number>
+          <hud-number value="100000" format></hud-number>
+          <hud-number value="1000000" format></hud-number>
         </div>
         <div class="atom-row">
           <span class="atom-caption">label</span>
-          <span class="atom-label text">East March</span>
-          <span class="atom-label text">Wilderness</span>
-          <span class="atom-label text">Very Long Player Name</span>
+          <hud-label>East March</hud-label>
+          <hud-label tone="muted">Wilderness</hud-label>
+          <hud-label tone="active">Very Long Player Name</hud-label>
         </div>
       </div>
     `;
@@ -1170,25 +1156,21 @@ export class HudPanelWorkbench extends LitElement {
       <div class="kit-stage kit-stack">
         <div class="atom-row">
           <span class="atom-caption">button</span>
-          <button class="${HUD_BUTTON}">Default</button>
-          <button class="${HUD_BUTTON} border-aquarius/70 bg-aquarius/25">
-            Active
-          </button>
-          <button class="${HUD_BUTTON} border-red-400/70 text-red-300">
-            Danger
-          </button>
+          <hud-button>Default</hud-button>
+          <hud-button variant="active">Active</hud-button>
+          <hud-button variant="danger">Danger</hud-button>
         </div>
         <div class="atom-row">
           <span class="atom-caption">icon</span>
-          <button class="${HUD_ICON_BUTTON}">
+          <hud-icon-button label="Settings">
             ${this.renderPlainIcon(sampleSettingsIcon)}
-          </button>
-          <button class="${HUD_ICON_BUTTON}">
+          </hud-icon-button>
+          <hud-icon-button label="Exit">
             ${this.renderPlainIcon(sampleExitIcon)}
-          </button>
-          <button class="${HUD_ICON_BUTTON}">
+          </hud-icon-button>
+          <hud-icon-button label="Leaderboard">
             ${this.renderPlainIcon(sampleLeaderboardIcon)}
-          </button>
+          </hud-icon-button>
         </div>
       </div>
     `;
@@ -1199,22 +1181,24 @@ export class HudPanelWorkbench extends LitElement {
       <div class="kit-stage kit-stack">
         <div class="atom-row">
           <span class="atom-caption">pill</span>
-          <span class="${HUD_PILL}">Neutral</span>
-          <span class="${HUD_PILL} ${HUD_PILL_BLUE}">Blue</span>
-          <span class="${HUD_PILL} ${HUD_PILL_GREEN}">Green</span>
-          <span class="${HUD_PILL} ${HUD_PILL_GOLD}">Gold</span>
-          <span class="${HUD_PILL} ${HUD_PILL_RED}">Red</span>
+          <hud-pill value="Neutral"></hud-pill>
+          <hud-pill value="Blue" tone="blue"></hud-pill>
+          <hud-pill value="Green" tone="green"></hud-pill>
+          <hud-pill value="Gold" tone="gold"></hud-pill>
+          <hud-pill value="Red" tone="red"></hud-pill>
         </div>
         <div class="atom-row">
           <span class="atom-caption">icon pill</span>
-          <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
-            <span class="${HUD_PILL_VALUE}">92K</span>
-          </span>
-          <span class="${HUD_PILL} ${HUD_PILL_GREEN}">
-            ${this.renderSampleIcon(sampleSoldierIcon, "h-3.5 w-3.5")}
-            <span class="${HUD_PILL_VALUE}">+18.4K/s</span>
-          </span>
+          <hud-pill
+            value="92K"
+            tone="gold"
+            icon-src=${sampleGoldCoinIcon}
+          ></hud-pill>
+          <hud-pill
+            value="+18.4K/s"
+            tone="green"
+            icon-src=${sampleSoldierIcon}
+          ></hud-pill>
           <span class="${HUD_NOTIFICATION_PILL}">3</span>
         </div>
       </div>
@@ -1253,79 +1237,61 @@ export class HudPanelWorkbench extends LitElement {
   }
 
   private renderDualRange() {
-    return html`
-      <div class="${HUD_DUAL_RANGE}" translate="no">
-        <div class="${HUD_DUAL_RANGE_TRACK}"></div>
-        <div
-          class="${HUD_DUAL_RANGE_FILL}"
-          style="left: ${this.dualRangeStart}%; right: ${100 -
-          this.dualRangeEnd}%"
-        ></div>
-        <input
-          class="${HUD_DUAL_RANGE_INPUT}"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(this.dualRangeStart)}
-          @input=${(e: Event) => this.setDualRangeStart(e)}
-          aria-label="Range start"
-        />
-        <input
-          class="${HUD_DUAL_RANGE_INPUT}"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(this.dualRangeEnd)}
-          @input=${(e: Event) => this.setDualRangeEnd(e)}
-          aria-label="Range end"
-        />
-        <div
-          class="pointer-events-none absolute -bottom-3 flex -translate-x-1/2 gap-1 text-[10px] text-slate-300"
-          style="left: ${(this.dualRangeStart + this.dualRangeEnd) / 2}%"
-        >
-          <span>${this.dualRangeStart}</span>
-          <span>-</span>
-          <span>${this.dualRangeEnd}</span>
-        </div>
+    return html`<hud-dual-range
+      .start=${this.dualRangeStart}
+      .end=${this.dualRangeEnd}
+      start-label="Range start"
+      end-label="Range end"
+      @range-change=${this.setDualRange}
+    >
+      <div
+        class="pointer-events-none absolute -bottom-3 flex -translate-x-1/2 gap-1 text-[10px] text-slate-300"
+        style="left: ${(this.dualRangeStart + this.dualRangeEnd) / 2}%"
+      >
+        <span>${this.dualRangeStart}</span>
+        <span>-</span>
+        <span>${this.dualRangeEnd}</span>
       </div>
-    `;
+    </hud-dual-range>`;
   }
 
-  private setDualRangeStart(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
+  private setDualRange(
+    event: CustomEvent<{ start: number; end: number; changed: string }>,
+  ) {
+    if (event.detail.changed === "start") {
+      this.setDualRangeStart(event.detail.start);
+    } else {
+      this.setDualRangeEnd(event.detail.end);
+    }
+  }
+
+  private setDualRangeStart(value: number) {
     this.dualRangeStart = Math.min(value, this.dualRangeEnd - 1);
   }
 
-  private setDualRangeEnd(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
+  private setDualRangeEnd(value: number) {
     this.dualRangeEnd = Math.max(value, this.dualRangeStart + 1);
   }
 
   private renderMeterAtoms() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_METER}">
-          <div class="${HUD_METER_STACK}">
-            <div
-              class="${HUD_METER_FILL} bg-malibu-blue"
-              style="width: 68%"
-            ></div>
-            <div class="${HUD_METER_FILL} bg-aquarius" style="width: 9%"></div>
-          </div>
-          <div class="${HUD_METER_TEXT} justify-center">1.8M / 2.6M</div>
-        </div>
-        <div class="${HUD_MINI_METER}">
-          <div class="${HUD_METER_STACK}">
-            <div class="${HUD_METER_FILL} bg-sky-700" style="width: 68%"></div>
-            <div
-              class="${HUD_METER_FILL} bg-malibu-blue"
-              style="width: 9%"
-            ></div>
-          </div>
-          <div class="${HUD_METER_TEXT} justify-between px-1.5 text-[10px]">
-            <span>1.8M</span><span>2.6M</span>
-          </div>
-        </div>
+        <hud-meter
+          .segments=${[
+            { width: 68, tone: "blue" },
+            { width: 9, tone: "cyan" },
+          ]}
+          label="1.8M / 2.6M"
+        ></hud-meter>
+        <hud-meter
+          variant="mini"
+          .segments=${[
+            { width: 68, tone: "slate" },
+            { width: 9, tone: "blue" },
+          ]}
+          .label=${html`<span>1.8M</span><span>2.6M</span>`}
+          label-align="between"
+        ></hud-meter>
       </div>
     `;
   }
@@ -1364,19 +1330,20 @@ export class HudPanelWorkbench extends LitElement {
   private renderAttackRowMolecule() {
     return html`
       <div class="kit-stage">
-        <div class="attack-row-sample">
-          <div class="attack-row-main">
-            <span class="atom-icon md">S</span>
-            <span class="atom-icon md"
-              >${renderLucideIcon(ChevronUp, "h-3.5 w-3.5")}</span
-            >
-            <span class="atom-label number w-[5ch] text-left">10.0K</span>
-            <span class="atom-label text">East March</span>
-          </div>
-          <span class="atom-icon md"
-            >${renderLucideIcon(X, "h-3.5 w-3.5")}</span
-          >
-        </div>
+        <hud-attack-row tone="blue" amount="10.0K" label="East March">
+          <hud-icon
+            slot="primary-icon"
+            .src=${sampleSoldierIcon}
+            size="md"
+            tone="active"
+          ></hud-icon>
+          <span slot="direction-icon">
+            ${renderLucideIcon(ChevronUp, "h-3.5 w-3.5")}
+          </span>
+          <hud-icon-button slot="action" label="Cancel">
+            ${renderLucideIcon(X, "h-3.5 w-3.5")}
+          </hud-icon-button>
+        </hud-attack-row>
       </div>
     `;
   }
@@ -1384,61 +1351,66 @@ export class HudPanelWorkbench extends LitElement {
   private renderControlPanelMolecules() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_SEGMENTED} w-full">
-          ${this.renderMetricTabSample(
-            sampleSoldierIcon,
-            "Troops",
-            "1.8M",
-            "text-blue-200",
-            true,
-          )}
-          ${this.renderMetricTabSample(
-            sampleBiomassIcon,
-            "Biomass",
-            "54K",
-            "text-green-300",
-          )}
-          ${this.renderMetricTabSample(
-            sampleFuelIcon,
-            "Fuels",
-            "42K",
-            "text-cyan-300",
-          )}
-          ${this.renderMetricTabSample(
-            sampleMetalIcon,
-            "Metals",
-            "64K",
-            "text-stone-200",
-          )}
-        </div>
+        <hud-segmented-control
+          .selected=${this.selectedMetric}
+          .items=${[
+            {
+              id: "troops",
+              label: "Troops",
+              value: "1.8M",
+              iconSrc: sampleSoldierIcon,
+              tone: "active",
+            },
+            {
+              id: "biomass",
+              label: "Biomass",
+              value: "54K",
+              iconSrc: sampleBiomassIcon,
+              tone: "success",
+            },
+            {
+              id: "fuel",
+              label: "Fuels",
+              value: "42K",
+              iconSrc: sampleFuelIcon,
+              tone: "active",
+            },
+            {
+              id: "metal",
+              label: "Metals",
+              value: "64K",
+              iconSrc: sampleMetalIcon,
+              tone: "default",
+            },
+          ]}
+          @selection-change=${this.setSelectedMetric}
+        ></hud-segmented-control>
         <div class="atom-row">
-          <span class="${HUD_PILL} ${HUD_PILL_GREEN}">
-            ${this.renderSampleIcon(sampleSoldierIcon, "h-3.5 w-3.5")}
-            <span class="${HUD_PILL_VALUE}">+18.4K/s</span>
-          </span>
-          <div class="${HUD_METER} flex-1">
-            <div class="${HUD_METER_STACK}">
-              <div
-                class="${HUD_METER_FILL} bg-malibu-blue"
-                style="width: 68%"
-              ></div>
-              <div
-                class="${HUD_METER_FILL} bg-aquarius"
-                style="width: 9%"
-              ></div>
-            </div>
-            <div class="${HUD_METER_TEXT} justify-center">1.8M / 2.6M</div>
-          </div>
-          <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
-            <span class="${HUD_PILL_VALUE}">92K</span>
-          </span>
+          <hud-pill
+            value="+18.4K/s"
+            tone="green"
+            icon-src=${sampleSoldierIcon}
+          ></hud-pill>
+          <hud-meter
+            class="flex-1"
+            .segments=${[
+              { width: 68, tone: "blue" },
+              { width: 9, tone: "cyan" },
+            ]}
+            label="1.8M / 2.6M"
+          ></hud-meter>
+          <hud-pill
+            value="92K"
+            tone="gold"
+            icon-src=${sampleGoldCoinIcon}
+          ></hud-pill>
         </div>
         <div class="${HUD_CONTROL_ROW}">
-          <span class="${HUD_ATTACK_RATIO_PILL}">
-            ${this.renderSampleIcon(sampleSwordIcon, "h-3 w-3")}
-            <span class="text-white ${HUD_PILL_VALUE}">25% (450K)</span>
-          </span>
+          <hud-pill
+            value="25% (450K)"
+            tone="blue"
+            icon-src=${sampleSwordIcon}
+          ></hud-pill>
           <input class="${HUD_RANGE}" type="range" value="25" />
         </div>
         <div class="${HUD_BLEND_ROW}">
@@ -1454,74 +1426,52 @@ export class HudPanelWorkbench extends LitElement {
     const fuel = this.blendRangeSecond - this.blendRangeFirst;
     const metal = 100 - this.blendRangeSecond;
 
-    return html`
-      <div class="${HUD_DUAL_RANGE} h-9" translate="no">
-        <div
-          class="absolute left-0 right-0 top-3 h-1.5 -translate-y-1/2 overflow-hidden rounded-full border border-white/20 bg-slate-950/50"
-        >
-          <div class="flex h-full">
-            <div class="h-full bg-green-500" style="width: ${biomass}%"></div>
-            <div class="h-full bg-cyan-500" style="width: ${fuel}%"></div>
-            <div class="h-full bg-stone-300" style="width: ${metal}%"></div>
-          </div>
-        </div>
-        <input
-          class="${HUD_DUAL_RANGE_INPUT} blend-range-input"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(this.blendRangeFirst)}
-          @input=${(e: Event) => this.setBlendRangeFirst(e)}
-          aria-label="Biomass and fuel split"
-        />
-        <input
-          class="${HUD_DUAL_RANGE_INPUT} blend-range-input"
-          type="range"
-          min="0"
-          max="100"
-          .value=${String(this.blendRangeSecond)}
-          @input=${(e: Event) => this.setBlendRangeSecond(e)}
-          aria-label="Fuel and metal split"
-        />
-        <div
-          class="pointer-events-none absolute bottom-0 left-0 right-0 flex overflow-hidden text-[10px] font-bold leading-none tabular-nums text-slate-200"
-        >
-          <span
-            class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
-            style="width: ${biomass}%"
-          >
-            ${biomass >= 8
-              ? this.renderBlendSegmentSample(sampleBiomassIcon, `${biomass}%`)
-              : ""}
-          </span>
-          <span
-            class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
-            style="width: ${fuel}%"
-          >
-            ${fuel >= 8
-              ? this.renderBlendSegmentSample(sampleFuelIcon, `${fuel}%`)
-              : ""}
-          </span>
-          <span
-            class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
-            style="width: ${metal}%"
-          >
-            ${metal >= 8
-              ? this.renderBlendSegmentSample(sampleMetalIcon, `${metal}%`)
-              : ""}
-          </span>
-        </div>
-      </div>
-    `;
+    return html`<hud-blend-slider
+      .first=${this.blendRangeFirst}
+      .second=${this.blendRangeSecond}
+      .segments=${[
+        {
+          tone: "food",
+          width: biomass,
+          iconSrc: sampleBiomassIcon,
+          label: `${biomass}%`,
+        },
+        {
+          tone: "energy",
+          width: fuel,
+          iconSrc: sampleFuelIcon,
+          label: `${fuel}%`,
+        },
+        {
+          tone: "materials",
+          width: metal,
+          iconSrc: sampleMetalIcon,
+          label: `${metal}%`,
+        },
+      ]}
+      @blend-change=${this.setBlendRange}
+    ></hud-blend-slider>`;
   }
 
-  private setBlendRangeFirst(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
+  private setSelectedMetric(event: CustomEvent<{ id: string }>) {
+    this.selectedMetric = event.detail.id;
+  }
+
+  private setBlendRange(
+    event: CustomEvent<{ first: number; second: number; changed: string }>,
+  ) {
+    if (event.detail.changed === "first") {
+      this.setBlendRangeFirst(event.detail.first);
+    } else {
+      this.setBlendRangeSecond(event.detail.second);
+    }
+  }
+
+  private setBlendRangeFirst(value: number) {
     this.blendRangeFirst = Math.min(value, this.blendRangeSecond - 1);
   }
 
-  private setBlendRangeSecond(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
+  private setBlendRangeSecond(value: number) {
     this.blendRangeSecond = Math.max(value, this.blendRangeFirst + 1);
   }
 
@@ -1567,16 +1517,28 @@ export class HudPanelWorkbench extends LitElement {
     return html`
       <div class="kit-stage kit-stack">
         <div class="${HUD_BUILD_STRIP}">
-          ${this.renderBuildItemSample("1", sampleSoldierIcon, "9", true)}
-          ${this.renderBuildItemSample("2", sampleBiomassIcon, "6")}
-          ${this.renderBuildItemSample("3", sampleFuelIcon, "3")}
-          ${this.renderBuildItemSample("4", "", "R")}
+          <hud-build-item
+            hotkey="1"
+            icon-src=${sampleSoldierIcon}
+            count="9"
+            selected
+          ></hud-build-item>
+          <hud-build-item
+            hotkey="2"
+            icon-src=${sampleBiomassIcon}
+            count="6"
+          ></hud-build-item>
+          <hud-build-item
+            hotkey="3"
+            icon-src=${sampleFuelIcon}
+            count="3"
+          ></hud-build-item>
+          <hud-build-item hotkey="4" count="R"></hud-build-item>
         </div>
-        <div class="${HUD_TOOLTIP}">
-          <div class="${HUD_TOOLTIP_TITLE}">Factory [2]</div>
+        <hud-tooltip title="Factory [2]">
           <div>Improves nearby resource production.</div>
           <div class="mt-1 text-yellow-300">34 / 18 / 11</div>
-        </div>
+        </hud-tooltip>
       </div>
     `;
   }
@@ -1670,67 +1632,12 @@ export class HudPanelWorkbench extends LitElement {
     `;
   }
 
-  private renderMetricTabSample(
-    icon: string,
-    label: string,
-    value: string,
-    toneClass: string,
-    active = false,
-  ) {
-    return html`
-      <button
-        class="${HUD_SEGMENT} ${active ? HUD_SEGMENT_ACTIVE : ""} ${toneClass}"
-      >
-        <span class="${HUD_SEGMENT_CONTENT}">
-          <span class="${HUD_SEGMENT_MAIN}">
-            ${this.renderSampleIcon(icon, "h-3.5 w-3.5")}
-            <span class="${HUD_SEGMENT_LABEL}">${label}</span>
-          </span>
-          <span class="${HUD_SEGMENT_VALUE}">${value}</span>
-        </span>
-      </button>
-    `;
-  }
-
-  private renderBuildItemSample(
-    hotkey: string,
-    icon: string,
-    value: string,
-    active = false,
-  ) {
-    return html`
-      <div class="${HUD_BUILD_ITEM} ${active ? HUD_BUILD_ITEM_ACTIVE : ""}">
-        <div class="${HUD_BUILD_HOTKEY}">${hotkey}</div>
-        ${icon
-          ? html`<img src="${icon}" class="${HUD_BUILD_ICON}" />`
-          : html`<span class="${HUD_BUILD_ICON}">R</span>`}
-        <span class="w-[3ch] text-left text-xs leading-none tabular-nums"
-          >${value}</span
-        >
-      </div>
-    `;
-  }
-
   private renderSampleIcon(src: string, sizeClass: string) {
-    return html`<span
-      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
-      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
-      aria-hidden="true"
-    ></span>`;
+    return renderHudMaskIcon(src, sizeClass);
   }
 
   private renderPlainIcon(src: string, sizeClass = "h-4 w-4") {
     return html`<img src="${src}" class="shrink-0 ${sizeClass}" />`;
-  }
-
-  private renderBlendSegmentSample(icon: string, value: string) {
-    return html`
-      <span
-        class="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold leading-none tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)] whitespace-nowrap"
-      >
-        ${this.renderSampleIcon(icon, "h-3 w-3")} ${value}
-      </span>
-    `;
   }
 
   private section(title: string, detail: string, content: unknown) {

@@ -1,6 +1,7 @@
 # Analysis Report: HUD Component Library
 
 ## Executive Summary
+
 - The control panel is the largest remaining source of repeated HUD UI structure, especially the metric segmented bar, resource blend slider, rate pills, and metric meter internals.
 - `HudTheme.ts` already contains useful primitives, but it mixes atoms, molecules, semantic variants, and one-off component fragments in one flat namespace.
 - Several live HUD layers still recreate panel shells, headers, tables, meters, tooltips, toolbar rows, and icon sizing directly with Tailwind classes.
@@ -10,6 +11,7 @@
 ## Findings
 
 ### 1. Control panel molecules are still inline
+
 - Evidence:
   - `src/client/hud/layers/ControlPanel.ts` defines metric semantic classes in `MetricView` fields such as `barClass`, `borderClass`, and `textClass`.
   - `renderMetricBar()` composes the meter text layout, separator, capacity width, icon spacing, and drop shadows inline.
@@ -23,6 +25,7 @@
   - Medium. This component has active state and user input, so extraction should preserve existing handlers and values exactly.
 
 ### 2. `HudTheme.ts` is useful but not yet a clean library boundary
+
 - Evidence:
   - `src/client/hud/ui/HudTheme.ts` exports atoms such as `HUD_ICON_ATOM`, labels, inputs, and buttons.
   - The same file also exports higher-level fragments such as `HUD_ATTACK_ROW`, `HUD_BLEND_BAR`, `HUD_ATTACK_RATIO_PILL`, `HUD_BUILD_ITEM`, and `HUD_TOOLBAR`.
@@ -34,6 +37,7 @@
   - Low to medium. Renaming everything would create churn; a lean path should add clearer exports and migrate high-value consumers first.
 
 ### 3. Live HUD layers still define reusable layout directly
+
 - Evidence:
   - `PlayerInfoOverlay.ts` builds the mini troop meter from raw divs and raw fill classes.
   - `UnitDisplay.ts` still defines strip layout and tooltip UI locally.
@@ -48,6 +52,7 @@
   - Medium. Layout wrappers can change dimensions or scroll behavior if extracted too aggressively.
 
 ### 4. `/hud-kit` demonstrates components but still owns reusable-looking styling
+
 - Evidence:
   - `src/client/hud/demo/HudPanelWorkbench.ts` includes local classes such as `atom-row`, `atom-caption`, `atom-icon`, `actual-icon-grid`, `surface-sample`, `button-sample`, `attack-row-sample`, `stage`, and `frame`.
   - The catalog renders atoms, forms, meters, tables, and complete HUD panels in one place.
@@ -59,6 +64,7 @@
   - Low. This is mostly documentation hygiene unless demo-only classes are consumed elsewhere.
 
 ### 5. Legacy demo files overlap the new source of truth
+
 - Evidence:
   - `src/client/hud/demo/HudUiKitCatalog.ts` and `src/client/hud/demo/HudStyleDemo.ts` define older standalone UI classes and demos.
   - Current discussion treats `HudPanelWorkbench` and `/hud-kit` as the source of truth.
@@ -70,22 +76,26 @@
   - Low. The main risk is deleting a page that still has a hidden route or manual workflow.
 
 ## Quick Wins
+
 - Extract the control panel metric bar into a dedicated HUD molecule.
 - Extract the resource blend dual slider into a reusable HUD molecule used by both `/hud-kit` and the control panel.
 - Add panel/header/body/table/toolbar shell helpers around existing `HudTheme.ts` tokens.
 - Move catalog atom display classes that represent reusable UI into HUD UI exports.
 
 ## Medium Changes
+
 - Split HUD UI exports into clearer files for primitives, molecules, and complete/composite helpers.
 - Migrate `PlayerInfoOverlay`, `UnitDisplay`, `EventsDisplay`, sidebars, leaderboard, and team stats to the shared HUD library in small passes.
 - Reconcile old demo pages with the new `/hud-kit` source of truth.
 
 ## High-Risk Decisions
+
 - Whether to use only class constants or introduce Lit render helper functions/components for molecules.
 - Whether modals should be included in the HUD component library now or handled as a separate initiative.
 - Whether to rename existing `HUD_*` exports or preserve them and layer clearer exports on top.
 
 ## Guardrails
+
 - Preserve existing gameplay behavior and event handlers.
 - Prefer migrating one live component at a time.
 - Keep Tailwind inside reusable HUD exports where possible.

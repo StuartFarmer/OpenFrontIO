@@ -18,12 +18,11 @@ import { ToggleStructureEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { translateText } from "../../Utils";
 import { renderResourceCostText } from "../ResourceDisplay";
+import "../ui/HudComponents";
 import {
-  HUD_BUILD_COUNT,
-  HUD_BUILD_HOTKEY,
-  HUD_BUILD_ICON,
-  HUD_BUILD_ITEM,
-  HUD_BUILD_ITEM_ACTIVE,
+  HUD_BUILD_STRIP,
+  HUD_TOOLTIP,
+  HUD_TOOLTIP_TITLE,
 } from "../ui/HudTheme";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
@@ -151,9 +150,7 @@ export class UnitDisplay extends LitElement implements Controller {
 
     return html`
       <div class="border-t border-white/10 p-0.5 w-full">
-        <div
-          class="grid grid-rows-1 auto-cols-max grid-flow-col gap-0.5 w-fit mx-auto"
-        >
+        <div class="${HUD_BUILD_STRIP} mx-auto">
           ${this.renderUnitItem(
             cityIcon,
             this._cities,
@@ -264,9 +261,9 @@ export class UnitDisplay extends LitElement implements Controller {
         ${hovered
           ? html`
               <div
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-gray-200 text-center w-max text-xs bg-gray-800/90 backdrop-blur-xs rounded-sm p-1 z-[100] shadow-lg pointer-events-none"
+                class="${HUD_TOOLTIP} absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[100] pointer-events-none"
               >
-                <div class="font-bold text-sm mb-1">
+                <div class="${HUD_TOOLTIP_TITLE}">
                   ${translateText(
                     "unit_type." + structureKey,
                   )}${` [${displayHotkey}]`}
@@ -291,12 +288,13 @@ export class UnitDisplay extends LitElement implements Controller {
               </div>
             `
           : null}
-        <div
-          class="${this.canBuild(unitType)
-            ? ""
-            : "opacity-40"} ${HUD_BUILD_ITEM} ${selected
-            ? HUD_BUILD_ITEM_ACTIVE
-            : ""}"
+        <hud-build-item
+          hotkey=${displayHotkey}
+          icon-src=${icon ?? ""}
+          fallback=${label}
+          count=${number ?? ""}
+          ?selected=${selected}
+          ?disabled=${!this.canBuild(unitType)}
           @click=${() => {
             if (selected) {
               this.uiState.ghostStructure = null;
@@ -325,19 +323,7 @@ export class UnitDisplay extends LitElement implements Controller {
           }}
           @mouseleave=${() =>
             this.eventBus?.emit(new ToggleStructureEvent(null))}
-        >
-          <div class="${HUD_BUILD_HOTKEY}">${displayHotkey}</div>
-          ${icon
-            ? html`<img
-                src=${icon}
-                alt=${structureKey}
-                class="${HUD_BUILD_ICON}"
-              />`
-            : html`<span class="${HUD_BUILD_ICON}" aria-hidden="true"
-                >${label}</span
-              >`}
-          <span class="${HUD_BUILD_COUNT}" translate="no">${number ?? ""}</span>
-        </div>
+        ></hud-build-item>
       </div>
     `;
   }

@@ -32,8 +32,10 @@ import {
   getPlayerIcons,
   IMAGE_ICON_KIND,
 } from "../PlayerIcons";
+import { renderHudMeter } from "../ui";
 import {
   HUD_COMPACT_TABLE,
+  HUD_MINI_METER,
   HUD_PILL,
   HUD_PILL_BLUE,
   HUD_PILL_GOLD,
@@ -424,34 +426,23 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
     );
 
     return html`
-      <div
-        class="inline-block w-36 h-[18px] border border-white/20 rounded-[2px] bg-gray-900/60 overflow-hidden relative align-middle"
-      >
-        <div class="h-full flex">
-          ${greenPercent > 0
-            ? html`<div
-                class="h-full bg-sky-700 transition-[width] duration-200"
-                style="width: ${greenPercent}%;"
-              ></div>`
-            : ""}
-          ${orangePercent > 0
-            ? html`<div
-                class="h-full bg-malibu-blue transition-[width] duration-200"
-                style="width: ${orangePercent}%;"
-              ></div>`
-            : ""}
-        </div>
-        <div
-          class="absolute inset-0 flex items-center justify-between px-1.5 text-[10px] font-bold leading-none pointer-events-none"
-          translate="no"
-        >
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${renderTroops(totalTroops)}</span
-          >
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${renderTroops(maxTroops)}</span
-          >
-        </div>
+      <span class="relative inline-block">
+        ${renderHudMeter({
+          className: HUD_MINI_METER,
+          segments: [
+            { width: greenPercent, className: "bg-sky-700" },
+            { width: orangePercent, className: "bg-malibu-blue" },
+          ].filter((segment) => segment.width > 0),
+          label: html`
+            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+              >${renderTroops(totalTroops)}</span
+            >
+            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+              >${renderTroops(maxTroops)}</span
+            >
+          `,
+          labelClassName: "justify-between px-1.5 text-[10px]",
+        })}
         <img
           src=${soldierIcon}
           alt=""
@@ -460,7 +451,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
           height="12"
           class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 brightness-0 invert drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none"
         />
-      </div>
+      </span>
     `;
   }
 
