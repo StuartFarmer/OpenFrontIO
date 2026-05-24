@@ -97,6 +97,11 @@ export class Leaderboard extends LitElement implements Controller {
   @state()
   private economyRows: ResourceEconomyRow[] = [];
 
+  connectedCallback() {
+    super.connectedCallback();
+    this.classList.add("block", "w-full");
+  }
+
   private economySamples: EconomySample[] = [];
   private railImportEvents: EconomySample[] = [];
   private lastEconomySampleAtMs = -Infinity;
@@ -432,7 +437,7 @@ export class Leaderboard extends LitElement implements Controller {
     }
     return html`
       <div
-        class="mt-2 max-h-[35vh] md:max-h-[50vh] overflow-y-auto ${HUD_SURFACE} ${this
+        class="mt-2 w-full max-h-[35vh] md:max-h-[50vh] overflow-y-auto ${HUD_SURFACE} ${this
           .visible
           ? ""
           : "hidden"}"
@@ -450,25 +455,27 @@ export class Leaderboard extends LitElement implements Controller {
             <tr>
               <th class="${HUD_TH} text-center">#</th>
               <th class="${HUD_TH} text-left truncate">
-                ${translateText("leaderboard.player")}
+                ${hudLabel("leaderboard.player", "Player")}
               </th>
               <th
                 class="${HUD_TH} cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("tiles")}
               >
-                ${translateText("leaderboard.owned")}${this.sortMark("tiles")}
+                ${hudLabel("leaderboard.owned", "Owned")}${this.sortMark(
+                  "tiles",
+                )}
               </th>
               <th
                 class="${HUD_TH} cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("gold")}
               >
-                ${translateText("leaderboard.gold")}${this.sortMark("gold")}
+                ${hudLabel("leaderboard.gold", "Gold")}${this.sortMark("gold")}
               </th>
               <th
                 class="${HUD_TH} cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("maxtroops")}
               >
-                ${translateText("leaderboard.maxtroops")}${this.sortMark(
+                ${hudLabel("leaderboard.maxtroops", "Max")}${this.sortMark(
                   "maxtroops",
                 )}
               </th>
@@ -582,6 +589,11 @@ export class Leaderboard extends LitElement implements Controller {
       </div>
     `;
   }
+}
+
+function hudLabel(key: string, fallback: string): string {
+  const translated = translateText(key);
+  return translated === key ? fallback : translated;
 }
 
 function resourceNumbers(resources: ResourceStockpile): ResourceNumbers {

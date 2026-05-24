@@ -44,6 +44,11 @@ export class TeamStats extends LitElement implements Controller {
   private showUnits = false;
   private _myTeam: Team | null = null;
 
+  connectedCallback() {
+    super.connectedCallback();
+    this.classList.add("block", "w-full");
+  }
+
   createRenderRoot() {
     return this; // use light DOM for Tailwind
   }
@@ -145,32 +150,32 @@ export class TeamStats extends LitElement implements Controller {
           <thead>
             <tr>
               <th class="${HUD_TH} text-left">
-                ${translateText("leaderboard.team")}
+                ${hudLabel("leaderboard.team", "Team")}
               </th>
               ${this.showUnits
                 ? html`
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.launchers")}
+                      ${hudLabel("leaderboard.launchers", "Launchers")}
                     </th>
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.sams")}
+                      ${hudLabel("leaderboard.sams", "SAMs")}
                     </th>
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.warships")}
+                      ${hudLabel("leaderboard.warships", "Warships")}
                     </th>
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.cities")}
+                      ${hudLabel("leaderboard.cities", "Cities")}
                     </th>
                   `
                 : html`
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.owned")}
+                      ${hudLabel("leaderboard.owned", "Owned")}
                     </th>
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.gold")}
+                      ${hudLabel("leaderboard.gold", "Gold")}
                     </th>
                     <th class="${HUD_TH}">
-                      ${translateText("leaderboard.maxtroops")}
+                      ${hudLabel("leaderboard.maxtroops", "Max")}
                     </th>
                   `}
             </tr>
@@ -215,10 +220,15 @@ export class TeamStats extends LitElement implements Controller {
           }}
         >
           ${this.showUnits
-            ? translateText("leaderboard.show_control")
-            : translateText("leaderboard.show_units")}
+            ? hudLabel("leaderboard.show_control", "Show Stats")
+            : hudLabel("leaderboard.show_units", "Show Units")}
         </button>
       </div>
     `;
   }
+}
+
+function hudLabel(key: string, fallback: string): string {
+  const translated = translateText(key);
+  return translated === key ? fallback : translated;
 }

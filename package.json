@@ -108,6 +108,7 @@
     "js-yaml": "^4.1.1",
     "lil-gui": "^0.21.0",
     "limiter": "^3.0.0",
+    "lucide": "^1.16.0",
     "nanoid": "^5.1.11",
     "node-html-parser": "^7.1.0",
     "obscenity": "^0.4.6",

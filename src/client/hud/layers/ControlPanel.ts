@@ -16,11 +16,31 @@ import { AttackRatioEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
 import { renderNumber, renderTroops } from "../../Utils";
 import {
+  HUD_ATTACK_RATIO_COMPACT,
+  HUD_ATTACK_RATIO_PILL,
+  HUD_BLEND_BAR,
+  HUD_BLEND_CONTROL,
+  HUD_BLEND_LABEL,
+  HUD_BLEND_ROW,
+  HUD_BLEND_SEGMENT,
+  HUD_CONTROL_ROW,
+  HUD_DUAL_RANGE,
+  HUD_DUAL_RANGE_INPUT,
+  HUD_METER,
+  HUD_METER_FILL,
+  HUD_METER_STACK,
+  HUD_METER_TEXT,
   HUD_PILL,
-  HUD_PILL_BLUE,
   HUD_PILL_GOLD,
+  HUD_PILL_ICON,
+  HUD_PILL_VALUE,
+  HUD_RANGE,
   HUD_SEGMENT,
   HUD_SEGMENT_ACTIVE,
+  HUD_SEGMENT_CONTENT,
+  HUD_SEGMENT_LABEL,
+  HUD_SEGMENT_MAIN,
+  HUD_SEGMENT_VALUE,
   HUD_SEGMENTED,
 } from "../ui/HudTheme";
 const goldCoinIcon = assetUrl("images/GoldCoinIcon.svg");
@@ -108,9 +128,6 @@ export class ControlPanel extends LitElement implements Controller {
     energy: 33,
     materials: 33,
   };
-
-  private _activeBlend: { kind: BlendKind; handle: "first" | "second" } | null =
-    null;
 
   private _troopRateIsIncreasing: boolean = true;
 
@@ -280,83 +297,6 @@ export class ControlPanel extends LitElement implements Controller {
     this._productionBlend = normalizeBlend(weights);
   }
 
-  private handleBlendPointerDown(
-    kind: BlendKind,
-    e: PointerEvent,
-    handle?: "first" | "second",
-  ) {
-    e.preventDefault();
-    e.stopPropagation();
-    const target =
-      handle === undefined
-        ? (e.currentTarget as HTMLElement)
-        : ((e.currentTarget as HTMLElement).parentElement as HTMLElement);
-    target.setPointerCapture(e.pointerId);
-    const percent = this.blendPercentFromPointer(e, target);
-    this._activeBlend = {
-      kind,
-      handle: handle ?? this.nearestBlendHandle(kind, percent),
-    };
-    this.updateBlendHandle(percent);
-  }
-
-  private handleBlendPointerMove(e: PointerEvent) {
-    if (this._activeBlend === null) return;
-    const target = e.currentTarget as HTMLElement;
-    this.updateBlendHandle(this.blendPercentFromPointer(e, target));
-  }
-
-  private handleBlendPointerUp(e: PointerEvent) {
-    const target = e.currentTarget as HTMLElement;
-    if (target.hasPointerCapture(e.pointerId)) {
-      target.releasePointerCapture(e.pointerId);
-    }
-    this._activeBlend = null;
-  }
-
-  private blendPercentFromPointer(e: PointerEvent, target: HTMLElement) {
-    const rect = target.getBoundingClientRect();
-    if (rect.width <= 0) return 0;
-    return Math.max(
-      0,
-      Math.min(100, Math.round(((e.clientX - rect.left) / rect.width) * 100)),
-    );
-  }
-
-  private nearestBlendHandle(
-    kind: BlendKind,
-    percent: number,
-  ): "first" | "second" {
-    const first =
-      kind === "import" ? this._importBlendFirst : this._exportBlendFirst;
-    const second =
-      kind === "import" ? this._importBlendSecond : this._exportBlendSecond;
-    return Math.abs(percent - first) <= Math.abs(percent - second)
-      ? "first"
-      : "second";
-  }
-
-  private updateBlendHandle(percent: number) {
-    if (this._activeBlend === null) return;
-
-    if (this._activeBlend.kind === "import") {
-      if (this._activeBlend.handle === "first") {
-        this._importBlendFirst = Math.min(percent, this._importBlendSecond);
-      } else {
-        this._importBlendSecond = Math.max(percent, this._importBlendFirst);
-      }
-      this.updateResourceImportBlend();
-      return;
-    }
-
-    if (this._activeBlend.handle === "first") {
-      this._exportBlendFirst = Math.min(percent, this._exportBlendSecond);
-    } else {
-      this._exportBlendSecond = Math.max(percent, this._exportBlendFirst);
-    }
-    this.updateResourceExportBlend();
-  }
-
   setVisibile(visible: boolean) {
     this._isVisible = visible;
     this.requestUpdate();
@@ -501,27 +441,25 @@ export class ControlPanel extends LitElement implements Controller {
   private renderMetricBar(metric: MetricView, compact: boolean) {
     const { greenPercent, orangePercent } = this.calculateMetricBar(metric);
     return html`
-      <div
-        class="w-full h-6 border border-white/20 rounded-[2px] bg-gray-900/60 overflow-hidden relative"
-      >
-        <div class="h-full flex">
+      <div class="${HUD_METER}">
+        <div class="${HUD_METER_STACK}">
           ${greenPercent > 0
             ? html`<div
-                class="h-full ${metric.barClass} transition-[width] duration-200"
+                class="${HUD_METER_FILL} ${metric.barClass}"
                 style="width: ${greenPercent}%;"
               ></div>`
             : ""}
           ${orangePercent > 0
             ? html`<div
-                class="h-full bg-aquarius transition-[width] duration-200"
+                class="${HUD_METER_FILL} bg-aquarius"
                 style="width: ${orangePercent}%;"
               ></div>`
             : ""}
         </div>
         <div
-          class="absolute inset-0 flex items-center ${compact
+          class="${HUD_METER_TEXT} ${compact
             ? "justify-between px-1.5 text-xs"
-            : "text-lg"} font-bold leading-none pointer-events-none"
+            : "text-lg"}"
           translate="no"
         >
           ${compact
@@ -578,7 +516,7 @@ export class ControlPanel extends LitElement implements Controller {
         translate="no"
       >
         ${metric.icon}
-        <span class="tabular-nums">${this.metricRateText(metric)}</span>
+        <span class="${HUD_PILL_VALUE}">${this.metricRateText(metric)}</span>
       </div>
     `;
   }
@@ -600,14 +538,20 @@ export class ControlPanel extends LitElement implements Controller {
               }}
               translate="no"
             >
-              <span class="flex min-w-0 items-center gap-1">
-                ${metric.icon}
-                <span class="hidden sm:inline truncate">${metric.label}</span>
-                <span class="sm:hidden truncate">${metric.shortLabel}</span>
+              <span class="${HUD_SEGMENT_CONTENT}">
+                <span class="${HUD_SEGMENT_MAIN}">
+                  ${metric.icon}
+                  <span class="hidden sm:inline ${HUD_SEGMENT_LABEL}"
+                    >${metric.label}</span
+                  >
+                  <span class="sm:hidden ${HUD_SEGMENT_LABEL}"
+                    >${metric.shortLabel}</span
+                  >
+                </span>
+                <span class="${HUD_SEGMENT_VALUE}"
+                  >${this.metricValueText(metric)}</span
+                >
               </span>
-              <span class="min-w-0 truncate tabular-nums"
-                >${this.metricValueText(metric)}</span
-              >
             </button>
           `;
         })}
@@ -617,11 +561,9 @@ export class ControlPanel extends LitElement implements Controller {
 
   private renderAttackRatioControl(compact = false) {
     return html`
-      <div class="flex items-center gap-1.5" translate="no">
+      <div class="${HUD_CONTROL_ROW}" translate="no">
         <div
-          class="${compact
-            ? "flex flex-col items-center shrink-0 gap-0.5 w-8"
-            : `${HUD_PILL} ${HUD_PILL_BLUE} shrink-0 w-[8rem]`}"
+          class="${compact ? HUD_ATTACK_RATIO_COMPACT : HUD_ATTACK_RATIO_PILL}"
         >
           <img
             src=${swordIcon}
@@ -634,7 +576,7 @@ export class ControlPanel extends LitElement implements Controller {
           <span
             class="text-white ${compact
               ? "text-xs"
-              : "text-[10px]"} font-bold tabular-nums"
+              : "text-[10px]"} font-bold ${HUD_PILL_VALUE}"
             >${(this.attackRatio * 100).toFixed(0)}%${compact
               ? ""
               : ` (${renderTroops(
@@ -650,7 +592,7 @@ export class ControlPanel extends LitElement implements Controller {
             .value=${String(Math.round(this.attackRatio * 100))}
             @input=${(e: Event) => this.handleRatioSliderInput(e)}
             @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
-            class="w-full h-1.5 accent-aquarius cursor-pointer"
+            class="${HUD_RANGE}"
           />
         </div>
       </div>
@@ -705,11 +647,11 @@ export class ControlPanel extends LitElement implements Controller {
     compact: boolean,
   ) {
     return html`
-      <div class="flex items-center gap-2">
+      <div class="${HUD_BLEND_ROW}">
         <div
-          class="shrink-0 ${compact
+          class="${HUD_BLEND_LABEL} ${compact
             ? "w-[4.75rem] text-[10px]"
-            : "w-[7.75rem] text-xs"} font-bold text-slate-200 leading-none"
+            : "w-[7.75rem] text-xs"}"
         >
           ${label}
         </div>
@@ -723,60 +665,140 @@ export class ControlPanel extends LitElement implements Controller {
     handles: { kind: BlendKind; first: number; second: number } | null,
   ) {
     const interactive = handles !== null;
+    if (interactive) {
+      return this.renderBlendDualRange(blend, handles);
+    }
+
     return html`
       <div
-        class="relative h-6 flex-1 ${interactive
-          ? "cursor-pointer touch-none"
-          : "pointer-events-none opacity-90"}"
-        role=${interactive ? "slider" : "meter"}
-        aria-label=${interactive
-          ? `${handles.kind} resource blend`
-          : "Production resource blend"}
+        class="${HUD_BLEND_CONTROL} pointer-events-none opacity-90"
+        role="meter"
+        aria-label="Production resource blend"
         aria-valuetext="Biomass ${blend.food}%, Fuels ${blend.energy}%, Metals ${blend.materials}%"
-        @pointerdown=${interactive
-          ? (e: PointerEvent) => this.handleBlendPointerDown(handles.kind, e)
-          : undefined}
-        @pointermove=${interactive
-          ? (e: PointerEvent) => this.handleBlendPointerMove(e)
-          : undefined}
-        @pointerup=${interactive
-          ? (e: PointerEvent) => this.handleBlendPointerUp(e)
-          : undefined}
-        @pointercancel=${interactive
-          ? (e: PointerEvent) => this.handleBlendPointerUp(e)
-          : undefined}
       >
-        <div
-          class="absolute left-0 right-0 top-1/2 h-5 -translate-y-1/2 overflow-hidden rounded-full bg-gray-900/70 border border-gray-600"
-        >
+        <div class="${HUD_BLEND_BAR}">
           <div class="flex h-full">
             <div
-              class="h-full bg-green-500 flex items-center justify-center overflow-hidden"
+              class="${HUD_BLEND_SEGMENT} bg-green-500"
               style="width: ${blend.food}%"
             >
               ${this.renderBlendSegmentText("food", blend.food)}
             </div>
             <div
-              class="h-full bg-cyan-500 flex items-center justify-center overflow-hidden"
+              class="${HUD_BLEND_SEGMENT} bg-cyan-500"
               style="width: ${blend.energy}%"
             >
               ${this.renderBlendSegmentText("energy", blend.energy)}
             </div>
             <div
-              class="h-full bg-stone-300 flex items-center justify-center overflow-hidden"
+              class="${HUD_BLEND_SEGMENT} bg-stone-300"
               style="width: ${blend.materials}%"
             >
               ${this.renderBlendSegmentText("materials", blend.materials)}
             </div>
           </div>
         </div>
-        ${handles === null
-          ? ""
-          : html`
-              ${this.renderBlendHandle(handles.kind, "first", handles.first)}
-              ${this.renderBlendHandle(handles.kind, "second", handles.second)}
-            `}
       </div>
+    `;
+  }
+
+  private renderBlendDualRange(
+    blend: ResourceBlendPercents,
+    handles: { kind: BlendKind; first: number; second: number },
+  ) {
+    return html`
+      <div
+        class="${HUD_DUAL_RANGE} h-9 flex-1"
+        role="slider"
+        aria-label="${handles.kind} resource blend"
+        aria-valuetext="Biomass ${blend.food}%, Fuels ${blend.energy}%, Metals ${blend.materials}%"
+        translate="no"
+      >
+        <div
+          class="absolute left-0 right-0 top-3 h-1.5 -translate-y-1/2 overflow-hidden rounded-full border border-white/20 bg-slate-950/50"
+        >
+          <div class="flex h-full">
+            <div
+              class="h-full bg-green-500"
+              style="width: ${blend.food}%"
+            ></div>
+            <div
+              class="h-full bg-cyan-500"
+              style="width: ${blend.energy}%"
+            ></div>
+            <div
+              class="h-full bg-stone-300"
+              style="width: ${blend.materials}%"
+            ></div>
+          </div>
+        </div>
+        <input
+          class="${HUD_DUAL_RANGE_INPUT} control-panel-blend-range-input"
+          type="range"
+          min="0"
+          max="100"
+          .value=${String(handles.first)}
+          @input=${(e: Event) =>
+            this.handleBlendRangeInput(handles.kind, "first", e)}
+          aria-label="Biomass and fuels split"
+        />
+        <input
+          class="${HUD_DUAL_RANGE_INPUT} control-panel-blend-range-input"
+          type="range"
+          min="0"
+          max="100"
+          .value=${String(handles.second)}
+          @input=${(e: Event) =>
+            this.handleBlendRangeInput(handles.kind, "second", e)}
+          aria-label="Fuels and metals split"
+        />
+        <div
+          class="pointer-events-none absolute bottom-0 left-0 right-0 flex overflow-hidden text-[10px] font-bold leading-none tabular-nums text-slate-200"
+        >
+          ${this.renderBlendRangeLabel("food", blend.food)}
+          ${this.renderBlendRangeLabel("energy", blend.energy)}
+          ${this.renderBlendRangeLabel("materials", blend.materials)}
+        </div>
+      </div>
+    `;
+  }
+
+  private handleBlendRangeInput(
+    kind: BlendKind,
+    handle: "first" | "second",
+    e: Event,
+  ) {
+    const value = Number((e.target as HTMLInputElement).value);
+
+    if (kind === "import") {
+      if (handle === "first") {
+        this._importBlendFirst = Math.min(value, this._importBlendSecond - 1);
+      } else {
+        this._importBlendSecond = Math.max(value, this._importBlendFirst + 1);
+      }
+      this.updateResourceImportBlend();
+      return;
+    }
+
+    if (handle === "first") {
+      this._exportBlendFirst = Math.min(value, this._exportBlendSecond - 1);
+    } else {
+      this._exportBlendSecond = Math.max(value, this._exportBlendFirst + 1);
+    }
+    this.updateResourceExportBlend();
+  }
+
+  private renderBlendRangeLabel(kind: ResourceKind, percent: number) {
+    return html`
+      <span
+        class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
+        style="width: ${percent}%"
+      >
+        ${percent >= 8
+          ? html`${this.renderResourceIcon(kind, "h-3 w-3")}
+              <span>${percent}%</span>`
+          : ""}
+      </span>
     `;
   }
 
@@ -787,28 +809,6 @@ export class ControlPanel extends LitElement implements Controller {
         class="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-white leading-none tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)] whitespace-nowrap pointer-events-none"
         >${this.renderResourceIcon(kind, "h-3 w-3")} ${percent}%</span
       >
-    `;
-  }
-
-  private renderBlendHandle(
-    kind: BlendKind,
-    handle: "first" | "second",
-    percent: number,
-  ) {
-    return html`
-      <button
-        type="button"
-        class="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-gray-900 shadow-md cursor-grab active:cursor-grabbing"
-        style="left: ${percent}%"
-        aria-label=${handle === "first"
-          ? "Biomass and Fuels split"
-          : "Fuels and Metals split"}
-        @pointerdown=${(e: PointerEvent) =>
-          this.handleBlendPointerDown(kind, e, handle)}
-        @pointermove=${(e: PointerEvent) => this.handleBlendPointerMove(e)}
-        @pointerup=${(e: PointerEvent) => this.handleBlendPointerUp(e)}
-        @pointercancel=${(e: PointerEvent) => this.handleBlendPointerUp(e)}
-      ></button>
     `;
   }
 
@@ -831,8 +831,13 @@ export class ControlPanel extends LitElement implements Controller {
           class="${HUD_PILL} ${HUD_PILL_GOLD} shrink-0 w-[4.5rem]"
           translate="no"
         >
-          <img src=${goldCoinIcon} width="13" height="13" class="shrink-0" />
-          <span class="tabular-nums">${renderNumber(this._gold)}</span>
+          <img
+            src=${goldCoinIcon}
+            width="13"
+            height="13"
+            class="${HUD_PILL_ICON}"
+          />
+          <span class="${HUD_PILL_VALUE}">${renderNumber(this._gold)}</span>
         </div>
       </div>
       <!-- Row 3: attack ratio or resource import/export blends -->
@@ -854,7 +859,12 @@ export class ControlPanel extends LitElement implements Controller {
             class="${HUD_PILL} ${HUD_PILL_GOLD} justify-center w-[3.75rem] shrink-0"
             translate="no"
           >
-            <img src=${goldCoinIcon} width="13" height="13" />
+            <img
+              src=${goldCoinIcon}
+              width="13"
+              height="13"
+              class="${HUD_PILL_ICON}"
+            />
             <span class="px-0.5">${renderNumber(this._gold)}</span>
           </div>
         </div>
@@ -863,8 +873,68 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
+  private renderBlendSliderStyles() {
+    return html`
+      <style>
+        .control-panel-blend-range-input {
+          pointer-events: none;
+        }
+
+        .control-panel-blend-range-input::-webkit-slider-runnable-track {
+          height: 24px;
+          background: transparent;
+          border: 0;
+        }
+
+        .control-panel-blend-range-input::-webkit-slider-thumb {
+          pointer-events: auto;
+          width: 18px;
+          height: 18px;
+          margin-top: 3px;
+          border: 3px solid rgba(255, 255, 255, 0.86);
+          border-radius: 9999px;
+          background: #cbd5e1;
+          box-shadow:
+            0 0 0 2px rgba(15, 23, 42, 0.8),
+            0 1px 2px rgba(0, 0, 0, 0.45);
+          transition:
+            transform 120ms ease,
+            box-shadow 120ms ease;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        .control-panel-blend-range-input:active::-webkit-slider-thumb {
+          transform: scale(1.1);
+          box-shadow:
+            0 0 0 3px rgba(203, 213, 225, 0.25),
+            0 1px 2px rgba(0, 0, 0, 0.45);
+        }
+
+        .control-panel-blend-range-input::-moz-range-track {
+          height: 24px;
+          background: transparent;
+          border: 0;
+        }
+
+        .control-panel-blend-range-input::-moz-range-thumb {
+          pointer-events: auto;
+          width: 18px;
+          height: 18px;
+          border: 3px solid rgba(255, 255, 255, 0.86);
+          border-radius: 9999px;
+          background: #cbd5e1;
+          box-shadow:
+            0 0 0 2px rgba(15, 23, 42, 0.8),
+            0 1px 2px rgba(0, 0, 0, 0.45);
+        }
+      </style>
+    `;
+  }
+
   render() {
     return html`
+      ${this.renderBlendSliderStyles()}
       <div
         class="relative pointer-events-auto ${this._isVisible
           ? "relative w-full text-sm px-2 py-1"

@@ -23,8 +23,23 @@ import {
 import { UIState } from "../../UIState";
 import { renderTroops, translateText } from "../../Utils";
 import { getColoredSprite } from "../SpriteLoader";
+import {
+  HUD_ATTACK_ACTION,
+  HUD_ATTACK_MAIN,
+  HUD_ATTACK_ROW,
+  HUD_FONT,
+  HUD_ICON_ATOM,
+  HUD_ICON_MD,
+  HUD_NUMERIC_LABEL,
+  HUD_TEXT_LABEL,
+} from "../ui/HudTheme";
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
+
+const redIconFilter =
+  "brightness(0) saturate(100%) invert(27%) sepia(91%) saturate(4551%) hue-rotate(348deg) brightness(89%) contrast(97%)";
+const blueIconFilter =
+  "brightness(0) saturate(100%) invert(62%) sepia(80%) saturate(500%) hue-rotate(175deg) brightness(100%)";
 
 @customElement("attacks-display")
 export class AttacksDisplay extends LitElement implements Controller {
@@ -207,127 +222,168 @@ export class AttacksDisplay extends LitElement implements Controller {
     this.eventBus.emit(new SendAttackIntentEvent(attacker.id(), counterTroops));
   }
 
+  private iconToneClass(tone: "blue" | "red") {
+    return tone === "red"
+      ? "border-red-700/50 bg-red-900/35 text-red-300"
+      : "border-aquarius/45 bg-aquarius/15 text-aquarius";
+  }
+
+  private iconFilter(tone: "blue" | "red") {
+    return tone === "red" ? redIconFilter : blueIconFilter;
+  }
+
+  private renderSpriteIcon(
+    src: string,
+    tone: "blue" | "red",
+    pixelated = false,
+  ) {
+    return html`
+      <span class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(tone)}">
+        <img
+          src="${src}"
+          class="h-3.5 w-3.5"
+          style="filter: ${this.iconFilter(tone)}; ${pixelated
+            ? "image-rendering: pixelated"
+            : ""}"
+        />
+      </span>
+    `;
+  }
+
+  private renderGlyphIcon(label: string, tone: "blue" | "red") {
+    return html`
+      <span
+        class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(
+          tone,
+        )} font-mono text-[10px] font-bold"
+        translate="no"
+      >
+        ${label}
+      </span>
+    `;
+  }
+
+  private renderBoatSquareIcon(boat: UnitView, tone: "blue" | "red") {
+    const dataURL = this.getBoatSpriteDataURL(boat);
+    if (!dataURL) return this.renderGlyphIcon("B", tone);
+    return this.renderSpriteIcon(dataURL, tone, true);
+  }
+
+  private renderAttackRow(options: {
+    tone: "blue" | "red";
+    primaryIcon: unknown;
+    directionIcon: unknown;
+    amount: string;
+    label: string;
+    onClick?: () => void;
+    action?: unknown;
+    retreating?: boolean;
+  }) {
+    const textClass = options.tone === "red" ? "text-red-400" : "text-aquarius";
+    const label = options.retreating
+      ? `${options.label} (${translateText("events_display.retreating")}...)`
+      : options.label;
+
+    return html`
+      <div class="${HUD_ATTACK_ROW}">
+        <button
+          class="${HUD_ATTACK_MAIN} ${textClass}"
+          @click=${options.onClick}
+          translate="no"
+        >
+          ${options.primaryIcon} ${options.directionIcon}
+          <span class="${HUD_NUMERIC_LABEL}">${options.amount}</span>
+          <span class="${HUD_TEXT_LABEL}">${label}</span>
+        </button>
+        ${options.action}
+      </div>
+    `;
+  }
+
+  private renderCancelAction(onClick: () => void, tone: "blue" | "red") {
+    const textClass = tone === "red" ? "text-red-300" : "text-aquarius";
+    return this.renderButton({
+      content: "X",
+      onClick,
+      className: `${HUD_ATTACK_ACTION} ${this.iconToneClass(tone)} ${textClass}`,
+      translate: false,
+    });
+  }
+
   private renderIncomingAttacks() {
     if (this.incomingAttacks.length === 0) return html``;
 
-    return this.incomingAttacks.map(
-      (attack) => html`
-        <div
-          class="flex items-center gap-0.5 w-full bg-gray-800/92 backdrop-blur-sm sm:rounded-lg px-1.5 py-0.5 overflow-hidden"
-        >
-          ${this.renderButton({
-            content: html`<span class="inline-flex items-center"
-                ><img
-                  src="${soldierIcon}"
-                  class="h-4 w-4"
-                  style="filter: brightness(0) saturate(100%) invert(27%) sepia(91%) saturate(4551%) hue-rotate(348deg) brightness(89%) contrast(97%)"
-                />↓</span
-              ><span class="ml-1">${renderTroops(attack.troops)}</span>
-              <span class="truncate ml-1"
-                >${(
-                  this.game.playerBySmallID(attack.attackerID) as PlayerView
-                )?.displayName()}</span
-              >
-              ${attack.retreating
-                ? `(${translateText("events_display.retreating")}...)`
-                : ""} `,
-            onClick: () => this.attackWarningOnClick(attack),
-            className:
-              "text-left text-red-400 inline-flex items-center gap-0.5 lg:gap-1 min-w-0",
-            translate: false,
-          })}
-          ${!attack.retreating
-            ? this.renderButton({
-                content: html`<img
-                  src="${swordIcon}"
-                  class="h-4 w-4"
-                  style="filter: brightness(0) saturate(100%) invert(27%) sepia(91%) saturate(4551%) hue-rotate(348deg) brightness(89%) contrast(97%)"
-                />`,
-                onClick: () => this.handleRetaliate(attack),
-                className:
-                  "ml-auto inline-flex items-center justify-center cursor-pointer bg-red-900/50 hover:bg-red-800/70 sm:rounded-lg px-1.5 py-1 border border-red-700/50",
-                translate: false,
-              })
-            : ""}
-        </div>
-      `,
+    return this.incomingAttacks.map((attack) =>
+      this.renderAttackRow({
+        tone: "red",
+        primaryIcon: this.renderSpriteIcon(soldierIcon, "red"),
+        directionIcon: this.renderGlyphIcon("v", "red"),
+        amount: renderTroops(attack.troops),
+        label:
+          (
+            this.game.playerBySmallID(attack.attackerID) as PlayerView
+          )?.displayName() ?? "",
+        onClick: () => this.attackWarningOnClick(attack),
+        retreating: attack.retreating,
+        action: !attack.retreating
+          ? this.renderButton({
+              content: html`<img
+                src="${swordIcon}"
+                class="h-3.5 w-3.5"
+                style="filter: ${redIconFilter}"
+              />`,
+              onClick: () => this.handleRetaliate(attack),
+              className: `${HUD_ATTACK_ACTION} ${this.iconToneClass("red")} text-red-300`,
+              translate: false,
+            })
+          : html``,
+      }),
     );
   }
 
   private renderOutgoingAttacks() {
     if (this.outgoingAttacks.length === 0) return html``;
 
-    return this.outgoingAttacks.map(
-      (attack) => html`
-        <div
-          class="flex items-center gap-0.5 w-full bg-gray-800/92 backdrop-blur-sm sm:rounded-lg px-1.5 py-0.5 overflow-hidden"
-        >
-          ${this.renderButton({
-            content: html`<span class="inline-flex items-center"
-                ><img
-                  src="${soldierIcon}"
-                  class="h-4 w-4"
-                  style="filter: brightness(0) saturate(100%) invert(62%) sepia(80%) saturate(500%) hue-rotate(175deg) brightness(100%)"
-                />↑</span
-              ><span class="ml-1">${renderTroops(attack.troops)}</span>
-              <span class="truncate ml-1"
-                >${(
-                  this.game.playerBySmallID(attack.targetID) as PlayerView
-                )?.displayName()}</span
-              > `,
-            onClick: async () => this.attackWarningOnClick(attack),
-            className:
-              "text-left text-aquarius inline-flex items-center gap-0.5 lg:gap-1 min-w-0",
-            translate: false,
-          })}
-          ${!attack.retreating
-            ? this.renderButton({
-                content: "❌",
-                onClick: () => this.emitCancelAttackIntent(attack.id),
-                className: "ml-auto text-left shrink-0",
-                disabled: attack.retreating,
-              })
-            : html`<span class="ml-auto truncate text-aquarius"
-                >(${translateText("events_display.retreating")}...)</span
-              >`}
-        </div>
-      `,
+    return this.outgoingAttacks.map((attack) =>
+      this.renderAttackRow({
+        tone: "blue",
+        primaryIcon: this.renderSpriteIcon(soldierIcon, "blue"),
+        directionIcon: this.renderGlyphIcon("^", "blue"),
+        amount: renderTroops(attack.troops),
+        label:
+          (
+            this.game.playerBySmallID(attack.targetID) as PlayerView
+          )?.displayName() ?? "",
+        onClick: async () => this.attackWarningOnClick(attack),
+        retreating: attack.retreating,
+        action: !attack.retreating
+          ? this.renderCancelAction(
+              () => this.emitCancelAttackIntent(attack.id),
+              "blue",
+            )
+          : html``,
+      }),
     );
   }
 
   private renderOutgoingLandAttacks() {
     if (this.outgoingLandAttacks.length === 0) return html``;
 
-    return this.outgoingLandAttacks.map(
-      (landAttack) => html`
-        <div
-          class="flex items-center gap-0.5 w-full bg-gray-800/92 backdrop-blur-sm sm:rounded-lg px-1.5 py-0.5 overflow-hidden"
-        >
-          ${this.renderButton({
-            content: html`<span class="inline-flex items-center"
-                ><img
-                  src="${soldierIcon}"
-                  class="h-4 w-4"
-                  style="filter: brightness(0) saturate(100%) invert(62%) sepia(80%) saturate(500%) hue-rotate(175deg) brightness(100%)"
-                />↑</span
-              ><span class="ml-1">${renderTroops(landAttack.troops)}</span>
-              ${translateText("help_modal.ui_wilderness")}`,
-            className:
-              "text-left text-aquarius inline-flex items-center gap-0.5 lg:gap-1 min-w-0",
-            translate: false,
-          })}
-          ${!landAttack.retreating
-            ? this.renderButton({
-                content: "❌",
-                onClick: () => this.emitCancelAttackIntent(landAttack.id),
-                className: "ml-auto text-left shrink-0",
-                disabled: landAttack.retreating,
-              })
-            : html`<span class="ml-auto truncate text-aquarius"
-                >(${translateText("events_display.retreating")}...)</span
-              >`}
-        </div>
-      `,
+    return this.outgoingLandAttacks.map((landAttack) =>
+      this.renderAttackRow({
+        tone: "blue",
+        primaryIcon: this.renderSpriteIcon(soldierIcon, "blue"),
+        directionIcon: this.renderGlyphIcon("^", "blue"),
+        amount: renderTroops(landAttack.troops),
+        label: translateText("help_modal.ui_wilderness"),
+        retreating: landAttack.retreating,
+        action: !landAttack.retreating
+          ? this.renderCancelAction(
+              () => this.emitCancelAttackIntent(landAttack.id),
+              "blue",
+            )
+          : html``,
+      }),
     );
   }
 
@@ -340,75 +396,40 @@ export class AttacksDisplay extends LitElement implements Controller {
     return player?.displayName() ?? "";
   }
 
-  private renderBoatIcon(boat: UnitView) {
-    const dataURL = this.getBoatSpriteDataURL(boat);
-    if (!dataURL) return html``;
-    return html`<img
-      src="${dataURL}"
-      class="h-5 w-5 inline-block"
-      style="image-rendering: pixelated"
-    />`;
-  }
-
   private renderBoats() {
     if (this.outgoingBoats.length === 0) return html``;
 
-    return this.outgoingBoats.map(
-      (boat) => html`
-        <div
-          class="flex items-center gap-0.5 w-full bg-gray-800/92 backdrop-blur-sm sm:rounded-lg px-1.5 py-0.5 overflow-hidden"
-        >
-          ${this.renderButton({
-            content: html`${this.renderBoatIcon(boat)}
-              <span class="inline-block min-w-[3rem] text-right"
-                >${renderTroops(boat.troops())}</span
-              >
-              <span class="truncate text-xs ml-1"
-                >${this.getBoatTargetName(boat)}</span
-              >`,
-            onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),
-            className:
-              "text-left text-aquarius inline-flex items-center gap-0.5 lg:gap-1 min-w-0",
-            translate: false,
-          })}
-          ${boat.transportShipState().isRetreating
-            ? html`<span class="ml-auto truncate text-aquarius"
-                >(${translateText("events_display.retreating")}...)</span
-              >`
-            : this.renderButton({
-                content: "\u274C",
-                onClick: () => this.emitBoatCancelIntent(boat.id()),
-                className: "ml-auto text-left shrink-0",
-                disabled: boat.transportShipState().isRetreating,
-              })}
-        </div>
-      `,
+    return this.outgoingBoats.map((boat) =>
+      this.renderAttackRow({
+        tone: "blue",
+        primaryIcon: this.renderBoatSquareIcon(boat, "blue"),
+        directionIcon: this.renderGlyphIcon("^", "blue"),
+        amount: renderTroops(boat.troops()),
+        label: this.getBoatTargetName(boat),
+        onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),
+        retreating: boat.transportShipState().isRetreating,
+        action: !boat.transportShipState().isRetreating
+          ? this.renderCancelAction(
+              () => this.emitBoatCancelIntent(boat.id()),
+              "blue",
+            )
+          : html``,
+      }),
     );
   }
 
   private renderIncomingBoats() {
     if (this.incomingBoats.length === 0) return html``;
 
-    return this.incomingBoats.map(
-      (boat) => html`
-        <div
-          class="flex items-center gap-0.5 w-full bg-gray-800/92 backdrop-blur-sm sm:rounded-lg px-1.5 py-0.5 overflow-hidden"
-        >
-          ${this.renderButton({
-            content: html`${this.renderBoatIcon(boat)}
-              <span class="inline-block min-w-[3rem] text-right"
-                >${renderTroops(boat.troops())}</span
-              >
-              <span class="truncate text-xs ml-1"
-                >${boat.owner()?.displayName()}</span
-              >`,
-            onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),
-            className:
-              "text-left text-red-400 inline-flex items-center gap-0.5 lg:gap-1 min-w-0",
-            translate: false,
-          })}
-        </div>
-      `,
+    return this.incomingBoats.map((boat) =>
+      this.renderAttackRow({
+        tone: "red",
+        primaryIcon: this.renderBoatSquareIcon(boat, "red"),
+        directionIcon: this.renderGlyphIcon("v", "red"),
+        amount: renderTroops(boat.troops()),
+        label: boat.owner()?.displayName() ?? "",
+        onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),
+      }),
     );
   }
 
@@ -430,7 +451,7 @@ export class AttacksDisplay extends LitElement implements Controller {
 
     return html`
       <div
-        class="w-full mb-1 mt-1 sm:mt-0 pointer-events-auto grid grid-cols-2 gap-1 text-white text-sm lg:text-base max-h-[7rem] overflow-y-auto"
+        class="${HUD_FONT} w-full mb-1 mt-1 sm:mt-0 pointer-events-auto grid grid-cols-1 min-[560px]:grid-cols-2 gap-1 text-white text-[10px] max-h-[7rem] overflow-y-auto"
       >
         ${this.renderOutgoingAttacks()} ${this.renderOutgoingLandAttacks()}
         ${this.renderBoats()} ${this.renderIncomingAttacks()}
