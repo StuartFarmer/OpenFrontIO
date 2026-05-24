@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { ChevronUp, X } from "lucide";
 import { assetUrl } from "../../../core/AssetUrls";
 import {
   MessageCategory,
@@ -53,7 +54,7 @@ import {
   HUD_PILL_BLUE,
   HUD_PILL_GOLD,
   HUD_PILL_GREEN,
-  HUD_PILL_ICON,
+  HUD_PILL_MASK_ICON,
   HUD_PILL_RED,
   HUD_PILL_VALUE,
   HUD_RANGE,
@@ -79,6 +80,7 @@ import {
   HUD_TOOLTIP,
   HUD_TOOLTIP_TITLE,
 } from "../ui/HudTheme";
+import { renderLucideIcon } from "../ui/LucideIcon";
 import {
   buildables,
   mockGame,
@@ -1206,12 +1208,7 @@ export class HudPanelWorkbench extends LitElement {
         <div class="atom-row">
           <span class="atom-caption">icon pill</span>
           <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            <img
-              src="${sampleGoldCoinIcon}"
-              class="${HUD_PILL_ICON}"
-              width="13"
-              height="13"
-            />
+            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
             <span class="${HUD_PILL_VALUE}">92K</span>
           </span>
           <span class="${HUD_PILL} ${HUD_PILL_GREEN}">
@@ -1370,11 +1367,15 @@ export class HudPanelWorkbench extends LitElement {
         <div class="attack-row-sample">
           <div class="attack-row-main">
             <span class="atom-icon md">S</span>
-            <span class="atom-icon md">^</span>
-            <span class="atom-label number">10.0K</span>
+            <span class="atom-icon md"
+              >${renderLucideIcon(ChevronUp, "h-3.5 w-3.5")}</span
+            >
+            <span class="atom-label number w-[5ch] text-left">10.0K</span>
             <span class="atom-label text">East March</span>
           </div>
-          <span class="atom-icon md">X</span>
+          <span class="atom-icon md"
+            >${renderLucideIcon(X, "h-3.5 w-3.5")}</span
+          >
         </div>
       </div>
     `;
@@ -1429,12 +1430,7 @@ export class HudPanelWorkbench extends LitElement {
             <div class="${HUD_METER_TEXT} justify-center">1.8M / 2.6M</div>
           </div>
           <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            <img
-              src="${sampleGoldCoinIcon}"
-              class="${HUD_PILL_ICON}"
-              width="13"
-              height="13"
-            />
+            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
             <span class="${HUD_PILL_VALUE}">92K</span>
           </span>
         </div>
@@ -1559,12 +1555,7 @@ export class HudPanelWorkbench extends LitElement {
         <div class="atom-row">
           <span class="${HUD_NOTIFICATION_PILL}">3</span>
           <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            <img
-              src="${sampleGoldCoinIcon}"
-              class="${HUD_PILL_ICON}"
-              width="13"
-              height="13"
-            />
+            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
             <span class="${HUD_PILL_VALUE}">+12.4K</span>
           </span>
         </div>
@@ -1603,22 +1594,17 @@ export class HudPanelWorkbench extends LitElement {
             </span>
           </div>
           <span class="${HUD_PILL} ${HUD_PILL_BLUE}">
-            ${this.renderPlainIcon(sampleAllianceIcon, "h-3 w-3")}
+            ${this.renderSampleIcon(sampleAllianceIcon, "h-3 w-3")}
             <span class="${HUD_PILL_VALUE}">01:24</span>
           </span>
         </div>
         <div class="atom-row">
           <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            <img
-              src="${sampleGoldCoinIcon}"
-              class="${HUD_PILL_ICON}"
-              width="13"
-              height="13"
-            />
+            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
             <span class="${HUD_PILL_VALUE}">92K</span>
           </span>
           <span class="${HUD_PILL} ${HUD_PILL_BLUE}">
-            ${this.renderPlainIcon(sampleSoldierIcon, "h-3 w-3")}
+            ${this.renderSampleIcon(sampleSoldierIcon, "h-3 w-3")}
             <span class="${HUD_PILL_VALUE}">245K</span>
           </span>
         </div>
@@ -1715,26 +1701,26 @@ export class HudPanelWorkbench extends LitElement {
     return html`
       <div class="${HUD_BUILD_ITEM} ${active ? HUD_BUILD_ITEM_ACTIVE : ""}">
         <div class="${HUD_BUILD_HOTKEY}">${hotkey}</div>
-        <div class="flex items-center gap-0.5 pt-0.5">
-          ${icon
-            ? html`<img src="${icon}" class="size-5 align-middle" />`
-            : html`<span class="${HUD_BUILD_ICON}">R</span>`}
-          <span class="text-xs">${value}</span>
-        </div>
+        ${icon
+          ? html`<img src="${icon}" class="${HUD_BUILD_ICON}" />`
+          : html`<span class="${HUD_BUILD_ICON}">R</span>`}
+        <span class="w-[3ch] text-left text-xs leading-none tabular-nums"
+          >${value}</span
+        >
       </div>
     `;
   }
 
   private renderSampleIcon(src: string, sizeClass: string) {
-    return html`<img
-      src="${src}"
-      class="${HUD_PILL_ICON} ${sizeClass}"
-      style="filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(0,0,0,0.8));"
-    />`;
+    return html`<span
+      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
+      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
+      aria-hidden="true"
+    ></span>`;
   }
 
   private renderPlainIcon(src: string, sizeClass = "h-4 w-4") {
-    return html`<img src="${src}" class="${HUD_PILL_ICON} ${sizeClass}" />`;
+    return html`<img src="${src}" class="shrink-0 ${sizeClass}" />`;
   }
 
   private renderBlendSegmentSample(icon: string, value: string) {

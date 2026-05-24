@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { ChevronDown, ChevronUp, X } from "lucide";
 import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import { MessageType, PlayerType, UnitType } from "../../../core/game/Game";
@@ -26,13 +27,14 @@ import { getColoredSprite } from "../SpriteLoader";
 import {
   HUD_ATTACK_ACTION,
   HUD_ATTACK_MAIN,
+  HUD_ATTACK_QUANTITY_LABEL,
   HUD_ATTACK_ROW,
   HUD_FONT,
   HUD_ICON_ATOM,
   HUD_ICON_MD,
-  HUD_NUMERIC_LABEL,
   HUD_TEXT_LABEL,
 } from "../ui/HudTheme";
+import { renderLucideIcon } from "../ui/LucideIcon";
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
 
@@ -263,6 +265,17 @@ export class AttacksDisplay extends LitElement implements Controller {
     `;
   }
 
+  private renderDirectionIcon(direction: "up" | "down", tone: "blue" | "red") {
+    return html`
+      <span class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(tone)}">
+        ${renderLucideIcon(
+          direction === "up" ? ChevronUp : ChevronDown,
+          "h-3.5 w-3.5",
+        )}
+      </span>
+    `;
+  }
+
   private renderBoatSquareIcon(boat: UnitView, tone: "blue" | "red") {
     const dataURL = this.getBoatSpriteDataURL(boat);
     if (!dataURL) return this.renderGlyphIcon("B", tone);
@@ -292,7 +305,7 @@ export class AttacksDisplay extends LitElement implements Controller {
           translate="no"
         >
           ${options.primaryIcon} ${options.directionIcon}
-          <span class="${HUD_NUMERIC_LABEL}">${options.amount}</span>
+          <span class="${HUD_ATTACK_QUANTITY_LABEL}">${options.amount}</span>
           <span class="${HUD_TEXT_LABEL}">${label}</span>
         </button>
         ${options.action}
@@ -303,7 +316,7 @@ export class AttacksDisplay extends LitElement implements Controller {
   private renderCancelAction(onClick: () => void, tone: "blue" | "red") {
     const textClass = tone === "red" ? "text-red-300" : "text-aquarius";
     return this.renderButton({
-      content: "X",
+      content: renderLucideIcon(X, "h-3.5 w-3.5"),
       onClick,
       className: `${HUD_ATTACK_ACTION} ${this.iconToneClass(tone)} ${textClass}`,
       translate: false,
@@ -317,7 +330,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       this.renderAttackRow({
         tone: "red",
         primaryIcon: this.renderSpriteIcon(soldierIcon, "red"),
-        directionIcon: this.renderGlyphIcon("v", "red"),
+        directionIcon: this.renderDirectionIcon("down", "red"),
         amount: renderTroops(attack.troops),
         label:
           (
@@ -348,7 +361,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       this.renderAttackRow({
         tone: "blue",
         primaryIcon: this.renderSpriteIcon(soldierIcon, "blue"),
-        directionIcon: this.renderGlyphIcon("^", "blue"),
+        directionIcon: this.renderDirectionIcon("up", "blue"),
         amount: renderTroops(attack.troops),
         label:
           (
@@ -373,7 +386,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       this.renderAttackRow({
         tone: "blue",
         primaryIcon: this.renderSpriteIcon(soldierIcon, "blue"),
-        directionIcon: this.renderGlyphIcon("^", "blue"),
+        directionIcon: this.renderDirectionIcon("up", "blue"),
         amount: renderTroops(landAttack.troops),
         label: translateText("help_modal.ui_wilderness"),
         retreating: landAttack.retreating,
@@ -403,7 +416,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       this.renderAttackRow({
         tone: "blue",
         primaryIcon: this.renderBoatSquareIcon(boat, "blue"),
-        directionIcon: this.renderGlyphIcon("^", "blue"),
+        directionIcon: this.renderDirectionIcon("up", "blue"),
         amount: renderTroops(boat.troops()),
         label: this.getBoatTargetName(boat),
         onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),
@@ -425,7 +438,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       this.renderAttackRow({
         tone: "red",
         primaryIcon: this.renderBoatSquareIcon(boat, "red"),
-        directionIcon: this.renderGlyphIcon("v", "red"),
+        directionIcon: this.renderDirectionIcon("down", "red"),
         amount: renderTroops(boat.troops()),
         label: boat.owner()?.displayName() ?? "",
         onClick: () => this.eventBus.emit(new GoToUnitEvent(boat)),

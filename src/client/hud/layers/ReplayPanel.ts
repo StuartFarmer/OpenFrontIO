@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { Gauge } from "lucide";
 import { EventBus } from "../../../core/EventBus";
 import { GameView } from "../../../core/game/GameView";
 import { Controller } from "../../Controller";
@@ -8,7 +9,6 @@ import {
   defaultReplaySpeedMultiplier,
   ReplaySpeedMultiplier,
 } from "../../utilities/ReplaySpeedMultiplier";
-import { translateText } from "../../Utils";
 import {
   HUD_SEGMENT,
   HUD_SEGMENT_ACTIVE,
@@ -17,6 +17,7 @@ import {
   HUD_SURFACE_BODY,
   HUD_SURFACE_HEADER,
 } from "../ui/HudTheme";
+import { renderLucideIcon } from "../ui/LucideIcon";
 
 export class ShowReplayPanelEvent {
   constructor(
@@ -82,19 +83,19 @@ export class ReplayPanel extends LitElement implements Controller {
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
         <label class="${HUD_SURFACE_HEADER}" translate="no">
-          ${this.game?.config()?.isReplay()
-            ? translateText("replay_panel.replay_speed")
-            : translateText("replay_panel.game_speed")}
+          <span class="flex items-center gap-1">
+            ${renderLucideIcon(Gauge, "h-3.5 w-3.5")}
+            <span>
+              ${this.game?.config()?.isReplay() ? "Replay Speed" : "Game Speed"}
+            </span>
+          </span>
         </label>
         <div class="${HUD_SURFACE_BODY}">
           <div class="${HUD_SEGMENTED} w-full">
             ${this.renderSpeedButton(ReplaySpeedMultiplier.slow, "×0.5")}
             ${this.renderSpeedButton(ReplaySpeedMultiplier.normal, "×1")}
             ${this.renderSpeedButton(ReplaySpeedMultiplier.fast, "×2")}
-            ${this.renderSpeedButton(
-              ReplaySpeedMultiplier.fastest,
-              translateText("replay_panel.fastest_game_speed"),
-            )}
+            ${this.renderSpeedButton(ReplaySpeedMultiplier.fastest, "Max")}
           </div>
         </div>
       </div>

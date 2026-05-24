@@ -64,13 +64,15 @@ export const HUD_LABEL_ATOM = `${HUD_FONT} min-w-0 text-[10px] leading-none`;
 
 export const HUD_NUMERIC_LABEL = `${HUD_LABEL_ATOM} text-right whitespace-nowrap`;
 
+export const HUD_ATTACK_QUANTITY_LABEL = `${HUD_LABEL_ATOM} w-[5ch] shrink-0 text-left whitespace-nowrap`;
+
 export const HUD_TEXT_LABEL = `${HUD_LABEL_ATOM} truncate`;
 
 export const HUD_ATTACK_ROW =
   "flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-[3px] border border-white/10 bg-gray-800/88 px-1 py-0.5 text-white backdrop-blur-sm";
 
 export const HUD_ATTACK_MAIN =
-  "grid min-w-0 flex-1 grid-cols-[auto_auto_minmax(3.75rem,auto)_minmax(0,1fr)] items-center gap-1 border-0 bg-transparent p-0 text-left";
+  "grid min-w-0 flex-1 grid-cols-[auto_auto_5ch_minmax(0,1fr)] items-center gap-1 border-0 bg-transparent p-0 text-left";
 
 export const HUD_ATTACK_ACTION =
   "ml-auto inline-grid h-5 w-5 aspect-square shrink-0 place-items-center rounded-[2px] border border-white/20 bg-slate-950/35 p-0 text-[10px] font-semibold leading-none transition-colors hover:bg-white/10";
@@ -130,6 +132,9 @@ export const HUD_PILL =
 
 export const HUD_PILL_ICON = "shrink-0";
 
+export const HUD_PILL_MASK_ICON =
+  "inline-block shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]";
+
 export const HUD_PILL_VALUE = "tabular-nums";
 
 export const HUD_PILL_BLUE = "border-aquarius/70 bg-aquarius/25 text-sky-100";
@@ -165,17 +170,20 @@ export const HUD_BUILD_STRIP =
   "grid w-fit grid-flow-col grid-rows-1 auto-cols-max gap-0.5";
 
 export const HUD_BUILD_ITEM =
-  "flex cursor-pointer items-center gap-0.5 rounded-[2px] border border-slate-500 px-0.5 pb-0.5 text-white hover:bg-gray-800";
+  "grid cursor-pointer grid-cols-[auto_auto_3ch] items-center gap-0.5 rounded-[2px] border border-slate-500 px-1 py-0.5 text-white hover:bg-gray-800";
 
 export const HUD_BUILD_ITEM_ACTIVE = "bg-slate-400/20 hover:bg-gray-400/10";
 
 export const HUD_BUILD_ITEM_DISABLED = "opacity-40";
 
 export const HUD_BUILD_HOTKEY =
-  "relative -top-1 ml-0.5 text-[10px] text-gray-400";
+  "self-start text-[10px] leading-none text-gray-400";
 
 export const HUD_BUILD_ICON =
-  "inline-flex size-5 items-center justify-center text-sm font-extrabold leading-none";
+  "inline-flex aspect-square h-5 shrink-0 items-center justify-center text-sm font-extrabold leading-none";
+
+export const HUD_BUILD_COUNT =
+  "w-[3ch] text-left text-xs leading-none tabular-nums";
 
 export const HUD_TOOLTIP =
   "w-max rounded-[2px] bg-gray-800/90 p-1 text-center text-xs text-gray-200 shadow-lg backdrop-blur-xs";

@@ -37,6 +37,7 @@ import {
   HUD_PILL,
   HUD_PILL_BLUE,
   HUD_PILL_GOLD,
+  HUD_PILL_MASK_ICON,
   HUD_SURFACE,
   HUD_SURFACE_BODY,
   HUD_TD,
@@ -221,10 +222,18 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
   private displayUnitCount(player: PlayerView, type: UnitType, icon: string) {
     return !this.game.config().isUnitDisabled(type)
       ? html`<div class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
-          <img src=${icon} class="w-3 h-3 object-contain shrink-0" />
+          ${this.renderMaskIcon(icon, "h-3 w-3")}
           <span>${player.totalUnitLevels(type)}</span>
         </div>`
       : "";
+  }
+
+  private renderMaskIcon(src: string, sizeClass: string) {
+    return html`<span
+      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
+      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
+      aria-hidden="true"
+    ></span>`;
   }
 
   private allianceExpirationText(alliance: AllianceView) {
@@ -285,7 +294,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
         allianceHtml = html` <div
           class="${HUD_PILL} border-sky-400/70 bg-sky-500/20 text-sky-200"
         >
-          <img src=${allianceIcon} width="12" height="12" />
+          ${this.renderMaskIcon(allianceIcon, "h-3 w-3")}
           ${this.allianceExpirationText(alliance)}
         </div>`;
       }
@@ -351,7 +360,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
               </td>
               <td class="${HUD_TD}">
                 <span class="${HUD_PILL} ${HUD_PILL_GOLD}" translate="no">
-                  <img src=${goldCoinIcon} width="11" height="11" />
+                  ${this.renderMaskIcon(goldCoinIcon, "h-[11px] w-[11px]")}
                   ${renderNumber(player.gold())}
                 </span>
               </td>
@@ -368,16 +377,10 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
               <td class="${HUD_TD_LEFT} text-slate-300/70">Attack</td>
               <td class="${HUD_TD}">
                 <span class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
-                  <img
-                    class="w-3 h-3 ${attackingTroops > 0
-                      ? ""
-                      : "brightness-0 invert opacity-40"}"
-                    src=${attackingTroops > 0
-                      ? soldierIconAquarius
-                      : soldierIcon}
-                    alt=""
-                    aria-hidden="true"
-                  />
+                  ${this.renderMaskIcon(
+                    attackingTroops > 0 ? soldierIconAquarius : soldierIcon,
+                    `h-3 w-3 ${attackingTroops > 0 ? "" : "opacity-40"}`,
+                  )}
                   ${renderTroops(attackingTroops)}
                 </span>
               </td>

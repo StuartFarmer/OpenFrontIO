@@ -16,8 +16,15 @@ import { UserSettings } from "../../../core/game/UserSettings";
 import { Controller } from "../../Controller";
 import { ToggleStructureEvent } from "../../InputHandler";
 import { UIState } from "../../UIState";
-import { renderNumber, translateText } from "../../Utils";
+import { translateText } from "../../Utils";
 import { renderResourceCostText } from "../ResourceDisplay";
+import {
+  HUD_BUILD_COUNT,
+  HUD_BUILD_HOTKEY,
+  HUD_BUILD_ICON,
+  HUD_BUILD_ITEM,
+  HUD_BUILD_ITEM_ACTIVE,
+} from "../ui/HudTheme";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
@@ -287,9 +294,9 @@ export class UnitDisplay extends LitElement implements Controller {
         <div
           class="${this.canBuild(unitType)
             ? ""
-            : "opacity-40"} border border-slate-500 rounded-sm px-0.5 pb-0.5 flex items-center gap-0.5 cursor-pointer
-             ${selected ? "hover:bg-gray-400/10" : "hover:bg-gray-800"}
-             rounded-sm text-white ${selected ? "bg-slate-400/20" : ""}"
+            : "opacity-40"} ${HUD_BUILD_ITEM} ${selected
+            ? HUD_BUILD_ITEM_ACTIVE
+            : ""}"
           @click=${() => {
             if (selected) {
               this.uiState.ghostStructure = null;
@@ -319,25 +326,17 @@ export class UnitDisplay extends LitElement implements Controller {
           @mouseleave=${() =>
             this.eventBus?.emit(new ToggleStructureEvent(null))}
         >
-          ${html`<div class="ml-0.5 text-[10px] relative -top-1 text-gray-400">
-            ${displayHotkey}
-          </div>`}
-          <div class="flex items-center gap-0.5 pt-0.5">
-            ${icon
-              ? html`<img
-                  src=${icon}
-                  alt=${structureKey}
-                  class="align-middle size-5"
-                />`
-              : html`<span
-                  class="inline-flex items-center justify-center size-5 text-sm font-extrabold leading-none text-white"
-                  aria-hidden="true"
-                  >${label}</span
-                >`}
-            ${number !== null
-              ? html`<span class="text-xs">${renderNumber(number)}</span>`
-              : null}
-          </div>
+          <div class="${HUD_BUILD_HOTKEY}">${displayHotkey}</div>
+          ${icon
+            ? html`<img
+                src=${icon}
+                alt=${structureKey}
+                class="${HUD_BUILD_ICON}"
+              />`
+            : html`<span class="${HUD_BUILD_ICON}" aria-hidden="true"
+                >${label}</span
+              >`}
+          <span class="${HUD_BUILD_COUNT}" translate="no">${number ?? ""}</span>
         </div>
       </div>
     `;

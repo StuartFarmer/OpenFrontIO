@@ -32,7 +32,7 @@ import {
   HUD_METER_TEXT,
   HUD_PILL,
   HUD_PILL_GOLD,
-  HUD_PILL_ICON,
+  HUD_PILL_MASK_ICON,
   HUD_PILL_VALUE,
   HUD_RANGE,
   HUD_SEGMENT,
@@ -416,13 +416,15 @@ export class ControlPanel extends LitElement implements Controller {
   private renderResourceIcon(kind: ResourceKind, sizeClass: string) {
     const src =
       kind === "food" ? biomassIcon : kind === "energy" ? fuelIcon : metalIcon;
-    return html`<img
-      src=${src}
-      alt=""
+    return this.renderMaskIcon(src, sizeClass);
+  }
+
+  private renderMaskIcon(src: string, sizeClass: string) {
+    return html`<span
+      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
+      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
       aria-hidden="true"
-      class="${sizeClass} shrink-0"
-      style="filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(0,0,0,0.8));"
-    />`;
+    ></span>`;
   }
 
   private selectedMetric(): MetricView {
@@ -565,14 +567,7 @@ export class ControlPanel extends LitElement implements Controller {
         <div
           class="${compact ? HUD_ATTACK_RATIO_COMPACT : HUD_ATTACK_RATIO_PILL}"
         >
-          <img
-            src=${swordIcon}
-            alt=""
-            aria-hidden="true"
-            width=${compact ? "10" : "12"}
-            height=${compact ? "10" : "12"}
-            style="filter: brightness(0) invert(1);"
-          />
+          ${this.renderMaskIcon(swordIcon, compact ? "h-2.5 w-2.5" : "h-3 w-3")}
           <span
             class="text-white ${compact
               ? "text-xs"
@@ -831,12 +826,7 @@ export class ControlPanel extends LitElement implements Controller {
           class="${HUD_PILL} ${HUD_PILL_GOLD} shrink-0 w-[4.5rem]"
           translate="no"
         >
-          <img
-            src=${goldCoinIcon}
-            width="13"
-            height="13"
-            class="${HUD_PILL_ICON}"
-          />
+          ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
           <span class="${HUD_PILL_VALUE}">${renderNumber(this._gold)}</span>
         </div>
       </div>
@@ -859,12 +849,7 @@ export class ControlPanel extends LitElement implements Controller {
             class="${HUD_PILL} ${HUD_PILL_GOLD} justify-center w-[3.75rem] shrink-0"
             translate="no"
           >
-            <img
-              src=${goldCoinIcon}
-              width="13"
-              height="13"
-              class="${HUD_PILL_ICON}"
-            />
+            ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
             <span class="px-0.5">${renderNumber(this._gold)}</span>
           </div>
         </div>
