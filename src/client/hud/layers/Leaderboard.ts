@@ -15,19 +15,7 @@ import { Controller } from "../../Controller";
 import { AlternateViewEvent } from "../../InputHandler";
 import { GoToPlayerEvent } from "../../TransformHandler";
 import { formatPercentage, renderNumber } from "../../Utils";
-import {
-  HUD_BUTTON,
-  HUD_COMPACT_TABLE,
-  HUD_STAT_GRID,
-  HUD_STAT_LABEL,
-  HUD_STAT_VALUE,
-  HUD_SURFACE,
-  HUD_SURFACE_BODY,
-  HUD_SURFACE_HEADER,
-  HUD_TD,
-  HUD_TD_LEFT,
-  HUD_TH,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 
 interface Entry {
   name: string;
@@ -440,13 +428,15 @@ export class Leaderboard extends LitElement implements Controller {
     }
     return html`
       <div
-        class="mt-2 w-full max-h-[35vh] md:max-h-[50vh] overflow-y-auto ${HUD_SURFACE} ${this
+        class="mt-2 w-full max-h-[35vh] md:max-h-[50vh] overflow-y-auto font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] ${this
           .visible
           ? ""
           : "hidden"}"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <table class="${HUD_COMPACT_TABLE} table-fixed">
+        <table
+          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] table-fixed"
+        >
           <colgroup>
             <col class="w-7" />
             <col class="w-24" />
@@ -456,12 +446,18 @@ export class Leaderboard extends LitElement implements Controller {
           </colgroup>
           <thead>
             <tr>
-              <th class="${HUD_TH} text-center">#</th>
-              <th class="${HUD_TH} text-left truncate">
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-center"
+              >
+                #
+              </th>
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left truncate"
+              >
                 ${hudLabel("leaderboard.player", "Player")}
               </th>
               <th
-                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("tiles")}
               >
                 ${hudLabel("leaderboard.owned", "Owned")}${this.sortMark(
@@ -469,13 +465,13 @@ export class Leaderboard extends LitElement implements Controller {
                 )}
               </th>
               <th
-                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("gold")}
               >
                 ${hudLabel("leaderboard.gold", "Gold")}${this.sortMark("gold")}
               </th>
               <th
-                class="${HUD_TH} cursor-pointer hover:bg-white/10"
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
                 @click=${() => this.setSort("maxtroops")}
               >
                 ${hudLabel("leaderboard.maxtroops", "Max")}${this.sortMark(
@@ -495,11 +491,31 @@ export class Leaderboard extends LitElement implements Controller {
                     : ""}"
                   @click=${() => this.handleRowClickPlayer(player.player)}
                 >
-                  <td class="${HUD_TD} text-center">${player.position}</td>
-                  <td class="${HUD_TD_LEFT} truncate">${player.name}</td>
-                  <td class="${HUD_TD}">${player.score}</td>
-                  <td class="${HUD_TD}">${player.gold}</td>
-                  <td class="${HUD_TD}">${player.maxTroops}</td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-center"
+                  >
+                    ${player.position}
+                  </td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left truncate"
+                  >
+                    ${player.name}
+                  </td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                  >
+                    ${player.score}
+                  </td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                  >
+                    ${player.gold}
+                  </td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                  >
+                    ${player.maxTroops}
+                  </td>
                 </tr>
               `,
             )}
@@ -507,15 +523,15 @@ export class Leaderboard extends LitElement implements Controller {
         </table>
       </div>
 
-      <button
-        class="mt-2 mx-auto block ${HUD_BUTTON}"
+      <hud-button
+        class="mt-2 mx-auto block"
         @click=${() => {
           this.showTopFive = !this.showTopFive;
           this.updateLeaderboard();
         }}
       >
         ${this.showTopFive ? "+" : "-"}
-      </button>
+      </hud-button>
     `;
   }
 
@@ -535,14 +551,16 @@ export class Leaderboard extends LitElement implements Controller {
 
     return html`
       <div
-        class="mt-2 w-[320px] max-w-[42vw] overflow-hidden ${HUD_SURFACE}"
+        class="mt-2 w-[320px] max-w-[42vw] overflow-hidden font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <div class="${HUD_SURFACE_HEADER}">
+        <div
+          class="flex items-center justify-between gap-2 min-h-[26px] px-2 py-1 border-b border-white/10 bg-slate-900/50 font-semibold"
+        >
           <span>Economy</span>
           <span class="font-normal text-slate-300">${capacityText}</span>
         </div>
-        <div class="${HUD_SURFACE_BODY} space-y-2">
+        <div class="p-2 space-y-2">
           ${this.economyRows.map((row) => this.renderEconomyRow(row))}
         </div>
       </div>
@@ -568,7 +586,7 @@ export class Leaderboard extends LitElement implements Controller {
             style="width: ${fillPercent}%"
           ></div>
         </div>
-        <div class="mt-2 ${HUD_STAT_GRID}">
+        <div class="mt-2 grid grid-cols-4 gap-2 text-[11px] leading-tight">
           ${this.renderEconomyMetric("Net", row.netPerSecond)}
           ${this.renderEconomyMetric("Prod", row.productionPerSecond)}
           ${this.renderEconomyMetric("Rail", row.railPerSecond)}
@@ -587,10 +605,8 @@ export class Leaderboard extends LitElement implements Controller {
           : "text-slate-300";
     return html`
       <div>
-        <div class="${HUD_STAT_LABEL}">${label}</div>
-        <div class="${valueClass} ${HUD_STAT_VALUE}">
-          ${formatSignedRate(value)}
-        </div>
+        <div class="text-slate-400">${label}</div>
+        <div class="${valueClass} tabular-nums">${formatSignedRate(value)}</div>
       </div>
     `;
   }

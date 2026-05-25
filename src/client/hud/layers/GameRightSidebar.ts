@@ -9,12 +9,7 @@ import { crazyGamesSDK } from "../../CrazyGamesSDK";
 import { TogglePauseIntentEvent } from "../../InputHandler";
 import { PauseGameIntentEvent, SendWinnerEvent } from "../../Transport";
 import { translateText } from "../../Utils";
-import {
-  HUD_ICON_BUTTON,
-  HUD_ICON_MD,
-  HUD_TIMER_LABEL,
-  HUD_TOOLBAR,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { ShowReplayPanelEvent } from "./ReplayPanel";
 import { ShowSettingsModalEvent } from "./SettingsModal";
@@ -213,7 +208,7 @@ export class GameRightSidebar extends LitElement implements Controller {
   }
 
   private renderSidebarIcon(src: string, alt: string) {
-    return html`<img src=${src} alt=${alt} class="${HUD_ICON_MD}" />`;
+    return html`<img src=${src} alt=${alt} class="h-5 w-5" />`;
   }
 
   render() {
@@ -228,40 +223,39 @@ export class GameRightSidebar extends LitElement implements Controller {
 
     return html`
       <aside
-        class=${`${HUD_TOOLBAR} transition-transform duration-300 ease-out transform ${
+        class=${`font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] flex w-fit flex-row items-center gap-2 px-2 py-1 transition-transform duration-300 ease-out transform ${
           this._isVisible ? "translate-x-0" : "translate-x-full"
         }`}
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
         <!-- In-game time -->
-        <div class=${`${HUD_TIMER_LABEL} ${timerColor}`}>
+        <div
+          class=${`min-w-[5ch] text-center text-xs font-bold leading-none tabular-nums ${timerColor}`}
+        >
           ${this.secondsToHms(this.timer)}
         </div>
 
         <!-- Buttons -->
         ${this.maybeRenderReplayButtons()}
 
-        <button class="${HUD_ICON_BUTTON}" @click=${this.onSettingsButtonClick}>
+        <hud-icon-button @click=${this.onSettingsButtonClick}>
           ${this.renderSidebarIcon(settingsIcon, "settings")}
-        </button>
+        </hud-icon-button>
 
         ${document.fullscreenEnabled
-          ? html`<button
-              class="${HUD_ICON_BUTTON}"
-              @click=${this.onFullscreenButtonClick}
-            >
+          ? html`<hud-icon-button @click=${this.onFullscreenButtonClick}>
               ${this.renderSidebarIcon(
                 this.isFullscreen ? exitFullscreenIcon : fullscreenIcon,
                 this.isFullscreen
                   ? translateText("fullscreen.exit")
                   : translateText("fullscreen.enter"),
               )}
-            </button>`
+            </hud-icon-button>`
           : ""}
 
-        <button class="${HUD_ICON_BUTTON}" @click=${this.onExitButtonClick}>
+        <hud-icon-button @click=${this.onExitButtonClick}>
           ${this.renderSidebarIcon(exitIcon, "exit")}
-        </button>
+        </hud-icon-button>
       </aside>
     `;
   }
@@ -274,22 +268,19 @@ export class GameRightSidebar extends LitElement implements Controller {
     return html`
       ${isReplayOrSingleplayer
         ? html`
-            <button class="${HUD_ICON_BUTTON}" @click=${this.toggleReplayPanel}>
+            <hud-icon-button @click=${this.toggleReplayPanel}>
               ${this.renderSidebarIcon(FastForwardIconSolid, "replay")}
-            </button>
+            </hud-icon-button>
           `
         : ""}
       ${showPauseButton
         ? html`
-            <button
-              class="${HUD_ICON_BUTTON}"
-              @click=${this.onPauseButtonClick}
-            >
+            <hud-icon-button @click=${this.onPauseButtonClick}>
               ${this.renderSidebarIcon(
                 this.isPaused ? playIcon : pauseIcon,
                 "play/pause",
               )}
-            </button>
+            </hud-icon-button>
           `
         : ""}
     `;

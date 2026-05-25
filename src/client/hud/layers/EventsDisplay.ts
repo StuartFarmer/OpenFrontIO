@@ -39,19 +39,7 @@ import { renderNumber } from "../../Utils";
 import { PlaySoundEffectEvent } from "../../sound/Sounds";
 import { UIState } from "../../UIState";
 import { getMessageTypeClasses, translateText } from "../../Utils";
-import {
-  HUD_ACTION_GROUP,
-  HUD_BUTTON,
-  HUD_COMPACT_TABLE,
-  HUD_PILL,
-  HUD_PILL_RED,
-  HUD_SEGMENT_ACTIVE,
-  HUD_SEGMENT_ICON,
-  HUD_SEGMENTED,
-  HUD_SURFACE,
-  HUD_SURFACE_HEADER,
-  HUD_TD_LEFT,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 const allianceIcon = assetUrl("images/AllianceIconWhite.svg");
 const chatIcon = assetUrl("images/ChatIconWhite.svg");
 const donateGoldIcon = assetUrl("images/DonateGoldIconWhite.svg");
@@ -160,7 +148,7 @@ export class EventsDisplay extends LitElement implements Controller {
         style="${isFiltered ? "filter: grayscale(1) opacity(0.5);" : ""}"
       />`,
       onClick: () => this.toggleEventFilter(category),
-      className: `${HUD_SEGMENT_ICON} ${isFiltered ? "" : HUD_SEGMENT_ACTIVE}`,
+      className: `min-h-[22px] min-w-0 py-0 border-0 border-l border-white/10 first:border-l-0 rounded-none bg-transparent text-slate-300/70 text-[10px] font-semibold leading-none hover:bg-white/10 w-6 px-0 ${isFiltered ? "" : "bg-malibu-blue/30 text-white hover:bg-malibu-blue/35"}`,
     });
   }
 
@@ -833,24 +821,32 @@ export class EventsDisplay extends LitElement implements Controller {
                   <span class="flex items-center gap-2">
                     ${translateText("events_display.events")}
                     ${this.newEvents > 0
-                      ? html`<span class="${HUD_PILL} ${HUD_PILL_RED}"
-                          >${this.newEvents}</span
-                        >`
+                      ? html`<hud-pill
+                          tone="red"
+                          .value=${String(this.newEvents)}
+                        ></hud-pill>`
                       : ""}
                   </span>
                 `,
                 onClick: this.toggleHidden,
-                className: `${HUD_SURFACE} ${HUD_BUTTON} w-fit min-h-8 pointer-events-auto`,
+                className:
+                  "font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] min-h-6 px-2 py-0.5 border border-white/25 text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 w-fit min-h-8 pointer-events-auto",
               })}
             </div>
           `
         : html`
             <!-- Main Events Display -->
-            <div class="relative w-full z-50 min-[1200px]:w-96 ${HUD_SURFACE}">
+            <div
+              class="relative w-full z-50 min-[1200px]:w-96 font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
+            >
               <!-- Button Bar -->
-              <div class="${HUD_SURFACE_HEADER} min-h-[30px]">
+              <div
+                class="flex items-center justify-between gap-2 px-2 py-1 border-b border-white/10 bg-slate-900/50 font-semibold min-h-[30px]"
+              >
                 <div class="flex w-full justify-between items-center gap-3">
-                  <div class="${HUD_SEGMENTED}">
+                  <div
+                    class="inline-grid grid-flow-col auto-cols-fr min-w-0 overflow-hidden border border-white/25 rounded-[2px] bg-slate-950/30"
+                  >
                     ${this.renderToggleButton(
                       swordIcon,
                       MessageCategory.ATTACK,
@@ -868,21 +864,23 @@ export class EventsDisplay extends LitElement implements Controller {
                   </div>
                   <div class="flex items-center gap-3">
                     ${this.latestGoldAmount !== null
-                      ? html`<span
-                          class="${HUD_PILL} border-green-400/70 bg-green-500/20 text-green-300 transition-all duration-300 ${this
+                      ? html`<hud-pill
+                          tone="green"
+                          .value=${`+${renderNumber(this.latestGoldAmount)}`}
+                          class="transition-all duration-300 ${this
                             .goldAmountAnimating
                             ? "animate-pulse scale-110"
                             : "scale-100"}"
                           style="animation: ${this.goldAmountAnimating
                             ? "goldBounce 0.6s ease-out"
                             : "none"}"
-                          >+${renderNumber(this.latestGoldAmount)}</span
-                        >`
+                        ></hud-pill>`
                       : ""}
                     ${this.renderButton({
                       content: translateText("leaderboard.hide"),
                       onClick: this.toggleHidden,
-                      className: HUD_BUTTON,
+                      className:
+                        "min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45",
                     })}
                   </div>
                 </div>
@@ -894,14 +892,14 @@ export class EventsDisplay extends LitElement implements Controller {
               >
                 <div>
                   <table
-                    class="${HUD_COMPACT_TABLE} max-h-none pointer-events-auto"
+                    class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] max-h-none pointer-events-auto"
                   >
                     <tbody>
                       ${filteredEvents.map(
                         (event, index) => html`
                           <tr>
                             <td
-                              class="${HUD_TD_LEFT} ${getMessageTypeClasses(
+                              class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left ${getMessageTypeClasses(
                                 event.type,
                               )}"
                             >
@@ -931,11 +929,13 @@ export class EventsDisplay extends LitElement implements Controller {
                               <!-- Events with buttons (Alliance requests) -->
                               ${event.buttons
                                 ? html`
-                                    <div class="${HUD_ACTION_GROUP} mt-1">
+                                    <div
+                                      class="inline-flex items-center gap-1 whitespace-nowrap mt-1"
+                                    >
                                       ${event.buttons.map(
                                         (btn) => html`
                                           <button
-                                            class="${HUD_BUTTON}
+                                            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45
                             ${btn.className.includes("btn-info")
                                               ? "bg-blue-500/60 hover:bg-blue-500/75"
                                               : btn.className.includes(
@@ -981,7 +981,9 @@ export class EventsDisplay extends LitElement implements Controller {
                       })()
                         ? html`
                             <tr>
-                              <td class="${HUD_TD_LEFT}">
+                              <td
+                                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
+                              >
                                 ${this.renderBetrayalDebuffTimer()}
                               </td>
                             </tr>
@@ -1000,7 +1002,11 @@ export class EventsDisplay extends LitElement implements Controller {
                       })()
                         ? html`
                             <tr>
-                              <td class="${HUD_TD_LEFT} min-w-72">&nbsp;</td>
+                              <td
+                                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left min-w-72"
+                              >
+                                &nbsp;
+                              </td>
                             </tr>
                           `
                         : ""}

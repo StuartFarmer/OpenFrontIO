@@ -3,76 +3,63 @@ import {
   html,
   LitElement,
   nothing,
-  unsafeCSS,
   type CSSResultGroup,
   type TemplateResult,
 } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import tailwindStyles from "../../styles.css?inline";
-import {
-  HUD_RESOURCE_FILL,
-  type HudPillTone,
-  type HudResourceTone,
-} from "./HudColors";
-import {
-  HUD_DUAL_RANGE,
-  HUD_DUAL_RANGE_FILL,
-  HUD_DUAL_RANGE_INPUT,
-  HUD_DUAL_RANGE_TRACK,
-  HUD_METER,
-  HUD_METER_FILL,
-  HUD_METER_STACK,
-  HUD_METER_TEXT,
-  HUD_MINI_METER,
-  HUD_PILL,
-  HUD_PILL_BLUE,
-  HUD_PILL_GOLD,
-  HUD_PILL_GREEN,
-  HUD_PILL_MASK_ICON,
-  HUD_PILL_RED,
-  HUD_PILL_VALUE,
-} from "./HudTheme";
+import { type HudPillTone, type HudResourceTone } from "./HudColors";
 
 type HudAtomSize = "sm" | "md" | "lg" | "xl";
 type HudAtomTone =
+  | "inherit"
   | "default"
   | "muted"
   | "active"
   | "danger"
   | "success"
-  | "gold";
-type HudMeterTone = "blue" | "cyan" | "slate" | "green" | "gold" | "red";
+  | "gold"
+  | "warning";
+export type HudMeterTone = "blue" | "cyan" | "slate" | "green" | "gold" | "red";
 
-const HUD_PILL_TONE_CLASS: Record<HudPillTone, string> = {
-  blue: HUD_PILL_BLUE,
-  green: HUD_PILL_GREEN,
-  gold: HUD_PILL_GOLD,
-  red: HUD_PILL_RED,
-};
-
-const HUD_ATOM_SIZE_PX: Record<HudAtomSize, number> = {
+const atomSizePx: Record<HudAtomSize, number> = {
   sm: 16,
   md: 20,
   lg: 24,
   xl: 28,
 };
 
-const HUD_TONE_COLOR: Record<HudAtomTone, string> = {
+const toneColor: Record<HudAtomTone, string> = {
+  inherit: "currentColor",
   default: "#f8fafc",
   muted: "#94a3b8",
   active: "#7dd3fc",
   danger: "#fca5a5",
   success: "#86efac",
   gold: "#fde68a",
+  warning: "#fdba74",
 };
 
-const HUD_METER_TONE_CLASS: Record<HudMeterTone, string> = {
-  blue: "bg-malibu-blue",
-  cyan: "bg-aquarius",
-  slate: "bg-sky-700",
-  green: "bg-green-500",
-  gold: "bg-yellow-300",
-  red: "bg-red-500",
+const pillIconTone: Record<HudPillTone, HudAtomTone> = {
+  blue: "active",
+  green: "success",
+  gold: "gold",
+  orange: "warning",
+  red: "danger",
+};
+
+const meterToneColor: Record<HudMeterTone, string> = {
+  blue: "#38bdf8",
+  cyan: "#22d3ee",
+  slate: "#0369a1",
+  green: "#22c55e",
+  gold: "#fde047",
+  red: "#ef4444",
+};
+
+const resourceFillColor: Record<HudResourceTone, string> = {
+  food: "#22c55e",
+  energy: "#06b6d4",
+  materials: "#d6d3d1",
 };
 
 const hudScopedStyles = css`
@@ -138,7 +125,7 @@ const hudButtonStyles = [
 export interface HudMeterSegment {
   width: number;
   tone?: HudMeterTone;
-  className?: string;
+  color?: string;
 }
 
 export interface HudBlendSegment {
@@ -157,20 +144,11 @@ export interface HudSegmentedItem {
   disabled?: boolean;
 }
 
-export class HudElement extends LitElement {
-  static styles = [
-    unsafeCSS(tailwindStyles),
-    css`
-      :host {
-        box-sizing: border-box;
-      }
-    `,
-  ];
-}
-
 export class HudScopedElement extends LitElement {
   static styles: CSSResultGroup = hudScopedStyles;
 }
+
+export class HudElement extends HudScopedElement {}
 
 export function formatHudQuantity(value: number): string {
   const sign = value < 0 ? "-" : "";
@@ -310,9 +288,10 @@ export class HudIcon extends HudScopedElement {
   @property() label = "";
 
   render() {
-    const size = HUD_ATOM_SIZE_PX[this.size] ?? HUD_ATOM_SIZE_PX.md;
-    const color = HUD_TONE_COLOR[this.tone] ?? HUD_TONE_COLOR.default;
-    const iconStyle = `--hud-icon-size: ${size}px; --hud-icon-src: url('${this.src}'); color: ${color};`;
+    const size = atomSizePx[this.size] ?? atomSizePx.md;
+    const color = toneColor[this.tone] ?? toneColor.default;
+    const colorStyle = this.tone === "inherit" ? "" : ` color: ${color};`;
+    const iconStyle = `--hud-icon-size: ${size}px; --hud-icon-src: url('${this.src}');${colorStyle}`;
 
     return html`<span
       class="icon"
@@ -350,7 +329,7 @@ export class HudLabel extends HudScopedElement {
   @property() tone: HudAtomTone = "default";
 
   render() {
-    const color = HUD_TONE_COLOR[this.tone] ?? HUD_TONE_COLOR.default;
+    const color = toneColor[this.tone] ?? toneColor.default;
 
     return html`<span class="label" style="color: ${color}" part="label">
       <slot></slot>
@@ -383,7 +362,7 @@ export class HudNumber extends HudScopedElement {
   @property() tone: HudAtomTone = "default";
 
   render() {
-    const color = HUD_TONE_COLOR[this.tone] ?? HUD_TONE_COLOR.default;
+    const color = toneColor[this.tone] ?? toneColor.default;
     const raw = this.format
       ? formatHudQuantity(Number(this.value))
       : this.value;
@@ -457,8 +436,10 @@ export class HudPill extends HudScopedElement {
         display: inline-flex;
         min-height: 20px;
         min-width: 0;
+        width: 100%;
         align-items: center;
         gap: 4px;
+        justify-content: var(--hud-pill-justify, flex-start);
         border: 1px solid rgba(148, 163, 184, 0.6);
         border-radius: 3px;
         background: rgba(15, 23, 42, 0.72);
@@ -488,6 +469,12 @@ export class HudPill extends HudScopedElement {
         color: #fde68a;
       }
 
+      :host([tone="orange"]) .pill {
+        border-color: rgba(251, 146, 60, 0.7);
+        background: rgba(249, 115, 22, 0.2);
+        color: #fdba74;
+      }
+
       :host([tone="red"]) .pill {
         border-color: rgba(248, 113, 113, 0.7);
         background: rgba(239, 68, 68, 0.2);
@@ -510,98 +497,263 @@ export class HudPill extends HudScopedElement {
     return html`<span class="pill" part="pill" translate="no">
       <slot name="icon">
         ${this.iconSrc
-          ? html`<hud-icon .src=${this.iconSrc} size="sm"></hud-icon>`
+          ? html`<hud-icon
+              .src=${this.iconSrc}
+              size="sm"
+              .tone=${this.iconTone}
+            ></hud-icon>`
           : nothing}
       </slot>
       <span class="value" part="value"><slot>${this.value}</slot></span>
     </span>`;
   }
+
+  private get iconTone() {
+    return this.tone === "" ? "inherit" : pillIconTone[this.tone];
+  }
 }
 
 @customElement("hud-mask-icon")
-export class HudMaskIcon extends HudElement {
+export class HudMaskIcon extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: inline-grid;
+        flex: 0 0 auto;
+        place-items: center;
+        color: currentColor;
+        vertical-align: middle;
+      }
+
+      .mask {
+        display: block;
+        width: var(--hud-mask-icon-size, 16px);
+        height: var(--hud-mask-icon-size, 16px);
+        background: currentColor;
+        mask: var(--hud-mask-icon-src) center / contain no-repeat;
+        -webkit-mask: var(--hud-mask-icon-src) center / contain no-repeat;
+      }
+    `,
+  ];
+
   @property() src = "";
   @property() size = "h-4 w-4";
 
   render() {
+    const pixels = this.sizePixels();
     return html`<span
-      class="${HUD_PILL_MASK_ICON} ${this.size}"
-      style="mask-image: url('${this.src}'); -webkit-mask-image: url('${this
-        .src}');"
+      class="mask"
+      style="--hud-mask-icon-src: url('${this
+        .src}'); --hud-mask-icon-size: ${pixels}px;"
       aria-hidden="true"
     ></span>`;
   }
-}
 
-@customElement("hud-icon-pill")
-export class HudIconPill extends HudElement {
-  @property() value = "";
-  @property() tone: HudPillTone | "" = "";
-  @property({ attribute: "content-class" }) contentClass = "";
-  @property({ attribute: "value-class" }) valueClass = "";
-  @property({ attribute: false }) icon?: TemplateResult;
+  private sizePixels() {
+    const arbitrarySize = this.size.match(/h-\[(\d+)px\]/);
+    if (arbitrarySize?.[1] !== undefined) return Number(arbitrarySize[1]);
 
-  render() {
-    const toneClass = this.tone ? HUD_PILL_TONE_CLASS[this.tone] : "";
-
-    return html`
-      <span
-        class="${HUD_PILL} ${toneClass} ${this.contentClass}"
-        translate="no"
-      >
-        ${this.icon ?? html`<slot name="icon"></slot>`}
-        <span class="${HUD_PILL_VALUE} ${this.valueClass}">${this.value}</span>
-      </span>
-    `;
+    if (this.size.includes("h-2.5")) return 10;
+    if (this.size.includes("h-3")) return 12;
+    if (this.size.includes("h-4")) return 16;
+    if (this.size.includes("h-5")) return 20;
+    if (this.size.includes("h-6")) return 24;
+    if (this.size.includes("h-7")) return 28;
+    return 16;
   }
 }
 
 @customElement("hud-meter")
-export class HudMeter extends HudElement {
+export class HudMeter extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+        width: 100%;
+      }
+
+      .meter {
+        position: relative;
+        min-height: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        background: rgba(15, 23, 42, 0.7);
+      }
+
+      .meter.mini {
+        height: 20px;
+      }
+
+      .stack {
+        display: flex;
+        height: 100%;
+      }
+
+      .fill {
+        height: 100%;
+        transition: width 200ms ease;
+      }
+
+      .text {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        color: #fff;
+        font-size: var(--hud-meter-label-size, 10px);
+        font-weight: 700;
+        line-height: 1;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+      }
+
+      .text.center {
+        justify-content: center;
+      }
+
+      .text.between {
+        justify-content: space-between;
+        padding: 0 6px;
+        font-size: 10px;
+      }
+    `,
+  ];
+
   @property({ attribute: false }) segments: HudMeterSegment[] = [];
   @property({ attribute: false }) label?: string | TemplateResult;
   @property() variant: "default" | "mini" = "default";
   @property({ attribute: "label-align" }) labelAlign: "center" | "between" =
     "center";
-  @property({ attribute: "label-class" }) labelClass = "";
 
   render() {
-    const meterClass = this.variant === "mini" ? HUD_MINI_METER : HUD_METER;
-
     return html`
-      <div class="${meterClass}">
-        <div class="${HUD_METER_STACK}">
+      <div class="meter ${this.variant === "mini" ? "mini" : ""}">
+        <div class="stack">
           ${this.segments.map(
             (segment) =>
               html`<div
-                class="${HUD_METER_FILL} ${this.meterSegmentClass(segment)}"
-                style="width: ${segment.width}%"
+                class="fill"
+                style="width: ${segment.width}%; background: ${this.meterSegmentColor(
+                  segment,
+                )};"
               ></div>`,
           )}
         </div>
-        <div class="${HUD_METER_TEXT} ${this.meterLabelClass}">
+        <div class="text ${this.labelAlign}">
           ${this.label ?? html`<slot></slot>`}
         </div>
       </div>
     `;
   }
 
-  private meterSegmentClass(segment: HudMeterSegment) {
-    if (segment.className !== undefined) return segment.className;
-    if (segment.tone !== undefined) return HUD_METER_TONE_CLASS[segment.tone];
-    return "";
-  }
-
-  private get meterLabelClass() {
-    if (this.labelClass !== "") return this.labelClass;
-    return this.labelAlign === "between"
-      ? "justify-between px-1.5 text-[10px]"
-      : "justify-center";
+  private meterSegmentColor(segment: HudMeterSegment) {
+    if (segment.color !== undefined) return segment.color;
+    if (segment.tone !== undefined) return meterToneColor[segment.tone];
+    return "transparent";
   }
 }
 
 @customElement("hud-dual-range")
-export class HudDualRange extends HudElement {
+export class HudDualRange extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+        width: 100%;
+      }
+
+      .range {
+        position: relative;
+        width: 100%;
+        height: 24px;
+        min-width: 0;
+      }
+
+      .track,
+      .fill {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 6px;
+        transform: translateY(-50%);
+        border-radius: 9999px;
+      }
+
+      .track {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(15, 23, 42, 0.5);
+      }
+
+      .fill {
+        background: #38bdf8;
+      }
+
+      .range-input {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 24px;
+        margin: 0;
+        appearance: none;
+        -webkit-appearance: none;
+        background: transparent;
+      }
+
+      .range-input::-webkit-slider-runnable-track {
+        height: 24px;
+        border: 0;
+        background: transparent;
+      }
+
+      .range-input::-webkit-slider-thumb {
+        pointer-events: auto;
+        width: 18px;
+        height: 18px;
+        margin-top: 3px;
+        border: 3px solid rgba(255, 255, 255, 0.86);
+        border-radius: 9999px;
+        background: #38bdf8;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+        transition:
+          transform 120ms ease,
+          box-shadow 120ms ease;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      .range-input:active::-webkit-slider-thumb {
+        transform: scale(1.1);
+        box-shadow:
+          0 0 0 3px rgba(56, 189, 248, 0.24),
+          0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+
+      .range-input::-moz-range-track {
+        height: 24px;
+        border: 0;
+        background: transparent;
+      }
+
+      .range-input::-moz-range-thumb {
+        pointer-events: auto;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.86);
+        border-radius: 9999px;
+        background: #38bdf8;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+    `,
+  ];
+
   @property({ type: Number }) start = 0;
   @property({ type: Number }) end = 100;
   @property({ attribute: "start-label" }) startLabel = "Range start";
@@ -609,10 +761,10 @@ export class HudDualRange extends HudElement {
 
   render() {
     return html`
-      <div class="${HUD_DUAL_RANGE}" translate="no">
-        <div class="${HUD_DUAL_RANGE_TRACK}"></div>
+      <div class="range" translate="no">
+        <div class="track"></div>
         <div
-          class="${HUD_DUAL_RANGE_FILL}"
+          class="fill"
           style="left: ${this.start}%; right: ${100 - this.end}%"
         ></div>
         ${this.renderRangeInput(this.start, this.startLabel, "hud-start-input")}
@@ -624,7 +776,7 @@ export class HudDualRange extends HudElement {
 
   private renderRangeInput(value: number, label: string, eventName: string) {
     return html`<input
-      class="${HUD_DUAL_RANGE_INPUT}"
+      class="range-input"
       type="range"
       min="0"
       max="100"
@@ -660,43 +812,171 @@ export class HudDualRange extends HudElement {
 }
 
 @customElement("hud-blend-slider")
-export class HudBlendSlider extends HudElement {
+export class HudBlendSlider extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+        width: 100%;
+      }
+
+      .blend {
+        position: relative;
+        width: 100%;
+        height: 36px;
+        min-width: 0;
+      }
+
+      .bar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 12px;
+        height: 6px;
+        overflow: hidden;
+        transform: translateY(-50%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 9999px;
+        background: rgba(15, 23, 42, 0.5);
+      }
+
+      .segments {
+        display: flex;
+        height: 100%;
+      }
+
+      .segment {
+        height: 100%;
+      }
+
+      .range-input {
+        pointer-events: none;
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 1;
+        width: 100%;
+        height: 24px;
+        margin: 0;
+        appearance: none;
+        -webkit-appearance: none;
+        background: transparent;
+      }
+
+      .range-input::-webkit-slider-runnable-track {
+        height: 24px;
+        border: 0;
+        background: transparent;
+      }
+
+      .range-input::-webkit-slider-thumb {
+        pointer-events: auto;
+        width: 18px;
+        height: 18px;
+        margin-top: 3px;
+        border: 3px solid rgba(255, 255, 255, 0.86);
+        border-radius: 9999px;
+        background: #cbd5e1;
+        box-shadow:
+          0 0 0 2px rgba(15, 23, 42, 0.8),
+          0 1px 2px rgba(0, 0, 0, 0.45);
+        transition:
+          transform 120ms ease,
+          box-shadow 120ms ease;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      .range-input:active::-webkit-slider-thumb {
+        transform: scale(1.1);
+        box-shadow:
+          0 0 0 3px rgba(203, 213, 225, 0.25),
+          0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+
+      .range-input::-moz-range-track {
+        height: 24px;
+        border: 0;
+        background: transparent;
+      }
+
+      .range-input::-moz-range-thumb {
+        pointer-events: auto;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.86);
+        border-radius: 9999px;
+        background: #cbd5e1;
+        box-shadow:
+          0 0 0 2px rgba(15, 23, 42, 0.8),
+          0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+
+      .labels {
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        overflow: hidden;
+        color: #e2e8f0;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .label {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+    `,
+  ];
+
   @property({ type: Number }) first = 0;
   @property({ type: Number }) second = 100;
   @property({ attribute: false }) segments: HudBlendSegment[] = [];
-  @property({ attribute: "input-class" }) inputClass = "blend-range-input";
+  @property({ type: Boolean, reflect: true }) readonly = false;
 
   render() {
     return html`
-      <div class="${HUD_DUAL_RANGE} h-9" translate="no">
-        <div
-          class="absolute left-0 right-0 top-3 h-1.5 -translate-y-1/2 overflow-hidden rounded-full border border-white/20 bg-slate-950/50"
-        >
-          <div class="flex h-full">
+      <div class="blend" translate="no">
+        <div class="bar">
+          <div class="segments">
             ${this.segments.map(
               (segment) =>
                 html`<div
-                  class="h-full ${HUD_RESOURCE_FILL[segment.tone]}"
-                  style="width: ${segment.width}%"
+                  class="segment"
+                  style="width: ${segment.width}%; background: ${resourceFillColor[
+                    segment.tone
+                  ]};"
                 ></div>`,
             )}
           </div>
         </div>
-        ${this.renderRangeInput(this.first, "First split", "hud-first-input")}
-        ${this.renderRangeInput(
-          this.second,
-          "Second split",
-          "hud-second-input",
-        )}
-        <div
-          class="pointer-events-none absolute bottom-0 left-0 right-0 flex overflow-hidden text-[10px] font-bold leading-none tabular-nums text-slate-200"
-        >
+        ${this.readonly
+          ? nothing
+          : html`${this.renderRangeInput(
+              this.first,
+              "First split",
+              "hud-first-input",
+            )}
+            ${this.renderRangeInput(
+              this.second,
+              "Second split",
+              "hud-second-input",
+            )}`}
+        <div class="labels">
           ${this.segments.map(
             (segment) =>
-              html`<span
-                class="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap"
-                style="width: ${segment.width}%"
-              >
+              html`<span class="label" style="width: ${segment.width}%">
                 ${segment.width >= 8
                   ? html`<hud-mask-icon
                         .src=${segment.iconSrc}
@@ -713,7 +993,7 @@ export class HudBlendSlider extends HudElement {
 
   private renderRangeInput(value: number, label: string, eventName: string) {
     return html`<input
-      class="${HUD_DUAL_RANGE_INPUT} ${this.inputClass}"
+      class="range-input"
       type="range"
       min="0"
       max="100"
@@ -1088,7 +1368,6 @@ declare global {
     "hud-icon-button": HudIconButton;
     "hud-pill": HudPill;
     "hud-mask-icon": HudMaskIcon;
-    "hud-icon-pill": HudIconPill;
     "hud-meter": HudMeter;
     "hud-dual-range": HudDualRange;
     "hud-blend-slider": HudBlendSlider;

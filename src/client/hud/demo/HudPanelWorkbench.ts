@@ -17,48 +17,7 @@ import "../layers/PlayerInfoOverlay";
 import "../layers/ReplayPanel";
 import "../layers/TeamStats";
 import "../layers/UnitDisplay";
-import { renderHudMaskIcon } from "../ui";
-import {
-  HUD_ACTION_GROUP,
-  HUD_BLEND_LABEL,
-  HUD_BLEND_ROW,
-  HUD_BUILD_STRIP,
-  HUD_BUTTON,
-  HUD_COMPACT_TABLE,
-  HUD_CONTROL_ROW,
-  HUD_EVENT_META,
-  HUD_EVENT_ROW,
-  HUD_EVENT_TEXT,
-  HUD_FIELD_LABEL,
-  HUD_FORM_ROW,
-  HUD_ICON_BUTTON,
-  HUD_ICON_CLUSTER,
-  HUD_IDENTITY_NAME,
-  HUD_IDENTITY_ROW,
-  HUD_INPUT,
-  HUD_METER_FILL,
-  HUD_METER_STACK,
-  HUD_METER_TEXT,
-  HUD_MINI_METER,
-  HUD_NOTIFICATION_PILL,
-  HUD_PILL,
-  HUD_PILL_BLUE,
-  HUD_PILL_GOLD,
-  HUD_PILL_VALUE,
-  HUD_RANGE,
-  HUD_SEGMENT_ACTIVE,
-  HUD_SEGMENTED,
-  HUD_SELECT,
-  HUD_STAT_GRID,
-  HUD_STAT_LABEL,
-  HUD_STAT_VALUE,
-  HUD_SURFACE_BODY,
-  HUD_TD,
-  HUD_TD_LEFT,
-  HUD_TH,
-  HUD_TIMER_LABEL,
-  HUD_TOOLBAR,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 import { renderLucideIcon } from "../ui/LucideIcon";
 import {
   buildables,
@@ -1199,7 +1158,7 @@ export class HudPanelWorkbench extends LitElement {
             tone="green"
             icon-src=${sampleSoldierIcon}
           ></hud-pill>
-          <span class="${HUD_NOTIFICATION_PILL}">3</span>
+          <hud-pill value="3" tone="red"></hud-pill>
         </div>
       </div>
     `;
@@ -1208,28 +1167,52 @@ export class HudPanelWorkbench extends LitElement {
   private renderFormAtoms() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_FORM_ROW}">
-          <label class="${HUD_FIELD_LABEL}">Input</label>
-          <input class="${HUD_INPUT}" value="10.0K" />
+        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <label
+            class="text-[10px] font-semibold leading-none text-slate-300/80"
+            >Input</label
+          >
+          <input
+            class="h-6 min-w-0 rounded-[2px] border border-white/20 bg-slate-950/50 px-1.5 text-white text-[10px] leading-none outline-none transition-colors focus:border-aquarius/70"
+            value="10.0K"
+          />
         </div>
-        <div class="${HUD_FORM_ROW}">
-          <label class="${HUD_FIELD_LABEL}">Select</label>
-          <select class="${HUD_SELECT}">
+        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <label
+            class="text-[10px] font-semibold leading-none text-slate-300/80"
+            >Select</label
+          >
+          <select
+            class="h-6 min-w-0 rounded-[2px] border border-white/20 bg-slate-950/50 px-1.5 text-white text-[10px] leading-none outline-none transition-colors focus:border-aquarius/70 pr-5"
+          >
             <option>Troops</option>
             <option>Biomass</option>
             <option>Metals</option>
           </select>
         </div>
-        <div class="${HUD_FORM_ROW}">
-          <label class="${HUD_FIELD_LABEL}">Range</label>
-          <input class="${HUD_RANGE}" type="range" value="25" />
+        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <label
+            class="text-[10px] font-semibold leading-none text-slate-300/80"
+            >Range</label
+          >
+          <input
+            class="h-1.5 w-full cursor-pointer accent-aquarius"
+            type="range"
+            value="25"
+          />
         </div>
-        <div class="${HUD_FORM_ROW}">
-          <label class="${HUD_FIELD_LABEL}">Dual</label>
+        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <label
+            class="text-[10px] font-semibold leading-none text-slate-300/80"
+            >Dual</label
+          >
           ${this.renderDualRange()}
         </div>
-        <div class="${HUD_FORM_ROW}">
-          <label class="${HUD_FIELD_LABEL}">Blend</label>
+        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <label
+            class="text-[10px] font-semibold leading-none text-slate-300/80"
+            >Blend</label
+          >
           ${this.renderBlendDualRangeSample()}
         </div>
       </div>
@@ -1299,27 +1282,77 @@ export class HudPanelWorkbench extends LitElement {
   private renderTableAtoms() {
     return html`
       <div class="kit-stage">
-        <table class="${HUD_COMPACT_TABLE}">
+        <table
+          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
+        >
           <thead>
             <tr>
-              <th class="${HUD_TH} text-left">Name</th>
-              <th class="${HUD_TH}">Owned</th>
-              <th class="${HUD_TH}">Gold</th>
-              <th class="${HUD_TH}">Max</th>
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left"
+              >
+                Name
+              </th>
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+              >
+                Owned
+              </th>
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+              >
+                Gold
+              </th>
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+              >
+                Max
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="${HUD_TD_LEFT}">Blue Harbor</td>
-              <td class="${HUD_TD}">25.4%</td>
-              <td class="${HUD_TD}">92K</td>
-              <td class="${HUD_TD}">1.9M</td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
+              >
+                Blue Harbor
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                25.4%
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                92K
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                1.9M
+              </td>
             </tr>
             <tr>
-              <td class="${HUD_TD_LEFT}">Red March</td>
-              <td class="${HUD_TD}">18.2%</td>
-              <td class="${HUD_TD}">107K</td>
-              <td class="${HUD_TD}">1.3M</td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
+              >
+                Red March
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                18.2%
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                107K
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                1.3M
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1405,16 +1438,24 @@ export class HudPanelWorkbench extends LitElement {
             icon-src=${sampleGoldCoinIcon}
           ></hud-pill>
         </div>
-        <div class="${HUD_CONTROL_ROW}">
+        <div class="flex items-center gap-1.5">
           <hud-pill
             value="25% (450K)"
             tone="blue"
             icon-src=${sampleSwordIcon}
           ></hud-pill>
-          <input class="${HUD_RANGE}" type="range" value="25" />
+          <input
+            class="h-1.5 w-full cursor-pointer accent-aquarius"
+            type="range"
+            value="25"
+          />
         </div>
-        <div class="${HUD_BLEND_ROW}">
-          <div class="${HUD_BLEND_LABEL} w-[7.75rem] text-xs">Import Blend</div>
+        <div class="flex items-center gap-2">
+          <div
+            class="shrink-0 font-bold text-slate-200 leading-none w-[7.75rem] text-xs"
+          >
+            Import Blend
+          </div>
           ${this.renderBlendDualRangeSample()}
         </div>
       </div>
@@ -1478,36 +1519,57 @@ export class HudPanelWorkbench extends LitElement {
   private renderEventsMolecules() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_SEGMENTED} w-fit">
-          <button class="${HUD_SEGMENT_ACTIVE} ${HUD_ICON_BUTTON}">
+        <div
+          class="inline-grid grid-flow-col auto-cols-fr min-w-0 overflow-hidden border border-white/25 rounded-[2px] bg-slate-950/30 w-fit"
+        >
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0 bg-malibu-blue/30 hover:bg-malibu-blue/35"
+          >
             ${this.renderPlainIcon(sampleSwordIcon)}
           </button>
-          <button class="${HUD_ICON_BUTTON}">
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleNukeIcon)}
           </button>
-          <button class="${HUD_ICON_BUTTON}">
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleAllianceIcon)}
           </button>
-          <button class="${HUD_ICON_BUTTON}">
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleChatIcon)}
           </button>
         </div>
-        <div class="${HUD_EVENT_ROW}">
-          <span class="${HUD_EVENT_META}">00:42</span>
-          <span class="${HUD_EVENT_TEXT} text-red-300">
+        <div
+          class="grid grid-cols-[7ch_minmax(0,1fr)_auto] items-center gap-1 border-b border-white/10 px-2 py-1 text-[10px] leading-[1.2]"
+        >
+          <span class="text-slate-400 tabular-nums">00:42</span>
+          <span class="min-w-0 truncate text-left text-red-300">
             Red requested attack on Delta.
           </span>
-          <span class="${HUD_ACTION_GROUP}">
-            <button class="${HUD_BUTTON}">Focus</button>
-            <button class="${HUD_BUTTON}">Accept</button>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <button
+              class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45"
+            >
+              Focus
+            </button>
+            <button
+              class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45"
+            >
+              Accept
+            </button>
           </span>
         </div>
         <div class="atom-row">
-          <span class="${HUD_NOTIFICATION_PILL}">3</span>
-          <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
-            <span class="${HUD_PILL_VALUE}">+12.4K</span>
-          </span>
+          <hud-pill tone="red" value="3"></hud-pill>
+          <hud-pill
+            tone="gold"
+            value="+12.4K"
+            icon-src=${sampleGoldCoinIcon}
+          ></hud-pill>
         </div>
       </div>
     `;
@@ -1516,7 +1578,7 @@ export class HudPanelWorkbench extends LitElement {
   private renderUnitDisplayMolecules() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_BUILD_STRIP}">
+        <div class="grid w-fit grid-flow-col grid-rows-1 auto-cols-max gap-0.5">
           <hud-build-item
             hotkey="1"
             icon-src=${sampleSoldierIcon}
@@ -1546,42 +1608,44 @@ export class HudPanelWorkbench extends LitElement {
   private renderPlayerInfoMolecules() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_IDENTITY_ROW}">
-          <div class="${HUD_IDENTITY_NAME} text-aquarius">
+        <div class="flex min-w-0 items-center gap-2">
+          <div
+            class="flex min-w-0 flex-1 items-center gap-2 text-xs font-bold text-aquarius"
+          >
             <span class="h-4 w-6 rounded-[1px] bg-sky-500"></span>
             <span class="truncate">Blue Harbor</span>
-            <span class="${HUD_ICON_CLUSTER}">
+            <span class="ml-1 flex shrink-0 items-center gap-1">
               ${this.renderPlainIcon(sampleAllianceIcon, "h-4 w-4")}
               <span translate="no">🙂</span>
             </span>
           </div>
-          <span class="${HUD_PILL} ${HUD_PILL_BLUE}">
-            ${this.renderSampleIcon(sampleAllianceIcon, "h-3 w-3")}
-            <span class="${HUD_PILL_VALUE}">01:24</span>
-          </span>
+          <hud-pill
+            tone="blue"
+            value="01:24"
+            icon-src=${sampleAllianceIcon}
+          ></hud-pill>
         </div>
         <div class="atom-row">
-          <span class="${HUD_PILL} ${HUD_PILL_GOLD}">
-            ${this.renderSampleIcon(sampleGoldCoinIcon, "h-[13px] w-[13px]")}
-            <span class="${HUD_PILL_VALUE}">92K</span>
-          </span>
-          <span class="${HUD_PILL} ${HUD_PILL_BLUE}">
-            ${this.renderSampleIcon(sampleSoldierIcon, "h-3 w-3")}
-            <span class="${HUD_PILL_VALUE}">245K</span>
-          </span>
+          <hud-pill
+            tone="gold"
+            value="92K"
+            icon-src=${sampleGoldCoinIcon}
+          ></hud-pill>
+          <hud-pill
+            tone="blue"
+            value="245K"
+            icon-src=${sampleSoldierIcon}
+          ></hud-pill>
         </div>
-        <div class="${HUD_MINI_METER}">
-          <div class="${HUD_METER_STACK}">
-            <div class="${HUD_METER_FILL} bg-sky-700" style="width: 68%"></div>
-            <div
-              class="${HUD_METER_FILL} bg-malibu-blue"
-              style="width: 9%"
-            ></div>
-          </div>
-          <div class="${HUD_METER_TEXT} justify-between px-1.5 text-[10px]">
-            <span>1.8M</span><span>2.6M</span>
-          </div>
-        </div>
+        <hud-meter
+          variant="mini"
+          .segments=${[
+            { width: 68, tone: "slate" },
+            { width: 9, tone: "blue" },
+          ]}
+          .label=${html`<span>1.8M</span><span>2.6M</span>`}
+          label-align="between"
+        ></hud-meter>
       </div>
     `;
   }
@@ -1589,19 +1653,30 @@ export class HudPanelWorkbench extends LitElement {
   private renderSidebarEconomyMolecules() {
     return html`
       <div class="kit-stage kit-stack">
-        <div class="${HUD_TOOLBAR}">
-          <span class="${HUD_TIMER_LABEL}">09:42</span>
-          <button class="${HUD_ICON_BUTTON}">
+        <div
+          class="font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] flex w-fit flex-row items-center gap-2 px-2 py-1"
+        >
+          <span
+            class="min-w-[5ch] text-center text-xs font-bold leading-none tabular-nums"
+            >09:42</span
+          >
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleLeaderboardIcon)}
           </button>
-          <button class="${HUD_ICON_BUTTON}">
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleSettingsIcon)}
           </button>
-          <button class="${HUD_ICON_BUTTON}">
+          <button
+            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
+          >
             ${this.renderPlainIcon(sampleExitIcon)}
           </button>
         </div>
-        <div class="${HUD_SURFACE_BODY} p-0">
+        <div class="p-0">
           <div class="flex items-center justify-between gap-2">
             <div class="font-semibold">Biomass</div>
             <div class="text-slate-200">54K / 120K</div>
@@ -1609,22 +1684,22 @@ export class HudPanelWorkbench extends LitElement {
           <div class="mt-1 h-1.5 overflow-hidden rounded-[2px] bg-black/35">
             <div class="h-full bg-green-500" style="width: 45%"></div>
           </div>
-          <div class="mt-2 ${HUD_STAT_GRID}">
+          <div class="mt-2 grid grid-cols-4 gap-2 text-[11px] leading-tight">
             <div>
-              <div class="${HUD_STAT_LABEL}">Net</div>
-              <div class="${HUD_STAT_VALUE} text-emerald-300">+1.2K/s</div>
+              <div class="text-slate-400">Net</div>
+              <div class="tabular-nums text-emerald-300">+1.2K/s</div>
             </div>
             <div>
-              <div class="${HUD_STAT_LABEL}">Prod</div>
-              <div class="${HUD_STAT_VALUE} text-emerald-300">+2.0K/s</div>
+              <div class="text-slate-400">Prod</div>
+              <div class="tabular-nums text-emerald-300">+2.0K/s</div>
             </div>
             <div>
-              <div class="${HUD_STAT_LABEL}">Rail</div>
-              <div class="${HUD_STAT_VALUE} text-slate-300">0/s</div>
+              <div class="text-slate-400">Rail</div>
+              <div class="tabular-nums text-slate-300">0/s</div>
             </div>
             <div>
-              <div class="${HUD_STAT_LABEL}">Delta</div>
-              <div class="${HUD_STAT_VALUE} text-red-300">-120/s</div>
+              <div class="text-slate-400">Delta</div>
+              <div class="tabular-nums text-red-300">-120/s</div>
             </div>
           </div>
         </div>
@@ -1633,7 +1708,7 @@ export class HudPanelWorkbench extends LitElement {
   }
 
   private renderSampleIcon(src: string, sizeClass: string) {
-    return renderHudMaskIcon(src, sizeClass);
+    return html`<hud-mask-icon .src=${src} .size=${sizeClass}></hud-mask-icon>`;
   }
 
   private renderPlainIcon(src: string, sizeClass = "h-4 w-4") {

@@ -25,12 +25,6 @@ import { UIState } from "../../UIState";
 import { renderTroops, translateText } from "../../Utils";
 import { getColoredSprite } from "../SpriteLoader";
 import "../ui/HudComponents";
-import {
-  HUD_ATTACK_ACTION,
-  HUD_FONT,
-  HUD_ICON_ATOM,
-  HUD_ICON_MD,
-} from "../ui/HudTheme";
 import { renderLucideIcon } from "../ui/LucideIcon";
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 const swordIcon = assetUrl("images/SwordIcon.svg");
@@ -227,6 +221,14 @@ export class AttacksDisplay extends LitElement implements Controller {
       : "border-aquarius/45 bg-aquarius/15 text-aquarius";
   }
 
+  private iconBoxClass(tone: "blue" | "red") {
+    return `inline-grid aspect-square shrink-0 place-items-center rounded-[3px] border ${this.iconToneClass(tone)}`;
+  }
+
+  private attackActionClass(tone: "blue" | "red") {
+    return `inline-grid aspect-square h-5 w-5 shrink-0 place-items-center rounded-[3px] border p-0 leading-none ${this.iconToneClass(tone)}`;
+  }
+
   private iconFilter(tone: "blue" | "red") {
     return tone === "red" ? redIconFilter : blueIconFilter;
   }
@@ -237,7 +239,7 @@ export class AttacksDisplay extends LitElement implements Controller {
     pixelated = false,
   ) {
     return html`
-      <span class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(tone)}">
+      <span class="${this.iconBoxClass(tone)} h-5 w-5">
         <img
           src="${src}"
           class="h-3.5 w-3.5"
@@ -252,9 +254,9 @@ export class AttacksDisplay extends LitElement implements Controller {
   private renderGlyphIcon(label: string, tone: "blue" | "red") {
     return html`
       <span
-        class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(
+        class="${this.iconBoxClass(
           tone,
-        )} font-mono text-[10px] font-bold"
+        )} h-5 w-5 font-mono text-[10px] font-bold"
         translate="no"
       >
         ${label}
@@ -264,7 +266,7 @@ export class AttacksDisplay extends LitElement implements Controller {
 
   private renderDirectionIcon(direction: "up" | "down", tone: "blue" | "red") {
     return html`
-      <span class="${HUD_ICON_ATOM} ${HUD_ICON_MD} ${this.iconToneClass(tone)}">
+      <span class="${this.iconBoxClass(tone)} h-5 w-5">
         ${renderLucideIcon(
           direction === "up" ? ChevronUp : ChevronDown,
           "h-3.5 w-3.5",
@@ -317,7 +319,7 @@ export class AttacksDisplay extends LitElement implements Controller {
     return this.renderButton({
       content: renderLucideIcon(X, "h-3.5 w-3.5"),
       onClick,
-      className: `${HUD_ATTACK_ACTION} ${this.iconToneClass(tone)} ${textClass}`,
+      className: `${this.attackActionClass(tone)} ${textClass}`,
       translate: false,
     });
   }
@@ -345,7 +347,7 @@ export class AttacksDisplay extends LitElement implements Controller {
                 style="filter: ${redIconFilter}"
               />`,
               onClick: () => this.handleRetaliate(attack),
-              className: `${HUD_ATTACK_ACTION} ${this.iconToneClass("red")} text-red-300`,
+              className: `${this.attackActionClass("red")} text-red-300`,
               translate: false,
             })
           : html``,
@@ -463,7 +465,7 @@ export class AttacksDisplay extends LitElement implements Controller {
 
     return html`
       <div
-        class="${HUD_FONT} w-full mb-1 mt-1 sm:mt-0 pointer-events-auto grid grid-cols-1 min-[560px]:grid-cols-2 gap-1 text-white text-[10px] max-h-[7rem] overflow-y-auto"
+        class="font-mono tabular-nums w-full mb-1 mt-1 sm:mt-0 pointer-events-auto grid grid-cols-1 min-[560px]:grid-cols-2 gap-1 text-white text-[10px] max-h-[7rem] overflow-y-auto"
       >
         ${this.renderOutgoingAttacks()} ${this.renderOutgoingLandAttacks()}
         ${this.renderBoats()} ${this.renderIncomingAttacks()}

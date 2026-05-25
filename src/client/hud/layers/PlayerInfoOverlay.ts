@@ -32,19 +32,7 @@ import {
   getPlayerIcons,
   IMAGE_ICON_KIND,
 } from "../PlayerIcons";
-import { renderHudMeter } from "../ui";
-import {
-  HUD_COMPACT_TABLE,
-  HUD_MINI_METER,
-  HUD_PILL,
-  HUD_PILL_BLUE,
-  HUD_PILL_GOLD,
-  HUD_PILL_MASK_ICON,
-  HUD_SURFACE,
-  HUD_SURFACE_BODY,
-  HUD_TD,
-  HUD_TD_LEFT,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { CloseRadialMenuEvent } from "./RadialMenu";
 import "./RelationSmiley";
@@ -223,19 +211,12 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
 
   private displayUnitCount(player: PlayerView, type: UnitType, icon: string) {
     return !this.game.config().isUnitDisabled(type)
-      ? html`<div class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
-          ${this.renderMaskIcon(icon, "h-3 w-3")}
-          <span>${player.totalUnitLevels(type)}</span>
-        </div>`
+      ? html`<hud-pill
+          tone="blue"
+          .value=${String(player.totalUnitLevels(type))}
+          icon-src=${icon}
+        ></hud-pill>`
       : "";
-  }
-
-  private renderMaskIcon(src: string, sizeClass: string) {
-    return html`<span
-      class="${HUD_PILL_MASK_ICON} ${sizeClass}"
-      style="mask-image: url('${src}'); -webkit-mask-image: url('${src}');"
-      aria-hidden="true"
-    ></span>`;
   }
 
   private allianceExpirationText(alliance: AllianceView) {
@@ -293,12 +274,11 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
         ?.alliances()
         .find((alliance) => alliance.other === player.id());
       if (alliance !== undefined) {
-        allianceHtml = html` <div
-          class="${HUD_PILL} border-sky-400/70 bg-sky-500/20 text-sky-200"
-        >
-          ${this.renderMaskIcon(allianceIcon, "h-3 w-3")}
-          ${this.allianceExpirationText(alliance)}
-        </div>`;
+        allianceHtml = html`<hud-pill
+          tone="blue"
+          .value=${this.allianceExpirationText(alliance)}
+          icon-src=${allianceIcon}
+        ></hud-pill>`;
       }
     }
     let playerType = "";
@@ -316,7 +296,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
     const playerTeam = getTranslatedPlayerTeamLabel(player.team());
 
     return html`
-      <div class="${HUD_SURFACE_BODY} space-y-2">
+      <div class="p-2 space-y-2">
         <div class="flex items-center gap-2 min-w-0">
           <div
             class="flex min-w-0 flex-1 items-center gap-2 font-bold text-xs ${this.getPlayerNameColor(
@@ -336,13 +316,19 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
           ${allianceHtml ?? ""}
         </div>
 
-        <table class="${HUD_COMPACT_TABLE}">
+        <table
+          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
+        >
           <tbody>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
                 ${translateText("leaderboard.player")}
               </td>
-              <td class="${HUD_TD}">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
                 ${playerTeam !== "" && player.type() !== PlayerType.Bot
                   ? html`${playerType}
                       <span
@@ -357,34 +343,50 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
               </td>
             </tr>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
                 ${translateText("leaderboard.gold")}
               </td>
-              <td class="${HUD_TD}">
-                <span class="${HUD_PILL} ${HUD_PILL_GOLD}" translate="no">
-                  ${this.renderMaskIcon(goldCoinIcon, "h-[11px] w-[11px]")}
-                  ${renderNumber(player.gold())}
-                </span>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                <hud-pill
+                  tone="gold"
+                  .value=${renderNumber(player.gold())}
+                  icon-src=${goldCoinIcon}
+                ></hud-pill>
               </td>
             </tr>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
                 ${translateText("leaderboard.maxtroops")}
               </td>
-              <td class="${HUD_TD}" translate="no">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                translate="no"
+              >
                 ${this.renderTroopBar(totalTroops, attackingTroops, maxTroops)}
               </td>
             </tr>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">Attack</td>
-              <td class="${HUD_TD}">
-                <span class="${HUD_PILL} ${HUD_PILL_BLUE}" translate="no">
-                  ${this.renderMaskIcon(
-                    attackingTroops > 0 ? soldierIconAquarius : soldierIcon,
-                    `h-3 w-3 ${attackingTroops > 0 ? "" : "opacity-40"}`,
-                  )}
-                  ${renderTroops(attackingTroops)}
-                </span>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
+                Attack
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                <hud-pill
+                  tone="blue"
+                  .value=${renderTroops(attackingTroops)}
+                  icon-src=${attackingTroops > 0
+                    ? soldierIconAquarius
+                    : soldierIcon}
+                ></hud-pill>
               </td>
             </tr>
           </tbody>
@@ -427,22 +429,22 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
 
     return html`
       <span class="relative inline-block">
-        ${renderHudMeter({
-          className: HUD_MINI_METER,
-          segments: [
-            { width: greenPercent, className: "bg-sky-700" },
-            { width: orangePercent, className: "bg-malibu-blue" },
-          ].filter((segment) => segment.width > 0),
-          label: html`
+        <hud-meter
+          variant="mini"
+          .segments=${[
+            { width: greenPercent, tone: "slate" },
+            { width: orangePercent, tone: "blue" },
+          ].filter((segment) => segment.width > 0)}
+          .label=${html`
             <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
               >${renderTroops(totalTroops)}</span
             >
             <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
               >${renderTroops(maxTroops)}</span
             >
-          `,
-          labelClassName: "justify-between px-1.5 text-[10px]",
-        })}
+          `}
+          label-align="between"
+        ></hud-meter>
         <img
           src=${soldierIcon}
           alt=""
@@ -462,15 +464,19 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
       false;
 
     return html`
-      <div class="${HUD_SURFACE_BODY}">
-        <table class="${HUD_COMPACT_TABLE}">
+      <div class="p-2">
+        <table
+          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
+        >
           <tbody>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
                 ${translateText("leaderboard.player")}
               </td>
               <td
-                class="${HUD_TD} font-bold ${isAlly
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right font-bold ${isAlly
                   ? "text-green-500"
                   : "text-white"}"
               >
@@ -478,20 +484,44 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
               </td>
             </tr>
             <tr>
-              <td class="${HUD_TD_LEFT} text-slate-300/70">Unit</td>
-              <td class="${HUD_TD}">${unit.type()}</td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              >
+                Unit
+              </td>
+              <td
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+              >
+                ${unit.type()}
+              </td>
             </tr>
             ${unit.hasHealth()
               ? html`<tr>
-                  <td class="${HUD_TD_LEFT} text-slate-300/70">Health</td>
-                  <td class="${HUD_TD}">${unit.health()}</td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+                  >
+                    Health
+                  </td>
+                  <td
+                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                  >
+                    ${unit.health()}
+                  </td>
                 </tr>`
               : ""}
             ${unit.type() === UnitType.TransportShip
               ? html`
                   <tr>
-                    <td class="${HUD_TD_LEFT} text-slate-300/70">Troops</td>
-                    <td class="${HUD_TD}">${renderTroops(unit.troops())}</td>
+                    <td
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+                    >
+                      Troops
+                    </td>
+                    <td
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                    >
+                      ${renderTroops(unit.troops())}
+                    </td>
                   </tr>
                 `
               : ""}
@@ -518,7 +548,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
         <div
-          class="${HUD_SURFACE} shadow-lg w-full sm:w-[500px] overflow-hidden ${containerClasses}"
+          class="font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] shadow-lg w-full sm:w-[500px] overflow-hidden ${containerClasses}"
         >
           ${this.player !== null ? this.renderPlayerInfo(this.player) : ""}
           ${this.unit !== null ? this.renderUnitInfo(this.unit) : ""}

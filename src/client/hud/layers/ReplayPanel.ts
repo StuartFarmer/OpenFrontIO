@@ -9,14 +9,7 @@ import {
   defaultReplaySpeedMultiplier,
   ReplaySpeedMultiplier,
 } from "../../utilities/ReplaySpeedMultiplier";
-import {
-  HUD_SEGMENT,
-  HUD_SEGMENT_ACTIVE,
-  HUD_SEGMENTED,
-  HUD_SURFACE,
-  HUD_SURFACE_BODY,
-  HUD_SURFACE_HEADER,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 import { renderLucideIcon } from "../ui/LucideIcon";
 
 export class ShowReplayPanelEvent {
@@ -78,40 +71,34 @@ export class ReplayPanel extends LitElement implements Controller {
     if (!this.visible) return html``;
 
     return html`
-      <div
-        class="overflow-hidden ${HUD_SURFACE}"
+      <hud-surface
+        class="overflow-hidden"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <label class="${HUD_SURFACE_HEADER}" translate="no">
+        <hud-surface-header translate="no">
           <span class="flex items-center gap-1">
             ${renderLucideIcon(Gauge, "h-3.5 w-3.5")}
             <span>
               ${this.game?.config()?.isReplay() ? "Replay Speed" : "Game Speed"}
             </span>
           </span>
-        </label>
-        <div class="${HUD_SURFACE_BODY}">
-          <div class="${HUD_SEGMENTED} w-full">
-            ${this.renderSpeedButton(ReplaySpeedMultiplier.slow, "×0.5")}
-            ${this.renderSpeedButton(ReplaySpeedMultiplier.normal, "×1")}
-            ${this.renderSpeedButton(ReplaySpeedMultiplier.fast, "×2")}
-            ${this.renderSpeedButton(ReplaySpeedMultiplier.fastest, "Max")}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  private renderSpeedButton(value: ReplaySpeedMultiplier, label: string) {
-    const isActive = this._replaySpeedMultiplier === value;
-
-    return html`
-      <button
-        class="${HUD_SEGMENT} ${isActive ? HUD_SEGMENT_ACTIVE : ""}"
-        @click=${() => this.onReplaySpeedChange(value)}
-      >
-        ${label}
-      </button>
+        </hud-surface-header>
+        <hud-surface-body>
+          <hud-segmented-control
+            .items=${[
+              { id: String(ReplaySpeedMultiplier.slow), label: "×0.5" },
+              { id: String(ReplaySpeedMultiplier.normal), label: "×1" },
+              { id: String(ReplaySpeedMultiplier.fast), label: "×2" },
+              { id: String(ReplaySpeedMultiplier.fastest), label: "Max" },
+            ]}
+            .selected=${String(this._replaySpeedMultiplier)}
+            @selection-change=${(event: CustomEvent<{ id: string }>) =>
+              this.onReplaySpeedChange(
+                Number(event.detail.id) as ReplaySpeedMultiplier,
+              )}
+          ></hud-segmented-control>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 }

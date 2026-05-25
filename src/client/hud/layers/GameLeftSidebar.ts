@@ -8,7 +8,7 @@ import { GameView } from "../../../core/game/GameView";
 import { Controller } from "../../Controller";
 import { Platform } from "../../Platform";
 import { getTranslatedPlayerTeamLabel, translateText } from "../../Utils";
-import { HUD_ICON_BUTTON, HUD_SURFACE } from "../ui/HudTheme";
+import "../ui/HudComponents";
 import { ImmunityBarVisibleEvent } from "./ImmunityTimer";
 import { SpawnBarVisibleEvent } from "./SpawnTimer";
 const leaderboardRegularIcon = assetUrl(
@@ -106,14 +106,13 @@ export class GameLeftSidebar extends LitElement implements Controller {
   render() {
     return html`
       <aside
-        class=${`fixed top-0 min-[1200px]:top-4 left-0 min-[1200px]:left-4 z-900 flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto p-2 ${HUD_SURFACE} ${this.isLeaderboardShow || this.isTeamLeaderboardShow ? "max-[400px]:w-full max-[400px]:rounded-none" : ""} transition-all duration-300 ease-out transform ${
+        class=${`fixed top-0 min-[1200px]:top-4 left-0 min-[1200px]:left-4 z-900 flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto p-2 font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] ${this.isLeaderboardShow || this.isTeamLeaderboardShow ? "max-[400px]:w-full max-[400px]:rounded-none" : ""} transition-all duration-300 ease-out transform ${
           this.isVisible ? "translate-x-0" : "hidden"
         }`}
         style="margin-top: ${this.barOffset}px;"
       >
         <div class="flex items-center gap-2">
-          <button
-            class="${HUD_ICON_BUTTON}"
+          <hud-icon-button
             @click=${this.toggleLeaderboard}
             @keydown=${(e: KeyboardEvent) => {
               if (e.key === "Enter" || e.key === " " || e.code === "Space") {
@@ -131,11 +130,10 @@ export class GameLeftSidebar extends LitElement implements Controller {
               width="20"
               height="20"
             />
-          </button>
+          </hud-icon-button>
           ${this.isTeamGame
             ? html`
-                <button
-                  class="${HUD_ICON_BUTTON}"
+                <hud-icon-button
                   @click=${this.toggleTeamLeaderboard}
                   @keydown=${(e: KeyboardEvent) => {
                     if (
@@ -158,7 +156,7 @@ export class GameLeftSidebar extends LitElement implements Controller {
                     width="20"
                     height="20"
                   />
-                </button>
+                </hud-icon-button>
               `
             : null}
           ${this.isLeaderboardShow || this.isTeamLeaderboardShow

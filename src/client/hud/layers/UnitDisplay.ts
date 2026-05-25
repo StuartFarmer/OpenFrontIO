@@ -19,11 +19,6 @@ import { UIState } from "../../UIState";
 import { translateText } from "../../Utils";
 import { renderResourceCostText } from "../ResourceDisplay";
 import "../ui/HudComponents";
-import {
-  HUD_BUILD_STRIP,
-  HUD_TOOLTIP,
-  HUD_TOOLTIP_TITLE,
-} from "../ui/HudTheme";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
@@ -150,7 +145,9 @@ export class UnitDisplay extends LitElement implements Controller {
 
     return html`
       <div class="border-t border-white/10 p-0.5 w-full">
-        <div class="${HUD_BUILD_STRIP} mx-auto">
+        <div
+          class="grid w-fit grid-flow-col grid-rows-1 auto-cols-max gap-0.5 mx-auto"
+        >
           ${this.renderUnitItem(
             cityIcon,
             this._cities,
@@ -260,14 +257,12 @@ export class UnitDisplay extends LitElement implements Controller {
       >
         ${hovered
           ? html`
-              <div
-                class="${HUD_TOOLTIP} absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[100] pointer-events-none"
+              <hud-tooltip
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[100] pointer-events-none"
+                .title=${`${translateText(
+                  "unit_type." + structureKey,
+                )} [${displayHotkey}]`}
               >
-                <div class="${HUD_TOOLTIP_TITLE}">
-                  ${translateText(
-                    "unit_type." + structureKey,
-                  )}${` [${displayHotkey}]`}
-                </div>
                 <div class="p-2">
                   ${translateText("build_menu.desc." + structureKey)}
                 </div>
@@ -285,7 +280,7 @@ export class UnitDisplay extends LitElement implements Controller {
                     )}</span
                   >
                 </div>
-              </div>
+              </hud-tooltip>
             `
           : null}
         <hud-build-item

@@ -10,14 +10,7 @@ import {
   renderTroops,
   translateText,
 } from "../../Utils";
-import {
-  HUD_BUTTON,
-  HUD_COMPACT_TABLE,
-  HUD_SURFACE,
-  HUD_TD,
-  HUD_TD_LEFT,
-  HUD_TH,
-} from "../ui/HudTheme";
+import "../ui/HudComponents";
 
 interface TeamEntry {
   teamName: string;
@@ -143,38 +136,56 @@ export class TeamStats extends LitElement implements Controller {
 
     return html`
       <div
-        class="mt-2 max-h-[30vh] overflow-x-hidden overflow-y-auto w-full ${HUD_SURFACE}"
+        class="mt-2 max-h-[30vh] overflow-x-hidden overflow-y-auto w-full font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <table class="${HUD_COMPACT_TABLE} table-fixed">
+        <table
+          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] table-fixed"
+        >
           <thead>
             <tr>
-              <th class="${HUD_TH} text-left">
+              <th
+                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left"
+              >
                 ${hudLabel("leaderboard.team", "Team")}
               </th>
               ${this.showUnits
                 ? html`
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.launchers", "Launchers")}
                     </th>
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.sams", "SAMs")}
                     </th>
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.warships", "Warships")}
                     </th>
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.cities", "Cities")}
                     </th>
                   `
                 : html`
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.owned", "Owned")}
                     </th>
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.gold", "Gold")}
                     </th>
-                    <th class="${HUD_TH}">
+                    <th
+                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    >
                       ${hudLabel("leaderboard.maxtroops", "Max")}
                     </th>
                   `}
@@ -189,11 +200,31 @@ export class TeamStats extends LitElement implements Controller {
                         ? "font-bold text-aquarius"
                         : ""}"
                     >
-                      <td class="${HUD_TD_LEFT}">${team.teamName}</td>
-                      <td class="${HUD_TD}">${team.totalLaunchers}</td>
-                      <td class="${HUD_TD}">${team.totalSAMs}</td>
-                      <td class="${HUD_TD}">${team.totalWarShips}</td>
-                      <td class="${HUD_TD}">${team.totalCities}</td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
+                      >
+                        ${team.teamName}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalLaunchers}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalSAMs}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalWarShips}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalCities}
+                      </td>
                     </tr>
                   `
                 : html`
@@ -202,17 +233,33 @@ export class TeamStats extends LitElement implements Controller {
                         ? "font-bold text-aquarius"
                         : ""}"
                     >
-                      <td class="${HUD_TD_LEFT}">${team.teamName}</td>
-                      <td class="${HUD_TD}">${team.totalScoreStr}</td>
-                      <td class="${HUD_TD}">${team.totalGold}</td>
-                      <td class="${HUD_TD}">${team.totalMaxTroops}</td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
+                      >
+                        ${team.teamName}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalScoreStr}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalGold}
+                      </td>
+                      <td
+                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
+                      >
+                        ${team.totalMaxTroops}
+                      </td>
                     </tr>
                   `,
             )}
           </tbody>
         </table>
-        <button
-          class="m-2 ${HUD_BUTTON}"
+        <hud-button
+          class="m-2"
           aria-pressed=${String(this.showUnits)}
           @click=${() => {
             this.showUnits = !this.showUnits;
@@ -222,7 +269,7 @@ export class TeamStats extends LitElement implements Controller {
           ${this.showUnits
             ? hudLabel("leaderboard.show_control", "Show Stats")
             : hudLabel("leaderboard.show_units", "Show Units")}
-        </button>
+        </hud-button>
       </div>
     `;
   }
