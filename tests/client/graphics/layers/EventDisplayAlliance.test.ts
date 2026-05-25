@@ -1,8 +1,10 @@
 import { GameUpdateType } from "../../../../src/core/game/GameUpdates";
 
 vi.mock("lit", () => ({
+  css: () => {},
   html: () => {},
   LitElement: class {},
+  nothing: undefined,
 }));
 
 vi.mock("lit/decorators.js", () => ({

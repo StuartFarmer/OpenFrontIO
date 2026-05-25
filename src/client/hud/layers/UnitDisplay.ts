@@ -144,84 +144,80 @@ export class UnitDisplay extends LitElement implements Controller {
     }
 
     return html`
-      <div class="border-t border-white/10 p-0.5 w-full">
-        <div
-          class="grid w-fit grid-flow-col grid-rows-1 auto-cols-max gap-0.5 mx-auto"
-        >
-          ${this.renderUnitItem(
-            cityIcon,
-            this._cities,
-            UnitType.City,
-            "city",
-            this.keybinds["buildCity"]?.key ?? "1",
-          )}
-          ${this.renderUnitItem(
-            factoryIcon,
-            this._factories,
-            UnitType.Factory,
-            "factory",
-            this.keybinds["buildFactory"]?.key ?? "2",
-          )}
-          ${this.renderUnitItem(
-            portIcon,
-            this._port,
-            UnitType.Port,
-            "port",
-            this.keybinds["buildPort"]?.key ?? "3",
-          )}
-          ${this.renderUnitItem(
-            defensePostIcon,
-            this._defensePost,
-            UnitType.DefensePost,
-            "defense_post",
-            this.keybinds["buildDefensePost"]?.key ?? "4",
-          )}
-          ${this.renderUnitItem(
-            null,
-            this._railStations,
-            UnitType.RailStation,
-            "rail_station",
-            this.keybinds["buildRailStation"]?.key ?? "5",
-            "R",
-          )}
-          ${this.renderUnitItem(
-            null,
-            this._silos,
-            UnitType.Silo,
-            "silo",
-            this.keybinds["buildSilo"]?.key ?? "6",
-            "S",
-          )}
-          ${this.renderUnitItem(
-            warshipIcon,
-            this._warships,
-            UnitType.Warship,
-            "warship",
-            this.keybinds["buildWarship"]?.key ?? "7",
-          )}
-          ${this.renderUnitItem(
-            atomBombIcon,
-            null,
-            UnitType.AtomBomb,
-            "atom_bomb",
-            this.keybinds["buildAtomBomb"]?.key ?? "8",
-          )}
-          ${this.renderUnitItem(
-            hydrogenBombIcon,
-            null,
-            UnitType.HydrogenBomb,
-            "hydrogen_bomb",
-            this.keybinds["buildHydrogenBomb"]?.key ?? "9",
-          )}
-          ${this.renderUnitItem(
-            mirvIcon,
-            null,
-            UnitType.MIRV,
-            "mirv",
-            this.keybinds["buildMIRV"]?.key ?? "0",
-          )}
-        </div>
-      </div>
+      <hud-unit-display>
+        ${this.renderUnitItem(
+          cityIcon,
+          this._cities,
+          UnitType.City,
+          "city",
+          this.keybinds["buildCity"]?.key ?? "1",
+        )}
+        ${this.renderUnitItem(
+          factoryIcon,
+          this._factories,
+          UnitType.Factory,
+          "factory",
+          this.keybinds["buildFactory"]?.key ?? "2",
+        )}
+        ${this.renderUnitItem(
+          portIcon,
+          this._port,
+          UnitType.Port,
+          "port",
+          this.keybinds["buildPort"]?.key ?? "3",
+        )}
+        ${this.renderUnitItem(
+          defensePostIcon,
+          this._defensePost,
+          UnitType.DefensePost,
+          "defense_post",
+          this.keybinds["buildDefensePost"]?.key ?? "4",
+        )}
+        ${this.renderUnitItem(
+          null,
+          this._railStations,
+          UnitType.RailStation,
+          "rail_station",
+          this.keybinds["buildRailStation"]?.key ?? "5",
+          "R",
+        )}
+        ${this.renderUnitItem(
+          null,
+          this._silos,
+          UnitType.Silo,
+          "silo",
+          this.keybinds["buildSilo"]?.key ?? "6",
+          "S",
+        )}
+        ${this.renderUnitItem(
+          warshipIcon,
+          this._warships,
+          UnitType.Warship,
+          "warship",
+          this.keybinds["buildWarship"]?.key ?? "7",
+        )}
+        ${this.renderUnitItem(
+          atomBombIcon,
+          null,
+          UnitType.AtomBomb,
+          "atom_bomb",
+          this.keybinds["buildAtomBomb"]?.key ?? "8",
+        )}
+        ${this.renderUnitItem(
+          hydrogenBombIcon,
+          null,
+          UnitType.HydrogenBomb,
+          "hydrogen_bomb",
+          this.keybinds["buildHydrogenBomb"]?.key ?? "9",
+        )}
+        ${this.renderUnitItem(
+          mirvIcon,
+          null,
+          UnitType.MIRV,
+          "mirv",
+          this.keybinds["buildMIRV"]?.key ?? "0",
+        )}
+      </hud-unit-display>
     `;
   }
 
@@ -244,82 +240,75 @@ export class UnitDisplay extends LitElement implements Controller {
       .toUpperCase();
 
     return html`
-      <div
-        class="flex flex-col items-center relative"
+      <hud-unit-button
+        hotkey=${displayHotkey}
+        icon-src=${icon ?? ""}
+        .fallback=${label ?? ""}
+        count=${number ?? ""}
+        ?selected=${selected}
+        ?disabled=${!this.canBuild(unitType)}
+        @click=${() => {
+          if (selected) {
+            this.uiState.ghostStructure = null;
+          } else if (this.canBuild(unitType)) {
+            this.uiState.ghostStructure = unitType;
+          }
+          this.requestUpdate();
+        }}
         @mouseenter=${() => {
           this._hoveredUnit = unitType;
           this.requestUpdate();
+          switch (unitType) {
+            case UnitType.AtomBomb:
+            case UnitType.HydrogenBomb:
+              this.eventBus?.emit(
+                new ToggleStructureEvent([
+                  UnitType.MissileSilo,
+                  UnitType.SAMLauncher,
+                ]),
+              );
+              break;
+            case UnitType.Warship:
+              this.eventBus?.emit(new ToggleStructureEvent([UnitType.Port]));
+              break;
+            default:
+              this.eventBus?.emit(new ToggleStructureEvent([unitType]));
+          }
         }}
         @mouseleave=${() => {
           this._hoveredUnit = null;
           this.requestUpdate();
+          this.eventBus?.emit(new ToggleStructureEvent(null));
         }}
       >
         ${hovered
           ? html`
               <hud-tooltip
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-[100] pointer-events-none"
+                slot="tooltip"
                 .title=${`${translateText(
                   "unit_type." + structureKey,
                 )} [${displayHotkey}]`}
               >
-                <div class="p-2">
+                <hud-label style="display: block; padding: 8px">
                   ${translateText("build_menu.desc." + structureKey)}
-                </div>
+                </hud-label>
                 ${unitType === UnitType.Warship
-                  ? html`<div
-                      class="mt-1 px-2 py-1 text-[10px] text-cyan-300 border-t border-white/10"
+                  ? html`<hud-label
+                      tone="active"
+                      style="display: block; margin-top: 4px; padding: 4px 8px; border-top: 1px solid rgba(255, 255, 255, 0.1)"
                     >
                       ⇧ ${translateText("build_menu.warship_shift_hint")}
-                    </div>`
+                    </hud-label>`
                   : null}
-                <div class="flex items-center justify-center gap-1">
-                  <span class="text-yellow-300"
-                    >${renderResourceCostText(
-                      this.resourceCost(unitType),
-                    )}</span
-                  >
-                </div>
+                <hud-kit-row style="justify-content: center">
+                  <hud-label tone="gold">
+                    ${renderResourceCostText(this.resourceCost(unitType))}
+                  </hud-label>
+                </hud-kit-row>
               </hud-tooltip>
             `
           : null}
-        <hud-build-item
-          hotkey=${displayHotkey}
-          icon-src=${icon ?? ""}
-          fallback=${label}
-          count=${number ?? ""}
-          ?selected=${selected}
-          ?disabled=${!this.canBuild(unitType)}
-          @click=${() => {
-            if (selected) {
-              this.uiState.ghostStructure = null;
-            } else if (this.canBuild(unitType)) {
-              this.uiState.ghostStructure = unitType;
-            }
-            this.requestUpdate();
-          }}
-          @mouseenter=${() => {
-            switch (unitType) {
-              case UnitType.AtomBomb:
-              case UnitType.HydrogenBomb:
-                this.eventBus?.emit(
-                  new ToggleStructureEvent([
-                    UnitType.MissileSilo,
-                    UnitType.SAMLauncher,
-                  ]),
-                );
-                break;
-              case UnitType.Warship:
-                this.eventBus?.emit(new ToggleStructureEvent([UnitType.Port]));
-                break;
-              default:
-                this.eventBus?.emit(new ToggleStructureEvent([unitType]));
-            }
-          }}
-          @mouseleave=${() =>
-            this.eventBus?.emit(new ToggleStructureEvent(null))}
-        ></hud-build-item>
-      </div>
+      </hud-unit-button>
     `;
   }
 }

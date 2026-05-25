@@ -38,7 +38,7 @@ import { renderNumber } from "../../Utils";
 
 import { PlaySoundEffectEvent } from "../../sound/Sounds";
 import { UIState } from "../../UIState";
-import { getMessageTypeClasses, translateText } from "../../Utils";
+import { translateText } from "../../Utils";
 import "../ui/HudComponents";
 const allianceIcon = assetUrl("images/AllianceIconWhite.svg");
 const chatIcon = assetUrl("images/ChatIconWhite.svg");
@@ -138,18 +138,18 @@ export class EventsDisplay extends LitElement implements Controller {
   }
 
   private renderToggleButton(src: string, category: MessageCategory) {
-    // Adding the literal for the default size ensures tailwind will generate the class
-    const toggleButtonSizeMap = { default: "h-5" };
     const isFiltered = this.eventsFilters.get(category);
-    return this.renderButton({
-      content: html`<img
-        src="${src}"
-        class="${toggleButtonSizeMap["default"]} mx-auto"
-        style="${isFiltered ? "filter: grayscale(1) opacity(0.5);" : ""}"
-      />`,
-      onClick: () => this.toggleEventFilter(category),
-      className: `min-h-[22px] min-w-0 py-0 border-0 border-l border-white/10 first:border-l-0 rounded-none bg-transparent text-slate-300/70 text-[10px] font-semibold leading-none hover:bg-white/10 w-6 px-0 ${isFiltered ? "" : "bg-malibu-blue/30 text-white hover:bg-malibu-blue/35"}`,
-    });
+    return html`<hud-icon-button
+      .variant=${isFiltered ? "default" : "active"}
+      .label=${String(category)}
+      @click=${() => this.toggleEventFilter(category)}
+    >
+      <hud-icon
+        .src=${src}
+        size="sm"
+        .tone=${isFiltered ? "muted" : "default"}
+      ></hud-icon>
+    </hud-icon-button>`;
   }
 
   private toggleHidden() {
@@ -816,207 +816,179 @@ export class EventsDisplay extends LitElement implements Controller {
       ${this._hidden
         ? html`
             <div class="relative w-fit z-50">
-              ${this.renderButton({
-                content: html`
-                  <span class="flex items-center gap-2">
-                    ${translateText("events_display.events")}
-                    ${this.newEvents > 0
-                      ? html`<hud-pill
-                          tone="red"
-                          .value=${String(this.newEvents)}
-                        ></hud-pill>`
-                      : ""}
-                  </span>
-                `,
-                onClick: this.toggleHidden,
-                className:
-                  "font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] min-h-6 px-2 py-0.5 border border-white/25 text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 w-fit min-h-8 pointer-events-auto",
-              })}
+              <hud-button
+                class="pointer-events-auto"
+                @click=${this.toggleHidden}
+              >
+                <span class="flex items-center gap-2">
+                  ${translateText("events_display.events")}
+                  ${this.newEvents > 0
+                    ? html`<hud-pill
+                        tone="red"
+                        .value=${String(this.newEvents)}
+                      ></hud-pill>`
+                    : ""}
+                </span>
+              </hud-button>
             </div>
           `
         : html`
             <!-- Main Events Display -->
-            <div
-              class="relative w-full z-50 min-[1200px]:w-96 font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
+            <hud-surface
+              class="relative w-full z-50 min-[1200px]:w-96"
+              @contextmenu=${(e: Event) => e.preventDefault()}
             >
               <!-- Button Bar -->
-              <div
-                class="flex items-center justify-between gap-2 px-2 py-1 border-b border-white/10 bg-slate-900/50 font-semibold min-h-[30px]"
-              >
-                <div class="flex w-full justify-between items-center gap-3">
-                  <div
-                    class="inline-grid grid-flow-col auto-cols-fr min-w-0 overflow-hidden border border-white/25 rounded-[2px] bg-slate-950/30"
-                  >
-                    ${this.renderToggleButton(
-                      swordIcon,
-                      MessageCategory.ATTACK,
-                    )}
-                    ${this.renderToggleButton(nukeIcon, MessageCategory.NUKE)}
-                    ${this.renderToggleButton(
-                      donateGoldIcon,
-                      MessageCategory.TRADE,
-                    )}
-                    ${this.renderToggleButton(
-                      allianceIcon,
-                      MessageCategory.ALLIANCE,
-                    )}
-                    ${this.renderToggleButton(chatIcon, MessageCategory.CHAT)}
-                  </div>
-                  <div class="flex items-center gap-3">
-                    ${this.latestGoldAmount !== null
-                      ? html`<hud-pill
-                          tone="green"
-                          .value=${`+${renderNumber(this.latestGoldAmount)}`}
-                          class="transition-all duration-300 ${this
-                            .goldAmountAnimating
-                            ? "animate-pulse scale-110"
-                            : "scale-100"}"
-                          style="animation: ${this.goldAmountAnimating
-                            ? "goldBounce 0.6s ease-out"
-                            : "none"}"
-                        ></hud-pill>`
-                      : ""}
-                    ${this.renderButton({
-                      content: translateText("leaderboard.hide"),
-                      onClick: this.toggleHidden,
-                      className:
-                        "min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45",
-                    })}
-                  </div>
-                </div>
-              </div>
+              <hud-surface-header>
+                <hud-action-group>
+                  ${this.renderToggleButton(swordIcon, MessageCategory.ATTACK)}
+                  ${this.renderToggleButton(nukeIcon, MessageCategory.NUKE)}
+                  ${this.renderToggleButton(
+                    donateGoldIcon,
+                    MessageCategory.TRADE,
+                  )}
+                  ${this.renderToggleButton(
+                    allianceIcon,
+                    MessageCategory.ALLIANCE,
+                  )}
+                  ${this.renderToggleButton(chatIcon, MessageCategory.CHAT)}
+                </hud-action-group>
+                <hud-action-group>
+                  ${this.latestGoldAmount !== null
+                    ? html`<hud-pill
+                        tone="green"
+                        .value=${`+${renderNumber(this.latestGoldAmount)}`}
+                        class="transition-all duration-300 ${this
+                          .goldAmountAnimating
+                          ? "animate-pulse scale-110"
+                          : "scale-100"}"
+                        style="animation: ${this.goldAmountAnimating
+                          ? "goldBounce 0.6s ease-out"
+                          : "none"}"
+                      ></hud-pill>`
+                    : ""}
+                  <hud-button @click=${this.toggleHidden}>
+                    ${translateText("leaderboard.hide")}
+                  </hud-button>
+                </hud-action-group>
+              </hud-surface-header>
 
               <!-- Content Area -->
-              <div
-                class="max-h-[15vh] lg:max-h-[30vh] overflow-y-auto w-full h-full events-container"
-              >
-                <div>
-                  <table
-                    class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] max-h-none pointer-events-auto"
-                  >
-                    <tbody>
-                      ${filteredEvents.map(
-                        (event, index) => html`
-                          <tr>
-                            <td
-                              class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left ${getMessageTypeClasses(
-                                event.type,
-                              )}"
-                            >
-                              ${event.focusID
-                                ? this.renderButton({
-                                    content: this.getEventDescription(event),
-                                    onClick: () => {
-                                      if (event.focusID)
-                                        this.emitGoToPlayerEvent(event.focusID);
-                                    },
-                                    className:
-                                      "text-left text-inherit hover:text-white",
-                                  })
-                                : event.unitView
-                                  ? this.renderButton({
-                                      content: this.getEventDescription(event),
-                                      onClick: () => {
-                                        if (event.unitView)
-                                          this.emitGoToUnitEvent(
-                                            event.unitView,
-                                          );
-                                      },
-                                      className:
-                                        "text-left text-inherit hover:text-white",
-                                    })
-                                  : this.getEventDescription(event)}
-                              <!-- Events with buttons (Alliance requests) -->
-                              ${event.buttons
-                                ? html`
-                                    <div
-                                      class="inline-flex items-center gap-1 whitespace-nowrap mt-1"
-                                    >
-                                      ${event.buttons.map(
-                                        (btn) => html`
-                                          <button
-                                            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45
-                            ${btn.className.includes("btn-info")
-                                              ? "bg-blue-500/60 hover:bg-blue-500/75"
-                                              : btn.className.includes(
-                                                    "btn-gray",
-                                                  )
-                                                ? "bg-gray-500/60 hover:bg-gray-500/75"
-                                                : "bg-green-600/60 hover:bg-green-600/75"}"
-                                            @click=${() => {
-                                              btn.action();
-                                              if (!btn.preventClose) {
-                                                const originalIndex =
-                                                  this.events.findIndex(
-                                                    (e) => e === event,
-                                                  );
-                                                if (originalIndex !== -1) {
-                                                  this.removeEvent(
-                                                    originalIndex,
-                                                  );
-                                                }
-                                              }
-                                              this.requestUpdate();
-                                            }}
-                                          >
-                                            ${btn.text}
-                                          </button>
-                                        `,
-                                      )}
-                                    </div>
-                                  `
-                                : ""}
-                            </td>
-                          </tr>
-                        `,
-                      )}
-                      <!--- Betrayal debuff timer row -->
-                      ${(() => {
-                        const myPlayer = this.game.myPlayer();
-                        return (
-                          myPlayer &&
-                          myPlayer.isTraitor() &&
-                          myPlayer.getTraitorRemainingTicks() > 0
-                        );
-                      })()
-                        ? html`
-                            <tr>
-                              <td
-                                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
-                              >
-                                ${this.renderBetrayalDebuffTimer()}
-                              </td>
-                            </tr>
-                          `
-                        : ""}
-
-                      <!--- Empty row when no events -->
-                      ${filteredEvents.length === 0 &&
-                      !(() => {
-                        const myPlayer = this.game.myPlayer();
-                        return (
-                          myPlayer &&
-                          myPlayer.isTraitor() &&
-                          myPlayer.getTraitorRemainingTicks() > 0
-                        );
-                      })()
-                        ? html`
-                            <tr>
-                              <td
-                                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left min-w-72"
-                              >
-                                &nbsp;
-                              </td>
-                            </tr>
-                          `
-                        : ""}
-                    </tbody>
-                  </table>
+              <hud-surface-body>
+                <div
+                  class="max-h-[15vh] lg:max-h-[30vh] overflow-y-auto w-full h-full events-container pointer-events-auto"
+                >
+                  ${filteredEvents.map((event) => this.renderEventRow(event))}
+                  ${this.hasActiveBetrayalDebuff()
+                    ? html`<hud-event-row
+                        style="--hud-event-columns: 0 minmax(0, 1fr) auto"
+                        tone="warning"
+                      >
+                        ${this.renderBetrayalDebuffTimer()}
+                      </hud-event-row>`
+                    : ""}
+                  ${filteredEvents.length === 0 &&
+                  !this.hasActiveBetrayalDebuff()
+                    ? html`<hud-event-row
+                        style="--hud-event-columns: 0 minmax(0, 1fr) auto"
+                      >
+                        <span class="inline-block min-w-72">&nbsp;</span>
+                      </hud-event-row>`
+                    : ""}
                 </div>
-              </div>
-            </div>
+              </hud-surface-body>
+            </hud-surface>
           `}
     `;
+  }
+
+  private renderEventRow(event: GameEvent) {
+    return html`<hud-event-row
+      style="--hud-event-columns: 0 minmax(0, 1fr) auto"
+      .tone=${this.eventTone(event)}
+    >
+      ${this.renderEventContent(event)}
+      ${event.buttons
+        ? html`<hud-action-group slot="actions">
+            ${event.buttons.map(
+              (button) =>
+                html`<hud-button
+                  .variant=${button.className.includes("btn-gray")
+                    ? "default"
+                    : "active"}
+                  @click=${() => this.handleEventButton(event, button)}
+                >
+                  ${button.text}
+                </hud-button>`,
+            )}
+          </hud-action-group>`
+        : ""}
+    </hud-event-row>`;
+  }
+
+  private renderEventContent(event: GameEvent) {
+    if (event.focusID) {
+      return this.renderButton({
+        content: this.getEventDescription(event),
+        onClick: () => {
+          if (event.focusID) this.emitGoToPlayerEvent(event.focusID);
+        },
+        className: "text-left text-inherit hover:text-white",
+      });
+    }
+
+    if (event.unitView) {
+      return this.renderButton({
+        content: this.getEventDescription(event),
+        onClick: () => {
+          if (event.unitView) this.emitGoToUnitEvent(event.unitView);
+        },
+        className: "text-left text-inherit hover:text-white",
+      });
+    }
+
+    return this.getEventDescription(event);
+  }
+
+  private handleEventButton(
+    event: GameEvent,
+    button: NonNullable<GameEvent["buttons"]>[number],
+  ) {
+    button.action();
+    if (!button.preventClose) {
+      const originalIndex = this.events.findIndex(
+        (candidate) => candidate === event,
+      );
+      if (originalIndex !== -1) {
+        this.removeEvent(originalIndex);
+      }
+    }
+    this.requestUpdate();
+  }
+
+  private eventTone(event: GameEvent) {
+    switch (getMessageCategory(event.type)) {
+      case MessageCategory.ATTACK:
+      case MessageCategory.NUKE:
+        return "danger";
+      case MessageCategory.ALLIANCE:
+        return "success";
+      case MessageCategory.TRADE:
+        return "warning";
+      case MessageCategory.CHAT:
+        return "active";
+      default:
+        return "default";
+    }
+  }
+
+  private hasActiveBetrayalDebuff() {
+    const myPlayer = this.game.myPlayer();
+    return (
+      myPlayer !== null &&
+      myPlayer.isTraitor() &&
+      myPlayer.getTraitorRemainingTicks() > 0
+    );
   }
 
   createRenderRoot() {

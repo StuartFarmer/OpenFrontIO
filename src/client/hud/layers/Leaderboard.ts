@@ -57,10 +57,10 @@ const RESOURCE_LABELS: Record<ResourceKind, string> = {
   materials: "Metals",
 };
 
-const RESOURCE_COLORS: Record<ResourceKind, string> = {
-  food: "bg-emerald-400",
-  energy: "bg-amber-400",
-  materials: "bg-sky-400",
+const RESOURCE_TONES: Record<ResourceKind, "green" | "cyan" | "slate"> = {
+  food: "green",
+  energy: "cyan",
+  materials: "slate",
 };
 
 const ECONOMY_WINDOW_MS = 30_000;
@@ -434,93 +434,58 @@ export class Leaderboard extends LitElement implements Controller {
           : "hidden"}"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <table
-          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] table-fixed"
-        >
-          <colgroup>
-            <col class="w-7" />
-            <col class="w-24" />
-            <col class="w-16" />
-            <col class="w-14" />
-            <col class="w-20" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-center"
+        <hud-table>
+          <hud-table-row>
+            <hud-table-cell header align="center">#</hud-table-cell>
+            <hud-table-cell header align="left" truncate>
+              ${hudLabel("leaderboard.player", "Player")}
+            </hud-table-cell>
+            <hud-table-cell
+              header
+              style="cursor: pointer"
+              @click=${() => this.setSort("tiles")}
+            >
+              ${hudLabel("leaderboard.owned", "Owned")}${this.sortMark("tiles")}
+            </hud-table-cell>
+            <hud-table-cell
+              header
+              style="cursor: pointer"
+              @click=${() => this.setSort("gold")}
+            >
+              ${hudLabel("leaderboard.gold", "Gold")}${this.sortMark("gold")}
+            </hud-table-cell>
+            <hud-table-cell
+              header
+              style="cursor: pointer"
+              @click=${() => this.setSort("maxtroops")}
+            >
+              ${hudLabel("leaderboard.maxtroops", "Max")}${this.sortMark(
+                "maxtroops",
+              )}
+            </hud-table-cell>
+          </hud-table-row>
+          ${repeat(
+            this.players,
+            (p) => p.player.id(),
+            (player) => html`
+              <hud-table-row
+                interactive
+                ?selected=${player.isOnSameTeam}
+                @click=${() => this.handleRowClickPlayer(player.player)}
               >
-                #
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left truncate"
-              >
-                ${hudLabel("leaderboard.player", "Player")}
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
-                @click=${() => this.setSort("tiles")}
-              >
-                ${hudLabel("leaderboard.owned", "Owned")}${this.sortMark(
-                  "tiles",
-                )}
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
-                @click=${() => this.setSort("gold")}
-              >
-                ${hudLabel("leaderboard.gold", "Gold")}${this.sortMark("gold")}
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold cursor-pointer hover:bg-white/10"
-                @click=${() => this.setSort("maxtroops")}
-              >
-                ${hudLabel("leaderboard.maxtroops", "Max")}${this.sortMark(
-                  "maxtroops",
-                )}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            ${repeat(
-              this.players,
-              (p) => p.player.id(),
-              (player) => html`
-                <tr
-                  class="cursor-pointer hover:bg-white/10 ${player.isOnSameTeam
-                    ? "font-bold text-aquarius"
-                    : ""}"
-                  @click=${() => this.handleRowClickPlayer(player.player)}
+                <hud-table-cell align="center"
+                  >${player.position}</hud-table-cell
                 >
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-center"
-                  >
-                    ${player.position}
-                  </td>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left truncate"
-                  >
-                    ${player.name}
-                  </td>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                  >
-                    ${player.score}
-                  </td>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                  >
-                    ${player.gold}
-                  </td>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                  >
-                    ${player.maxTroops}
-                  </td>
-                </tr>
-              `,
-            )}
-          </tbody>
-        </table>
+                <hud-table-cell align="left" truncate>
+                  ${player.name}
+                </hud-table-cell>
+                <hud-table-cell>${player.score}</hud-table-cell>
+                <hud-table-cell>${player.gold}</hud-table-cell>
+                <hud-table-cell>${player.maxTroops}</hud-table-cell>
+              </hud-table-row>
+            `,
+          )}
+        </hud-table>
       </div>
 
       <hud-button
@@ -550,20 +515,18 @@ export class Leaderboard extends LitElement implements Controller {
         : "0 / 0";
 
     return html`
-      <div
+      <hud-surface
         class="mt-2 w-[320px] max-w-[42vw] overflow-hidden font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <div
-          class="flex items-center justify-between gap-2 min-h-[26px] px-2 py-1 border-b border-white/10 bg-slate-900/50 font-semibold"
-        >
+        <hud-surface-header>
           <span>Economy</span>
-          <span class="font-normal text-slate-300">${capacityText}</span>
-        </div>
-        <div class="p-2 space-y-2">
+          <span>${capacityText}</span>
+        </hud-surface-header>
+        <hud-surface-body class="space-y-2">
           ${this.economyRows.map((row) => this.renderEconomyRow(row))}
-        </div>
-      </div>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 
@@ -573,42 +536,33 @@ export class Leaderboard extends LitElement implements Controller {
         ? 0
         : Math.max(0, Math.min(100, (row.stock / row.capacity) * 100));
     return html`
-      <div>
-        <div class="flex items-center justify-between gap-2">
-          <div class="font-semibold">${row.label}</div>
-          <div class="text-slate-200">
-            ${renderNumber(row.stock)} / ${renderNumber(row.capacity)}
-          </div>
-        </div>
-        <div class="mt-1 h-1.5 bg-black/35 overflow-hidden rounded-sm">
-          <div
-            class="h-full ${RESOURCE_COLORS[row.key]}"
-            style="width: ${fillPercent}%"
-          ></div>
-        </div>
-        <div class="mt-2 grid grid-cols-4 gap-2 text-[11px] leading-tight">
+      <div class="space-y-2">
+        <hud-meter
+          variant="mini"
+          .segments=${[{ width: fillPercent, tone: RESOURCE_TONES[row.key] }]}
+          .label=${html`<span>${row.label}</span>
+            <span
+              >${renderNumber(row.stock)} / ${renderNumber(row.capacity)}</span
+            >`}
+          label-align="between"
+        ></hud-meter>
+        <hud-stat-grid>
           ${this.renderEconomyMetric("Net", row.netPerSecond)}
           ${this.renderEconomyMetric("Prod", row.productionPerSecond)}
           ${this.renderEconomyMetric("Rail", row.railPerSecond)}
           ${this.renderEconomyMetric("ΔProd", row.productionChange)}
-        </div>
+        </hud-stat-grid>
       </div>
     `;
   }
 
   private renderEconomyMetric(label: string, value: number) {
-    const valueClass =
-      value > 0
-        ? "text-emerald-300"
-        : value < 0
-          ? "text-red-300"
-          : "text-slate-300";
-    return html`
-      <div>
-        <div class="text-slate-400">${label}</div>
-        <div class="${valueClass} tabular-nums">${formatSignedRate(value)}</div>
-      </div>
-    `;
+    const tone = value > 0 ? "success" : value < 0 ? "danger" : "default";
+    return html`<hud-stat
+      .label=${label}
+      .value=${formatSignedRate(value)}
+      .tone=${tone}
+    ></hud-stat>`;
   }
 }
 

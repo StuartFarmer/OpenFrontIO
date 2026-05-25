@@ -139,125 +139,63 @@ export class TeamStats extends LitElement implements Controller {
         class="mt-2 max-h-[30vh] overflow-x-hidden overflow-y-auto w-full font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px]"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <table
-          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2] table-fixed"
-        >
-          <thead>
-            <tr>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left"
-              >
-                ${hudLabel("leaderboard.team", "Team")}
-              </th>
-              ${this.showUnits
-                ? html`
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+        <hud-table>
+          <hud-table-row>
+            <hud-table-cell header align="left">
+              ${hudLabel("leaderboard.team", "Team")}
+            </hud-table-cell>
+            ${this.showUnits
+              ? html`
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.launchers", "Launchers")}
+                  </hud-table-cell>
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.sams", "SAMs")}
+                  </hud-table-cell>
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.warships", "Warships")}
+                  </hud-table-cell>
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.cities", "Cities")}
+                  </hud-table-cell>
+                `
+              : html`
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.owned", "Owned")}
+                  </hud-table-cell>
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.gold", "Gold")}
+                  </hud-table-cell>
+                  <hud-table-cell header>
+                    ${hudLabel("leaderboard.maxtroops", "Max")}
+                  </hud-table-cell>
+                `}
+          </hud-table-row>
+          ${this.teams.map((team) =>
+            this.showUnits
+              ? html`
+                  <hud-table-row interactive ?selected=${team.isMyTeam}>
+                    <hud-table-cell align="left"
+                      >${team.teamName}</hud-table-cell
                     >
-                      ${hudLabel("leaderboard.launchers", "Launchers")}
-                    </th>
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
+                    <hud-table-cell>${team.totalLaunchers}</hud-table-cell>
+                    <hud-table-cell>${team.totalSAMs}</hud-table-cell>
+                    <hud-table-cell>${team.totalWarShips}</hud-table-cell>
+                    <hud-table-cell>${team.totalCities}</hud-table-cell>
+                  </hud-table-row>
+                `
+              : html`
+                  <hud-table-row interactive ?selected=${team.isMyTeam}>
+                    <hud-table-cell align="left"
+                      >${team.teamName}</hud-table-cell
                     >
-                      ${hudLabel("leaderboard.sams", "SAMs")}
-                    </th>
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-                    >
-                      ${hudLabel("leaderboard.warships", "Warships")}
-                    </th>
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-                    >
-                      ${hudLabel("leaderboard.cities", "Cities")}
-                    </th>
-                  `
-                : html`
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-                    >
-                      ${hudLabel("leaderboard.owned", "Owned")}
-                    </th>
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-                    >
-                      ${hudLabel("leaderboard.gold", "Gold")}
-                    </th>
-                    <th
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-                    >
-                      ${hudLabel("leaderboard.maxtroops", "Max")}
-                    </th>
-                  `}
-            </tr>
-          </thead>
-          <tbody>
-            ${this.teams.map((team) =>
-              this.showUnits
-                ? html`
-                    <tr
-                      class="hover:bg-white/10 ${team.isMyTeam
-                        ? "font-bold text-aquarius"
-                        : ""}"
-                    >
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
-                      >
-                        ${team.teamName}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalLaunchers}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalSAMs}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalWarShips}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalCities}
-                      </td>
-                    </tr>
-                  `
-                : html`
-                    <tr
-                      class="hover:bg-white/10 ${team.isMyTeam
-                        ? "font-bold text-aquarius"
-                        : ""}"
-                    >
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
-                      >
-                        ${team.teamName}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalScoreStr}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalGold}
-                      </td>
-                      <td
-                        class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                      >
-                        ${team.totalMaxTroops}
-                      </td>
-                    </tr>
-                  `,
-            )}
-          </tbody>
-        </table>
+                    <hud-table-cell>${team.totalScoreStr}</hud-table-cell>
+                    <hud-table-cell>${team.totalGold}</hud-table-cell>
+                    <hud-table-cell>${team.totalMaxTroops}</hud-table-cell>
+                  </hud-table-row>
+                `,
+          )}
+        </hud-table>
         <hud-button
           class="m-2"
           aria-pressed=${String(this.showUnits)}

@@ -208,54 +208,61 @@ export class GameRightSidebar extends LitElement implements Controller {
   }
 
   private renderSidebarIcon(src: string, alt: string) {
-    return html`<img src=${src} alt=${alt} class="h-5 w-5" />`;
+    return html`<hud-icon .src=${src} size="md" .label=${alt}></hud-icon>`;
   }
 
   render() {
     if (this.game === undefined) return html``;
 
-    const timerColor =
+    const timerTone =
       this.game.config().gameConfig().maxTimerValue !== undefined &&
       this.game.config().gameConfig().maxTimerValue !== null &&
       this.timer < 60
-        ? "text-red-400"
-        : "";
+        ? "danger"
+        : "default";
 
     return html`
       <aside
-        class=${`font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] flex w-fit flex-row items-center gap-2 px-2 py-1 transition-transform duration-300 ease-out transform ${
+        class=${`transition-transform duration-300 ease-out transform ${
           this._isVisible ? "translate-x-0" : "translate-x-full"
         }`}
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <!-- In-game time -->
-        <div
-          class=${`min-w-[5ch] text-center text-xs font-bold leading-none tabular-nums ${timerColor}`}
-        >
-          ${this.secondsToHms(this.timer)}
-        </div>
+        <hud-toolbar>
+          <hud-timer-label
+            .value=${this.secondsToHms(this.timer)}
+            .tone=${timerTone}
+          ></hud-timer-label>
 
-        <!-- Buttons -->
-        ${this.maybeRenderReplayButtons()}
+          ${this.maybeRenderReplayButtons()}
 
-        <hud-icon-button @click=${this.onSettingsButtonClick}>
-          ${this.renderSidebarIcon(settingsIcon, "settings")}
-        </hud-icon-button>
+          <hud-icon-button
+            label=${translateText("settings_modal.title") || "Settings"}
+            @click=${this.onSettingsButtonClick}
+          >
+            ${this.renderSidebarIcon(settingsIcon, "settings")}
+          </hud-icon-button>
 
-        ${document.fullscreenEnabled
-          ? html`<hud-icon-button @click=${this.onFullscreenButtonClick}>
-              ${this.renderSidebarIcon(
-                this.isFullscreen ? exitFullscreenIcon : fullscreenIcon,
-                this.isFullscreen
+          ${document.fullscreenEnabled
+            ? html`<hud-icon-button
+                label=${this.isFullscreen
                   ? translateText("fullscreen.exit")
-                  : translateText("fullscreen.enter"),
-              )}
-            </hud-icon-button>`
-          : ""}
+                  : translateText("fullscreen.enter")}
+                @click=${this.onFullscreenButtonClick}
+              >
+                ${this.renderSidebarIcon(
+                  this.isFullscreen ? exitFullscreenIcon : fullscreenIcon,
+                  this.isFullscreen
+                    ? translateText("fullscreen.exit")
+                    : translateText("fullscreen.enter"),
+                )}
+              </hud-icon-button>`
+            : ""}
 
-        <hud-icon-button @click=${this.onExitButtonClick}>
-          ${this.renderSidebarIcon(exitIcon, "exit")}
-        </hud-icon-button>
+          <hud-icon-button label="Exit" @click=${this.onExitButtonClick}>
+            ${this.renderSidebarIcon(exitIcon, "exit")}
+          </hud-icon-button>
+        </hud-toolbar>
       </aside>
     `;
   }
@@ -268,14 +275,17 @@ export class GameRightSidebar extends LitElement implements Controller {
     return html`
       ${isReplayOrSingleplayer
         ? html`
-            <hud-icon-button @click=${this.toggleReplayPanel}>
+            <hud-icon-button label="Replay" @click=${this.toggleReplayPanel}>
               ${this.renderSidebarIcon(FastForwardIconSolid, "replay")}
             </hud-icon-button>
           `
         : ""}
       ${showPauseButton
         ? html`
-            <hud-icon-button @click=${this.onPauseButtonClick}>
+            <hud-icon-button
+              label="Play/Pause"
+              @click=${this.onPauseButtonClick}
+            >
               ${this.renderSidebarIcon(
                 this.isPaused ? playIcon : pauseIcon,
                 "play/pause",

@@ -36,13 +36,13 @@ interface MetricView {
   key: MetricKey;
   label: string;
   shortLabel: string;
+  iconSrc: string;
   value: number | bigint;
   capacity: number | bigint;
   rate: number;
   rateIsIncreasing: boolean;
   barTone: "blue" | "cyan" | "slate" | "green";
-  borderClass: string;
-  textClass: string;
+  iconTone: "active" | "success" | "default";
   icon: ReturnType<typeof html>;
 }
 
@@ -275,15 +275,10 @@ export class ControlPanel extends LitElement implements Controller {
     this.requestUpdate();
   }
 
-  private handleRatioSliderInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const value = Number(input.value);
+  private handleRatioSliderChange(event: CustomEvent<{ value: number }>) {
+    const value = event.detail.value;
     this.attackRatio = value / 100;
     this.onAttackRatioChange(this.attackRatio);
-  }
-
-  private handleRatioSliderPointerUp(e: Event) {
-    (e.target as HTMLInputElement).blur();
   }
 
   private calculateMetricBar(metric: MetricView): {
@@ -326,13 +321,13 @@ export class ControlPanel extends LitElement implements Controller {
         key: "troops",
         label: "Troops",
         shortLabel: "Troops",
+        iconSrc: soldierIcon,
         value: this._troops,
         capacity: this._maxTroops,
         rate: this.troopRate,
         rateIsIncreasing: this._troopRateIsIncreasing,
         barTone: "blue",
-        borderClass: "border-blue-300/80",
-        textClass: "text-blue-200",
+        iconTone: "active",
         icon: html`<img
           src=${soldierIcon}
           alt=""
@@ -346,39 +341,39 @@ export class ControlPanel extends LitElement implements Controller {
         key: "food",
         label: "Biomass",
         shortLabel: "Bio",
+        iconSrc: biomassIcon,
         value: this._resources.food,
         capacity: this._resourceCapacity.food,
         rate: this._resourceRates.food,
         rateIsIncreasing: this._resourceRates.food >= 0,
         barTone: "green",
-        borderClass: "border-green-400/80",
-        textClass: "text-green-300",
+        iconTone: "success",
         icon: this.renderResourceIcon("food", "h-4 w-4"),
       },
       energy: {
         key: "energy",
         label: "Fuels",
         shortLabel: "Fuel",
+        iconSrc: fuelIcon,
         value: this._resources.energy,
         capacity: this._resourceCapacity.energy,
         rate: this._resourceRates.energy,
         rateIsIncreasing: this._resourceRates.energy >= 0,
         barTone: "cyan",
-        borderClass: "border-cyan-400/80",
-        textClass: "text-cyan-300",
+        iconTone: "active",
         icon: this.renderResourceIcon("energy", "h-4 w-4"),
       },
       materials: {
         key: "materials",
         label: "Metals",
         shortLabel: "Metal",
+        iconSrc: metalIcon,
         value: this._resources.materials,
         capacity: this._resourceCapacity.materials,
         rate: this._resourceRates.materials,
         rateIsIncreasing: this._resourceRates.materials >= 0,
         barTone: "slate",
-        borderClass: "border-stone-300/80",
-        textClass: "text-stone-200",
+        iconTone: "default",
         icon: this.renderResourceIcon("materials", "h-4 w-4"),
       },
     };
@@ -471,44 +466,30 @@ export class ControlPanel extends LitElement implements Controller {
   }
 
   private renderMetricTabs() {
-    return html`
-      <div
-        class="inline-grid grid-flow-col auto-cols-fr min-w-0 overflow-hidden border border-white/25 rounded-[2px] bg-slate-950/30 w-full mb-1"
-      >
-        ${this.metricTabs().map((metric) => {
-          const selected = metric.key === this._selectedMetric;
-          return html`
-            <button
-              class="min-h-[22px] min-w-0 px-2 py-0 border-0 border-l border-white/10 first:border-l-0 rounded-none bg-transparent text-slate-300/70 text-[10px] font-semibold leading-none hover:bg-white/10 ${selected
-                ? "bg-malibu-blue/30 text-white hover:bg-malibu-blue/35"
-                : ""} ${metric.textClass}"
-              type="button"
-              aria-pressed=${selected ? "true" : "false"}
-              @click=${() => {
-                this._selectedMetric = metric.key;
-              }}
-              translate="no"
-            >
-              <span class="flex min-w-0 items-center justify-between gap-1">
-                <span class="flex min-w-0 items-center gap-1">
-                  ${metric.icon}
-                  <span class="hidden sm:inline truncate">${metric.label}</span>
-                  <span class="sm:hidden truncate">${metric.shortLabel}</span>
-                </span>
-                <span class="min-w-0 truncate tabular-nums"
-                  >${this.metricValueText(metric)}</span
-                >
-              </span>
-            </button>
-          `;
-        })}
-      </div>
-    `;
+    return html`<hud-segmented-control
+      class="mb-1"
+      .selected=${this._selectedMetric}
+      .items=${this.metricTabs().map((metric) => ({
+        id: metric.key,
+        label: metric.label,
+        value: this.metricValueText(metric),
+        iconSrc: metric.iconSrc,
+        tone: metric.iconTone,
+      }))}
+      @selection-change=${this.setSelectedMetric}
+    ></hud-segmented-control>`;
+  }
+
+  private setSelectedMetric(event: CustomEvent<{ id: string }>) {
+    this._selectedMetric = event.detail.id as MetricKey;
   }
 
   private renderAttackRatioControl(compact = false) {
     return html`
-      <div class="flex items-center gap-1.5" translate="no">
+      <hud-form-row
+        style=${`--hud-form-label-width: ${compact ? "4.75rem" : "8rem"}`}
+        translate="no"
+      >
         <hud-pill
           tone="blue"
           .value=${`${(this.attackRatio * 100).toFixed(0)}%${
@@ -527,18 +508,14 @@ export class ControlPanel extends LitElement implements Controller {
             )}
           </span>
         </hud-pill>
-        <div class="flex-1">
-          <input
-            type="range"
-            min="1"
-            max="100"
-            .value=${String(Math.round(this.attackRatio * 100))}
-            @input=${(e: Event) => this.handleRatioSliderInput(e)}
-            @pointerup=${(e: Event) => this.handleRatioSliderPointerUp(e)}
-            class="h-1.5 w-full cursor-pointer accent-aquarius"
-          />
-        </div>
-      </div>
+        <hud-range
+          min="1"
+          max="100"
+          .value=${Math.round(this.attackRatio * 100)}
+          label="Attack ratio"
+          @value-change=${this.handleRatioSliderChange}
+        ></hud-range>
+      </hud-form-row>
     `;
   }
 
@@ -590,16 +567,12 @@ export class ControlPanel extends LitElement implements Controller {
     compact: boolean,
   ) {
     return html`
-      <div class="flex items-center gap-2">
-        <div
-          class="shrink-0 font-bold text-slate-200 leading-none ${compact
-            ? "w-[4.75rem] text-[10px]"
-            : "w-[7.75rem] text-xs"}"
-        >
-          ${label}
-        </div>
+      <hud-form-row
+        style=${`--hud-form-label-width: ${compact ? "4.75rem" : "7.75rem"}`}
+      >
+        <hud-field-label>${label}</hud-field-label>
         ${this.renderBlendBar(blend, handles)}
-      </div>
+      </hud-form-row>
     `;
   }
 
@@ -757,8 +730,10 @@ export class ControlPanel extends LitElement implements Controller {
           : "hidden"}"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <div class="lg:hidden">${this.renderMobile()}</div>
-        <div class="hidden lg:block">${this.renderDesktop()}</div>
+        <hud-control-panel>
+          <div class="lg:hidden">${this.renderMobile()}</div>
+          <div class="hidden lg:block">${this.renderDesktop()}</div>
+        </hud-control-panel>
       </div>
     `;
   }

@@ -316,81 +316,58 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
           ${allianceHtml ?? ""}
         </div>
 
-        <table
-          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
-        >
-          <tbody>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                ${translateText("leaderboard.player")}
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                ${playerTeam !== "" && player.type() !== PlayerType.Bot
-                  ? html`${playerType}
-                      <span
-                        style="color: ${this.game
-                          .config()
-                          .theme()
-                          .teamColor(player.team()!)
-                          .toHex()}"
-                        >${playerTeam}</span
-                      >`
-                  : playerType}
-              </td>
-            </tr>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                ${translateText("leaderboard.gold")}
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                <hud-pill
-                  tone="gold"
-                  .value=${renderNumber(player.gold())}
-                  icon-src=${goldCoinIcon}
-                ></hud-pill>
-              </td>
-            </tr>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                ${translateText("leaderboard.maxtroops")}
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                translate="no"
-              >
-                ${this.renderTroopBar(totalTroops, attackingTroops, maxTroops)}
-              </td>
-            </tr>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                Attack
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                <hud-pill
-                  tone="blue"
-                  .value=${renderTroops(attackingTroops)}
-                  icon-src=${attackingTroops > 0
-                    ? soldierIconAquarius
-                    : soldierIcon}
-                ></hud-pill>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <hud-table>
+          <hud-table-row>
+            <hud-table-cell align="left">
+              ${translateText("leaderboard.player")}
+            </hud-table-cell>
+            <hud-table-cell>
+              ${playerTeam !== "" && player.type() !== PlayerType.Bot
+                ? html`${playerType}
+                    <span
+                      style="color: ${this.game
+                        .config()
+                        .theme()
+                        .teamColor(player.team()!)
+                        .toHex()}"
+                      >${playerTeam}</span
+                    >`
+                : playerType}
+            </hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">
+              ${translateText("leaderboard.gold")}
+            </hud-table-cell>
+            <hud-table-cell>
+              <hud-pill
+                tone="gold"
+                .value=${renderNumber(player.gold())}
+                icon-src=${goldCoinIcon}
+              ></hud-pill>
+            </hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">
+              ${translateText("leaderboard.maxtroops")}
+            </hud-table-cell>
+            <hud-table-cell translate="no">
+              ${this.renderTroopBar(totalTroops, attackingTroops, maxTroops)}
+            </hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">Attack</hud-table-cell>
+            <hud-table-cell>
+              <hud-pill
+                tone="blue"
+                .value=${renderTroops(attackingTroops)}
+                icon-src=${attackingTroops > 0
+                  ? soldierIconAquarius
+                  : soldierIcon}
+              ></hud-pill>
+            </hud-table-cell>
+          </hud-table-row>
+        </hud-table>
 
         <div class="flex flex-wrap gap-1 items-center">
           ${this.displayUnitCount(player, UnitType.City, cityIcon)}
@@ -465,68 +442,38 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
 
     return html`
       <div class="p-2">
-        <table
-          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
-        >
-          <tbody>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                ${translateText("leaderboard.player")}
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right font-bold ${isAlly
-                  ? "text-green-500"
-                  : "text-white"}"
-              >
+        <hud-table>
+          <hud-table-row>
+            <hud-table-cell align="left">
+              ${translateText("leaderboard.player")}
+            </hud-table-cell>
+            <hud-table-cell>
+              <span class=${isAlly ? "font-bold text-green-500" : "font-bold"}>
                 ${unit.owner().displayName()}
-              </td>
-            </tr>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-              >
-                Unit
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                ${unit.type()}
-              </td>
-            </tr>
-            ${unit.hasHealth()
-              ? html`<tr>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
+              </span>
+            </hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">Unit</hud-table-cell>
+            <hud-table-cell>${unit.type()}</hud-table-cell>
+          </hud-table-row>
+          ${unit.hasHealth()
+            ? html`<hud-table-row>
+                <hud-table-cell align="left">Health</hud-table-cell>
+                <hud-table-cell>${unit.health()}</hud-table-cell>
+              </hud-table-row>`
+            : ""}
+          ${unit.type() === UnitType.TransportShip
+            ? html`
+                <hud-table-row>
+                  <hud-table-cell align="left">Troops</hud-table-cell>
+                  <hud-table-cell
+                    >${renderTroops(unit.troops())}</hud-table-cell
                   >
-                    Health
-                  </td>
-                  <td
-                    class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                  >
-                    ${unit.health()}
-                  </td>
-                </tr>`
-              : ""}
-            ${unit.type() === UnitType.TransportShip
-              ? html`
-                  <tr>
-                    <td
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left text-slate-300/70"
-                    >
-                      Troops
-                    </td>
-                    <td
-                      class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-                    >
-                      ${renderTroops(unit.troops())}
-                    </td>
-                  </tr>
-                `
-              : ""}
-          </tbody>
-        </table>
+                </hud-table-row>
+              `
+            : ""}
+        </hud-table>
       </div>
     `;
   }

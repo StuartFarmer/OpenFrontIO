@@ -8,6 +8,33 @@ import {
   makePlayerUpdate,
 } from "../../util/viewStubs";
 
+function collectText(node: Node): string {
+  let text = node.textContent ?? "";
+  if (node instanceof Element && node.shadowRoot) {
+    text += collectText(node.shadowRoot);
+  }
+  for (const child of Array.from(node.childNodes)) {
+    text += collectText(child);
+  }
+  return text;
+}
+
+function queryDeepAll<T extends Element>(root: ParentNode, selector: string): T[] {
+  const matches = Array.from(root.querySelectorAll<T>(selector));
+  for (const element of Array.from(root.querySelectorAll("*"))) {
+    if (element.shadowRoot) {
+      matches.push(...queryDeepAll<T>(element.shadowRoot, selector));
+    }
+  }
+  return matches;
+}
+
+function hasDeepIconSrc(root: ParentNode, src: string): boolean {
+  return queryDeepAll<HTMLElement>(root, "hud-icon,hud-mask-icon").some(
+    (element) => (element as unknown as { src?: string }).src === src,
+  );
+}
+
 describe("ControlPanel resources", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -37,16 +64,17 @@ describe("ControlPanel resources", () => {
     panel.tick();
     await panel.updateComplete;
 
-    expect(panel.textContent).toContain("Biomass");
-    expect(panel.textContent).toContain("Fuels");
-    expect(panel.textContent).toContain("Metals");
-    expect(panel.textContent).toContain("Troops");
-    expect(panel.textContent).toContain("100");
-    expect(panel.textContent).toContain("200");
-    expect(panel.textContent).toContain("300");
-    expect(panel.textContent).toContain("50");
-    expect(panel.textContent).toContain("-2/s");
-    expect(panel.textContent).toContain("75");
+    const text = collectText(panel);
+    expect(text).toContain("Biomass");
+    expect(text).toContain("Fuels");
+    expect(text).toContain("Metals");
+    expect(text).toContain("Troops");
+    expect(text).toContain("100");
+    expect(text).toContain("200");
+    expect(text).toContain("300");
+    expect(text).toContain("50");
+    expect(text).toContain("-2/s");
+    expect(text).toContain("75");
   });
 
   it("switches the selected metric bar when a resource tab is clicked", async () => {
@@ -70,7 +98,7 @@ describe("ControlPanel resources", () => {
     panel.tick();
     await panel.updateComplete;
 
-    const metalsTab = Array.from(panel.querySelectorAll("button")).find(
+    const metalsTab = queryDeepAll<HTMLButtonElement>(panel, "button").find(
       (button) => button.textContent?.includes("Metals"),
     );
     expect(metalsTab).toBeDefined();
@@ -78,15 +106,12 @@ describe("ControlPanel resources", () => {
     await panel.updateComplete;
 
     expect(metalsTab!.getAttribute("aria-pressed")).toBe("true");
-    expect(panel.textContent).toContain("3.00K");
-    expect(panel.textContent).toContain("34%");
-    expect(panel.textContent).toContain("33%");
-    expect(
-      panel.querySelector('img[src="/icons/biomass-icon.svg"]'),
-    ).toBeTruthy();
-    expect(panel.querySelector('img[src="/icons/fuel-icon.svg"]')).toBeTruthy();
-    expect(
-      panel.querySelector('img[src="/icons/metal-icon.svg"]'),
-    ).toBeTruthy();
+    const text = collectText(panel);
+    expect(text).toContain("3.00K");
+    expect(text).toContain("34%");
+    expect(text).toContain("33%");
+    expect(hasDeepIconSrc(panel, "/icons/biomass-icon.svg")).toBe(true);
+    expect(hasDeepIconSrc(panel, "/icons/fuel-icon.svg")).toBe(true);
+    expect(hasDeepIconSrc(panel, "/icons/metal-icon.svg")).toBe(true);
   });
 });

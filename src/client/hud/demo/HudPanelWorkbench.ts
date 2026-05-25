@@ -17,6 +17,12 @@ import "../layers/PlayerInfoOverlay";
 import "../layers/ReplayPanel";
 import "../layers/TeamStats";
 import "../layers/UnitDisplay";
+import {
+  hudCatalogCategories,
+  hudCatalogEntries,
+  hudCatalogEntriesByCategory,
+  hudIconCatalog,
+} from "../ui/HudCatalog";
 import "../ui/HudComponents";
 import { renderLucideIcon } from "../ui/LucideIcon";
 import {
@@ -104,6 +110,7 @@ export class HudPanelWorkbench extends LitElement {
   @state() private blendRangeFirst = 34;
   @state() private blendRangeSecond = 67;
   @state() private selectedMetric = "troops";
+  @state() private selectedEventFilter = "attack";
 
   createRenderRoot() {
     return this;
@@ -203,6 +210,10 @@ export class HudPanelWorkbench extends LitElement {
     el.game = mockGame;
     el.eventBus = noopEventBus;
     el.uiState = uiState;
+    el.active = true;
+    el._isVisible = true;
+    el._hidden = false;
+    el.latestGoldAmount = 12400n;
     el.eventsFilters = new Map([
       [MessageCategory.ATTACK, false],
       [MessageCategory.NUKE, false],
@@ -391,433 +402,6 @@ export class HudPanelWorkbench extends LitElement {
           min-height: 100vh;
         }
 
-        .workbench {
-          min-height: 100vh;
-          padding: 24px;
-          color: #f8fafc;
-          font-family:
-            Inter,
-            ui-sans-serif,
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
-        }
-
-        .topbar {
-          max-width: 1280px;
-          margin: 0 auto 18px;
-        }
-
-        h1,
-        h2,
-        p {
-          margin: 0;
-        }
-
-        h1 {
-          font-size: 22px;
-          font-weight: 650;
-        }
-
-        .subtle {
-          margin-top: 4px;
-          color: rgba(226, 232, 240, 0.66);
-          font-size: 12px;
-        }
-
-        .catalog {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-          gap: 14px;
-          max-width: 1280px;
-          margin: 0 auto;
-        }
-
-        .section {
-          overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 3px;
-          background: rgba(15, 23, 42, 0.78);
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-        }
-
-        .catalog-heading {
-          grid-column: 1 / -1;
-          margin-top: 8px;
-          padding: 8px 0 2px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          color: rgba(226, 232, 240, 0.86);
-          font-family:
-            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          text-transform: uppercase;
-        }
-
-        .catalog-heading span {
-          margin-left: 8px;
-          color: rgba(148, 163, 184, 0.82);
-          font-weight: 500;
-          text-transform: none;
-        }
-
-        .section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          min-height: 30px;
-          padding: 6px 8px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          color: rgba(226, 232, 240, 0.74);
-          font-family:
-            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          font-variant-numeric: tabular-nums;
-          text-transform: uppercase;
-        }
-
-        .section-header span:last-child {
-          color: rgba(148, 163, 184, 0.82);
-          text-transform: none;
-        }
-
-        .stage {
-          position: relative;
-          overflow: hidden;
-          min-height: 96px;
-          padding: 12px;
-          background:
-            linear-gradient(rgba(2, 6, 23, 0.2), rgba(2, 6, 23, 0.42)), #1e293b;
-          transform: translateZ(0);
-        }
-
-        .stage.center {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .stage.top {
-          display: flex;
-          align-items: flex-start;
-          justify-content: flex-start;
-        }
-
-        .frame {
-          position: relative;
-          min-width: 0;
-        }
-
-        .frame.shell {
-          color: white;
-          background: rgba(31, 41, 55, 0.88);
-          border-radius: 3px;
-          box-shadow: 0 10px 15px rgba(0, 0, 0, 0.22);
-          overflow: hidden;
-        }
-
-        .kit-stage {
-          min-height: 132px;
-          padding: 12px;
-          background: #1e293b;
-          font-family:
-            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .kit-stack {
-          display: grid;
-          gap: 8px;
-        }
-
-        .atom-row {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .atom-caption {
-          min-width: 72px;
-          color: rgba(226, 232, 240, 0.68);
-          text-transform: uppercase;
-        }
-
-        .atom-icon {
-          display: inline-grid;
-          place-items: center;
-          aspect-ratio: 1 / 1;
-          flex: 0 0 auto;
-          overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 2px;
-          background: rgba(2, 6, 23, 0.35);
-          color: #67e8f9;
-          font-weight: 700;
-          line-height: 1;
-        }
-
-        .atom-icon.red {
-          color: #f87171;
-          border-color: rgba(185, 28, 28, 0.5);
-          background: rgba(127, 29, 29, 0.35);
-        }
-
-        .atom-icon.sm {
-          width: 16px;
-        }
-
-        .atom-icon.md {
-          width: 20px;
-        }
-
-        .atom-icon.lg {
-          width: 24px;
-        }
-
-        .atom-icon.xl {
-          width: 28px;
-        }
-
-        .actual-icon-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-          gap: 6px;
-        }
-
-        .actual-icon-card {
-          display: grid;
-          min-width: 0;
-          grid-template-columns: 24px minmax(0, 1fr);
-          align-items: center;
-          gap: 6px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 2px;
-          background: rgba(2, 6, 23, 0.28);
-          padding: 4px 5px;
-          color: rgba(226, 232, 240, 0.78);
-          line-height: 1;
-        }
-
-        .actual-icon-card img {
-          width: 20px;
-          height: 20px;
-          object-fit: contain;
-        }
-
-        .actual-icon-card span {
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .atom-label {
-          min-width: 0;
-          color: #e2e8f0;
-          line-height: 1;
-        }
-
-        .atom-label.number {
-          min-width: 56px;
-          text-align: right;
-          white-space: nowrap;
-        }
-
-        .atom-label.text {
-          max-width: 120px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .surface-sample {
-          overflow: hidden;
-          width: 180px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 3px;
-          background: rgba(31, 41, 55, 0.88);
-          color: white;
-        }
-
-        .surface-sample-header {
-          min-height: 26px;
-          padding: 6px 8px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(15, 23, 42, 0.5);
-          font-weight: 700;
-        }
-
-        .surface-sample-body {
-          padding: 8px;
-          color: rgba(226, 232, 240, 0.78);
-        }
-
-        .button-sample {
-          min-height: 24px;
-          padding: 0 8px;
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          border-radius: 2px;
-          background: rgba(2, 6, 23, 0.35);
-          color: white;
-          font: inherit;
-          font-weight: 650;
-        }
-
-        .breakdown-list {
-          display: grid;
-          gap: 6px;
-          margin: 0;
-          padding: 0;
-          list-style: none;
-          color: rgba(226, 232, 240, 0.76);
-        }
-
-        .breakdown-list strong {
-          color: white;
-        }
-
-        .attack-row-sample {
-          display: flex;
-          width: 100%;
-          max-width: 500px;
-          min-width: 0;
-          align-items: center;
-          gap: 4px;
-          overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-          background: rgba(31, 41, 55, 0.88);
-          padding: 2px 4px;
-          color: #67e8f9;
-        }
-
-        .attack-row-main {
-          display: grid;
-          min-width: 0;
-          flex: 1;
-          grid-template-columns: auto auto minmax(60px, auto) minmax(0, 1fr);
-          align-items: center;
-          gap: 4px;
-        }
-
-        .dual-range-input {
-          pointer-events: none;
-        }
-
-        .dual-range-input::-webkit-slider-runnable-track {
-          height: 24px;
-          background: transparent;
-          border: 0;
-        }
-
-        .dual-range-input::-webkit-slider-thumb {
-          pointer-events: auto;
-          width: 18px;
-          height: 18px;
-          margin-top: 3px;
-          border: 3px solid rgba(255, 255, 255, 0.86);
-          border-radius: 9999px;
-          background: #38bdf8;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-          transition:
-            transform 120ms ease,
-            box-shadow 120ms ease;
-          -webkit-appearance: none;
-          appearance: none;
-        }
-
-        .dual-range-input:active::-webkit-slider-thumb {
-          transform: scale(1.1);
-          box-shadow:
-            0 0 0 3px rgba(56, 189, 248, 0.24),
-            0 1px 2px rgba(0, 0, 0, 0.45);
-        }
-
-        .blend-range-input::-webkit-slider-thumb {
-          background: #cbd5e1;
-          box-shadow:
-            0 0 0 2px rgba(15, 23, 42, 0.8),
-            0 1px 2px rgba(0, 0, 0, 0.45);
-        }
-
-        .blend-range-input:active::-webkit-slider-thumb {
-          box-shadow:
-            0 0 0 3px rgba(203, 213, 225, 0.25),
-            0 1px 2px rgba(0, 0, 0, 0.45);
-        }
-
-        .dual-range-input::-moz-range-track {
-          height: 24px;
-          background: transparent;
-          border: 0;
-        }
-
-        .dual-range-input::-moz-range-thumb {
-          pointer-events: auto;
-          width: 18px;
-          height: 18px;
-          border: 3px solid rgba(255, 255, 255, 0.86);
-          border-radius: 9999px;
-          background: #38bdf8;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-        }
-
-        .blend-range-input::-moz-range-thumb {
-          background: #cbd5e1;
-          box-shadow:
-            0 0 0 2px rgba(15, 23, 42, 0.8),
-            0 1px 2px rgba(0, 0, 0, 0.45);
-        }
-
-        .w-500 {
-          width: 500px;
-        }
-
-        .w-420 {
-          width: 420px;
-        }
-
-        .w-384 {
-          width: 384px;
-        }
-
-        .w-320 {
-          width: 320px;
-        }
-
-        .h-64 {
-          height: 64px;
-        }
-
-        .h-96 {
-          height: 96px;
-        }
-
-        .h-140 {
-          height: 140px;
-        }
-
-        .h-180 {
-          height: 180px;
-        }
-
-        .h-240 {
-          height: 240px;
-        }
-
-        .h-360 {
-          height: 360px;
-        }
-
         leader-board,
         team-stats,
         attacks-display,
@@ -830,17 +414,39 @@ export class HudPanelWorkbench extends LitElement {
         game-left-sidebar {
           pointer-events: auto;
         }
+
+        hud-kit-stage[popover-preview] player-info-overlay > div {
+          position: static !important;
+          margin-top: 0 !important;
+          transform: none !important;
+        }
+
+        hud-kit-stage[popover-preview] player-info-overlay > div > div {
+          width: 100% !important;
+        }
       </style>
 
-      <div class="workbench">
-        <div class="topbar">
-          <h1>HUD UI Catalog</h1>
-          <p class="subtle">
-            Every reusable HUD UI element, from primitives to composed panels.
-          </p>
-        </div>
+      <hud-kit-page>
+        <hud-kit-topbar
+          title="HUD UI Catalog"
+          detail="Every reusable HUD UI element, from primitives to composed panels."
+        ></hud-kit-topbar>
 
-        <div class="catalog">
+        <hud-kit-catalog>
+          ${this.catalogHeading(
+            "Catalog",
+            "single source of component metadata and examples",
+          )}
+          ${this.section(
+            "Manifest",
+            "categories, status, API coverage",
+            this.renderCatalogManifest(),
+          )}
+          ${this.section(
+            "Foundations",
+            "tokens, icon registry, sizing guidance",
+            this.renderFoundationCatalog(),
+          )}
           ${this.catalogHeading(
             "Atoms",
             "basic reusable units for building new HUD panels",
@@ -879,6 +485,11 @@ export class HudPanelWorkbench extends LitElement {
             "Forms",
             "input, select, range",
             this.renderFormAtoms(),
+          )}
+          ${this.section(
+            "Advanced Controls",
+            "tabs, command choice, selection states",
+            this.renderAdvancedControlAtoms(),
           )}
           ${this.section(
             "Meters",
@@ -925,136 +536,278 @@ export class HudPanelWorkbench extends LitElement {
             this.renderSidebarEconomyMolecules(),
           )}
           ${this.catalogHeading(
+            "Surfaces",
+            "small shells and overlay primitives for future composites",
+          )}
+          ${this.section(
+            "Layout Helpers",
+            "stack, row, grid, split, scroll, states",
+            this.renderLayoutSurfaceElements(),
+          )}
+          ${this.section(
+            "Overlays",
+            "modal and popover shells",
+            this.renderOverlayElements(),
+          )}
+          ${this.section(
+            "Feedback",
+            "alert, toast, notice, confirm actions",
+            this.renderFeedbackElements(),
+          )}
+          ${this.section(
+            "Menus",
+            "dropdown-style command list primitives",
+            this.renderMenuElements(),
+          )}
+          ${this.catalogHeading(
+            "Recipes",
+            "small compositions made only from catalog elements",
+          )}
+          ${this.section(
+            "Composition Recipes",
+            "resource row, modal footer, feed row",
+            this.renderRecipeElements(),
+          )}
+          ${this.catalogHeading(
             "Complete Components",
             "live composites in constrained stages",
           )}
           ${this.section(
             "Left Sidebar",
             "420 x 360, fixed-position sandbox",
-            html`<div class="stage h-360">
+            html`<hud-kit-stage preview style="--hud-kit-stage-height: 360px">
               <game-left-sidebar></game-left-sidebar>
-            </div>`,
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Leaderboard",
             "320 x 240",
-            html`<div class="stage top h-240">
-              <div class="frame w-320"><leader-board></leader-board></div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="top"
+              style="--hud-kit-stage-height: 240px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 320px">
+                <leader-board></leader-board>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Team Stats",
             "320 x 180",
-            html`<div class="stage top h-180">
-              <div class="frame w-320"><team-stats></team-stats></div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="top"
+              style="--hud-kit-stage-height: 180px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 320px">
+                <team-stats></team-stats>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Control Panel",
             "500 x 140",
-            html`<div class="stage center h-140">
-              <div class="frame shell w-500">
-                <control-panel></control-panel>
-              </div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 140px"
+            >
+              <hud-kit-frame shell style="--hud-kit-frame-width: 500px">
+                ${this.renderControlPanelComposite()}
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Unit Display",
             "500 x 64",
-            html`<div class="stage center h-96">
-              <div class="frame shell w-500">
+            html`<hud-kit-stage
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 96px"
+            >
+              <hud-kit-frame shell style="--hud-kit-frame-width: 500px">
                 <unit-display></unit-display>
-              </div>
-            </div>`,
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Attacks Display",
             "500 x 140",
-            html`<div class="stage center h-140">
-              <div class="frame w-500"><attacks-display></attacks-display></div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 140px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 500px">
+                <attacks-display></attacks-display>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Events Display",
             "384 x 240",
-            html`<div class="stage top h-240">
-              <div class="frame w-384"><events-display></events-display></div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="top"
+              style="--hud-kit-stage-height: 240px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 384px">
+                <events-display></events-display>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Right Sidebar",
             "320 x 64",
-            html`<div class="stage center h-96">
-              <div class="frame w-320">
+            html`<hud-kit-stage
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 96px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 320px">
                 <game-right-sidebar></game-right-sidebar>
-              </div>
-            </div>`,
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Replay Panel",
             "320 x 96",
-            html`<div class="stage center h-140">
-              <div class="frame w-320"><replay-panel></replay-panel></div>
-            </div>`,
+            html`<hud-kit-stage
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 140px"
+            >
+              <hud-kit-frame style="--hud-kit-frame-width: 320px">
+                <replay-panel></replay-panel>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
           ${this.section(
             "Player Popover",
             "500 x 180, fixed-position sandbox",
-            html`<div class="stage h-180">
-              <player-info-overlay></player-info-overlay>
-            </div>`,
+            html`<hud-kit-stage
+              popover-preview
+              preview
+              align="center"
+              style="--hud-kit-stage-height: 180px"
+            >
+              <hud-kit-frame shell style="--hud-kit-frame-width: 500px">
+                <player-info-overlay></player-info-overlay>
+              </hud-kit-frame>
+            </hud-kit-stage>`,
           )}
-        </div>
-      </div>
+        </hud-kit-catalog>
+      </hud-kit-page>
     `;
   }
 
   private catalogHeading(title: string, detail: string) {
-    return html`<div class="catalog-heading">
-      ${title}<span>${detail}</span>
-    </div>`;
+    return html`<hud-kit-heading
+      .title=${title}
+      .detail=${detail}
+    ></hud-kit-heading>`;
+  }
+
+  private renderCatalogManifest() {
+    return html`<hud-kit-stage stack>
+      <hud-stat-grid columns="4">
+        <hud-stat
+          label="Entries"
+          .value=${String(hudCatalogEntries.length)}
+        ></hud-stat>
+        <hud-stat
+          label="Elements"
+          .value=${String(
+            hudCatalogEntries.filter((entry) => entry.tagName).length,
+          )}
+        ></hud-stat>
+        <hud-stat
+          label="Icons"
+          .value=${String(hudIconCatalog.length)}
+        ></hud-stat>
+        <hud-stat label="Statuses" value="5"></hud-stat>
+      </hud-stat-grid>
+      <hud-grid columns="2">
+        ${hudCatalogCategories
+          .filter((category) => hudCatalogEntriesByCategory(category).length)
+          .map(
+            (category) =>
+              html`<hud-list-row>
+                <hud-label slot="leading" tone="active">${category}</hud-label>
+                <span
+                  >${hudCatalogEntriesByCategory(category).length} entries</span
+                >
+                <hud-label slot="meta" tone="muted">cataloged</hud-label>
+              </hud-list-row>`,
+          )}
+      </hud-grid>
+    </hud-kit-stage>`;
+  }
+
+  private renderFoundationCatalog() {
+    return html`<hud-kit-stage stack>
+      <hud-grid columns="3">
+        <hud-color-swatch color="#38bdf8" label="active"></hud-color-swatch>
+        <hud-color-swatch color="#86efac" label="success"></hud-color-swatch>
+        <hud-color-swatch color="#fde68a" label="gold"></hud-color-swatch>
+        <hud-color-swatch color="#fdba74" label="warning"></hud-color-swatch>
+        <hud-color-swatch color="#fca5a5" label="danger"></hud-color-swatch>
+        <hud-color-swatch color="#94a3b8" label="muted"></hud-color-swatch>
+      </hud-grid>
+      <hud-kit-icon-gallery>
+        ${hudIconCatalog.map(
+          (entry) =>
+            html`<hud-kit-icon-sample
+              .label=${entry.name}
+              .iconSrc=${assetUrl(entry.assetPath)}
+              title=${entry.usage}
+            ></hud-kit-icon-sample>`,
+        )}
+      </hud-kit-icon-gallery>
+    </hud-kit-stage>`;
   }
 
   private renderHeaderAtoms() {
     return html`
-      <div class="kit-stage">
+      <hud-kit-stage>
         <hud-surface style="width: 100%; max-width: 260px">
           <hud-surface-header>
-            <span>SECTION HEADER</span>
-            <span class="text-slate-400">meta</span>
+            <hud-label>SECTION HEADER</hud-label>
+            <hud-label tone="muted">meta</hud-label>
           </hud-surface-header>
           <hud-surface-body>surface body</hud-surface-body>
         </hud-surface>
-      </div>
+      </hud-kit-stage>
     `;
   }
 
   private renderSurfaceControlAtoms() {
     return html`
-      <div class="kit-stage">
-        <div class="atom-row">
-          <span class="atom-caption">surface</span>
+      <hud-kit-stage>
+        <hud-kit-row>
+          <hud-kit-caption>surface</hud-kit-caption>
           <hud-surface style="width: 180px">
             <hud-surface-header>PANEL HEADER</hud-surface-header>
             <hud-surface-body>panel body</hud-surface-body>
           </hud-surface>
-        </div>
-        <div class="atom-row" style="margin-top: 10px">
-          <span class="atom-caption">control</span>
+        </hud-kit-row>
+        <hud-kit-row style="margin-top: 10px">
+          <hud-kit-caption>control</hud-kit-caption>
           <hud-button>ACTION</hud-button>
           <hud-icon-button label="Close">
             ${renderLucideIcon(X, "h-4 w-4")}
           </hud-icon-button>
-        </div>
-      </div>
+        </hud-kit-row>
+      </hud-kit-stage>
     `;
   }
 
   private renderIconAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="atom-row">
-          <span class="atom-caption">sizes</span>
+      <hud-kit-stage stack>
+        <hud-kit-row>
+          <hud-kit-caption>sizes</hud-kit-caption>
           <hud-icon .src=${sampleSwordIcon} size="sm" label="Small"></hud-icon>
           <hud-icon .src=${sampleSwordIcon} size="md" label="Medium"></hud-icon>
           <hud-icon .src=${sampleSwordIcon} size="lg" label="Large"></hud-icon>
@@ -1063,91 +816,92 @@ export class HudPanelWorkbench extends LitElement {
             size="xl"
             label="Extra large"
           ></hud-icon>
-        </div>
-        <div class="atom-row">
-          <span class="atom-caption">red</span>
+        </hud-kit-row>
+        <hud-kit-row>
+          <hud-kit-caption>red</hud-kit-caption>
           <hud-icon .src=${sampleSwordIcon} tone="danger" size="sm"></hud-icon>
           <hud-icon .src=${sampleSwordIcon} tone="danger" size="md"></hud-icon>
           <hud-icon .src=${sampleSwordIcon} tone="danger" size="lg"></hud-icon>
           <hud-icon .src=${sampleSwordIcon} tone="danger" size="xl"></hud-icon>
-        </div>
-        <div class="atom-row">
-          <span class="atom-caption">action</span>
+        </hud-kit-row>
+        <hud-kit-row>
+          <hud-kit-caption>action</hud-kit-caption>
           ${renderLucideIcon(ChevronUp, "h-5 w-5")}
-          <span class="text-red-300">${renderLucideIcon(X, "h-5 w-5")}</span>
-        </div>
-        <div class="actual-icon-grid">
+          <hud-label tone="danger">${renderLucideIcon(X, "h-5 w-5")}</hud-label>
+        </hud-kit-row>
+        <hud-kit-icon-gallery>
           ${hudIconSamples.map(
             ([label, src]) => html`
-              <div class="actual-icon-card" title=${label}>
-                <hud-icon .src=${src} size="lg" .label=${label}></hud-icon>
-                <span>${label}</span>
-              </div>
+              <hud-kit-icon-sample
+                .label=${label}
+                .iconSrc=${src}
+                title=${label}
+              ></hud-kit-icon-sample>
             `,
           )}
-        </div>
-      </div>
+        </hud-kit-icon-gallery>
+      </hud-kit-stage>
     `;
   }
 
   private renderLabelAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="atom-row">
-          <span class="atom-caption">number</span>
+      <hud-kit-stage stack>
+        <hud-kit-row>
+          <hud-kit-caption>number</hud-kit-caption>
           <hud-number value="1000" format></hud-number>
           <hud-number value="10000" format></hud-number>
           <hud-number value="100000" format></hud-number>
           <hud-number value="1000000" format></hud-number>
-        </div>
-        <div class="atom-row">
-          <span class="atom-caption">label</span>
+        </hud-kit-row>
+        <hud-kit-row>
+          <hud-kit-caption>label</hud-kit-caption>
           <hud-label>East March</hud-label>
           <hud-label tone="muted">Wilderness</hud-label>
           <hud-label tone="active">Very Long Player Name</hud-label>
-        </div>
-      </div>
+        </hud-kit-row>
+      </hud-kit-stage>
     `;
   }
 
   private renderButtonAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="atom-row">
-          <span class="atom-caption">button</span>
+      <hud-kit-stage stack>
+        <hud-kit-row>
+          <hud-kit-caption>button</hud-kit-caption>
           <hud-button>Default</hud-button>
           <hud-button variant="active">Active</hud-button>
           <hud-button variant="danger">Danger</hud-button>
-        </div>
-        <div class="atom-row">
-          <span class="atom-caption">icon</span>
+        </hud-kit-row>
+        <hud-kit-row>
+          <hud-kit-caption>icon</hud-kit-caption>
           <hud-icon-button label="Settings">
-            ${this.renderPlainIcon(sampleSettingsIcon)}
+            <hud-icon .src=${sampleSettingsIcon} size="sm"></hud-icon>
           </hud-icon-button>
           <hud-icon-button label="Exit">
-            ${this.renderPlainIcon(sampleExitIcon)}
+            <hud-icon .src=${sampleExitIcon} size="sm"></hud-icon>
           </hud-icon-button>
           <hud-icon-button label="Leaderboard">
-            ${this.renderPlainIcon(sampleLeaderboardIcon)}
+            <hud-icon .src=${sampleLeaderboardIcon} size="sm"></hud-icon>
           </hud-icon-button>
-        </div>
-      </div>
+        </hud-kit-row>
+      </hud-kit-stage>
     `;
   }
 
   private renderPillAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="atom-row">
-          <span class="atom-caption">pill</span>
+      <hud-kit-stage stack>
+        <hud-kit-row>
+          <hud-kit-caption>pill</hud-kit-caption>
           <hud-pill value="Neutral"></hud-pill>
           <hud-pill value="Blue" tone="blue"></hud-pill>
           <hud-pill value="Green" tone="green"></hud-pill>
           <hud-pill value="Gold" tone="gold"></hud-pill>
           <hud-pill value="Red" tone="red"></hud-pill>
-        </div>
-        <div class="atom-row">
-          <span class="atom-caption">icon pill</span>
+        </hud-kit-row>
+        <hud-kit-row>
+          <hud-kit-caption>icon pill</hud-kit-caption>
           <hud-pill
             value="92K"
             tone="gold"
@@ -1159,64 +913,71 @@ export class HudPanelWorkbench extends LitElement {
             icon-src=${sampleSoldierIcon}
           ></hud-pill>
           <hud-pill value="3" tone="red"></hud-pill>
-        </div>
-      </div>
+        </hud-kit-row>
+      </hud-kit-stage>
     `;
   }
 
   private renderFormAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
-          <label
-            class="text-[10px] font-semibold leading-none text-slate-300/80"
-            >Input</label
-          >
-          <input
-            class="h-6 min-w-0 rounded-[2px] border border-white/20 bg-slate-950/50 px-1.5 text-white text-[10px] leading-none outline-none transition-colors focus:border-aquarius/70"
-            value="10.0K"
-          />
-        </div>
-        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
-          <label
-            class="text-[10px] font-semibold leading-none text-slate-300/80"
-            >Select</label
-          >
-          <select
-            class="h-6 min-w-0 rounded-[2px] border border-white/20 bg-slate-950/50 px-1.5 text-white text-[10px] leading-none outline-none transition-colors focus:border-aquarius/70 pr-5"
-          >
-            <option>Troops</option>
-            <option>Biomass</option>
-            <option>Metals</option>
-          </select>
-        </div>
-        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
-          <label
-            class="text-[10px] font-semibold leading-none text-slate-300/80"
-            >Range</label
-          >
-          <input
-            class="h-1.5 w-full cursor-pointer accent-aquarius"
-            type="range"
-            value="25"
-          />
-        </div>
-        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
-          <label
-            class="text-[10px] font-semibold leading-none text-slate-300/80"
-            >Dual</label
-          >
+      <hud-kit-stage stack>
+        <hud-form-row>
+          <hud-field-label>Input</hud-field-label>
+          <hud-input value="10.0K"></hud-input>
+        </hud-form-row>
+        <hud-form-row>
+          <hud-field-label>Select</hud-field-label>
+          <hud-select
+            value="troops"
+            .options=${[
+              { label: "Troops", value: "troops" },
+              { label: "Biomass", value: "biomass" },
+              { label: "Metals", value: "metals" },
+            ]}
+          ></hud-select>
+        </hud-form-row>
+        <hud-form-row>
+          <hud-field-label>Range</hud-field-label>
+          <hud-range value="25" label="Single range"></hud-range>
+        </hud-form-row>
+        <hud-form-row>
+          <hud-field-label>Dual</hud-field-label>
           ${this.renderDualRange()}
-        </div>
-        <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
-          <label
-            class="text-[10px] font-semibold leading-none text-slate-300/80"
-            >Blend</label
-          >
+        </hud-form-row>
+        <hud-form-row>
+          <hud-field-label>Blend</hud-field-label>
           ${this.renderBlendDualRangeSample()}
-        </div>
-      </div>
+        </hud-form-row>
+      </hud-kit-stage>
     `;
+  }
+
+  private renderAdvancedControlAtoms() {
+    return html`<hud-kit-stage stack>
+      <hud-tabs
+        selected="intel"
+        .items=${[
+          { id: "intel", label: "Intel" },
+          { id: "trade", label: "Trade" },
+          { id: "locked", label: "Locked", disabled: true },
+        ]}
+      ></hud-tabs>
+      <hud-kit-row>
+        <hud-command-choice selected value="A">
+          <hud-icon slot="icon" .src=${sampleSwordIcon} size="sm"></hud-icon>
+          Attack
+          <hud-label slot="meta" tone="active">25%</hud-label>
+        </hud-command-choice>
+        <hud-command-choice value="3">
+          <hud-icon slot="icon" .src=${sampleAllianceIcon} size="sm"></hud-icon>
+          Ally
+        </hud-command-choice>
+        <hud-command-choice locked value="L">
+          <hud-icon slot="icon" .src=${sampleNukeIcon} size="sm"></hud-icon>
+          Locked
+        </hud-command-choice>
+      </hud-kit-row>
+    </hud-kit-stage>`;
   }
 
   private renderDualRange() {
@@ -1227,14 +988,10 @@ export class HudPanelWorkbench extends LitElement {
       end-label="Range end"
       @range-change=${this.setDualRange}
     >
-      <div
-        class="pointer-events-none absolute -bottom-3 flex -translate-x-1/2 gap-1 text-[10px] text-slate-300"
-        style="left: ${(this.dualRangeStart + this.dualRangeEnd) / 2}%"
-      >
-        <span>${this.dualRangeStart}</span>
-        <span>-</span>
-        <span>${this.dualRangeEnd}</span>
-      </div>
+      <hud-range-readout
+        .start=${this.dualRangeStart}
+        .end=${this.dualRangeEnd}
+      ></hud-range-readout>
     </hud-dual-range>`;
   }
 
@@ -1258,7 +1015,7 @@ export class HudPanelWorkbench extends LitElement {
 
   private renderMeterAtoms() {
     return html`
-      <div class="kit-stage kit-stack">
+      <hud-kit-stage stack>
         <hud-meter
           .segments=${[
             { width: 68, tone: "blue" },
@@ -1272,97 +1029,50 @@ export class HudPanelWorkbench extends LitElement {
             { width: 68, tone: "slate" },
             { width: 9, tone: "blue" },
           ]}
-          .label=${html`<span>1.8M</span><span>2.6M</span>`}
+          .label=${html`<hud-label>1.8M</hud-label>
+            <hud-label>2.6M</hud-label>`}
           label-align="between"
         ></hud-meter>
-      </div>
+      </hud-kit-stage>
     `;
   }
 
   private renderTableAtoms() {
     return html`
-      <div class="kit-stage">
-        <table
-          class="font-mono tabular-nums w-full border-collapse text-[10px] leading-[1.2]"
-        >
-          <thead>
-            <tr>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold text-left"
-              >
-                Name
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-              >
-                Owned
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-              >
-                Gold
-              </th>
-              <th
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-slate-300/70 bg-slate-900/30 font-semibold"
-              >
-                Max
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
-              >
-                Blue Harbor
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                25.4%
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                92K
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                1.9M
-              </td>
-            </tr>
-            <tr>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right text-left"
-              >
-                Red March
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                18.2%
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                107K
-              </td>
-              <td
-                class="h-5 px-2 py-1 align-middle border-b border-white/10 whitespace-nowrap text-right"
-              >
-                1.3M
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <hud-kit-stage stack>
+        <hud-table>
+          <hud-table-row>
+            <hud-table-cell header align="left">Name</hud-table-cell>
+            <hud-table-cell header>Owned</hud-table-cell>
+            <hud-table-cell header>Gold</hud-table-cell>
+            <hud-table-cell header>Max</hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">Blue Harbor</hud-table-cell>
+            <hud-table-cell>25.4%</hud-table-cell>
+            <hud-table-cell>92K</hud-table-cell>
+            <hud-table-cell>1.9M</hud-table-cell>
+          </hud-table-row>
+          <hud-table-row>
+            <hud-table-cell align="left">Red March</hud-table-cell>
+            <hud-table-cell>18.2%</hud-table-cell>
+            <hud-table-cell>107K</hud-table-cell>
+            <hud-table-cell>1.3M</hud-table-cell>
+          </hud-table-row>
+        </hud-table>
+        <hud-list-row selected>
+          <hud-label slot="leading">#2</hud-label>
+          East March
+          <hud-label slot="meta">18.2%</hud-label>
+          <hud-button slot="actions">View</hud-button>
+        </hud-list-row>
+      </hud-kit-stage>
     `;
   }
 
   private renderAttackRowMolecule() {
     return html`
-      <div class="kit-stage">
+      <hud-kit-stage>
         <hud-attack-row tone="blue" amount="10.0K" label="East March">
           <hud-icon
             slot="primary-icon"
@@ -1370,20 +1080,26 @@ export class HudPanelWorkbench extends LitElement {
             size="md"
             tone="active"
           ></hud-icon>
-          <span slot="direction-icon">
+          <hud-label slot="direction-icon">
             ${renderLucideIcon(ChevronUp, "h-3.5 w-3.5")}
-          </span>
+          </hud-label>
           <hud-icon-button slot="action" label="Cancel">
             ${renderLucideIcon(X, "h-3.5 w-3.5")}
           </hud-icon-button>
         </hud-attack-row>
-      </div>
+      </hud-kit-stage>
     `;
   }
 
   private renderControlPanelMolecules() {
+    return html`<hud-kit-stage
+      >${this.renderControlPanelComposite()}</hud-kit-stage
+    >`;
+  }
+
+  private renderControlPanelComposite() {
     return html`
-      <div class="kit-stage kit-stack">
+      <hud-control-panel>
         <hud-segmented-control
           .selected=${this.selectedMetric}
           .items=${[
@@ -1418,47 +1134,42 @@ export class HudPanelWorkbench extends LitElement {
           ]}
           @selection-change=${this.setSelectedMetric}
         ></hud-segmented-control>
-        <div class="atom-row">
+        <hud-kit-row>
           <hud-pill
             value="+18.4K/s"
             tone="green"
             icon-src=${sampleSoldierIcon}
           ></hud-pill>
           <hud-meter
-            class="flex-1"
+            style="flex: 1 1 auto; min-width: 120px"
+            variant="mini"
             .segments=${[
               { width: 68, tone: "blue" },
               { width: 9, tone: "cyan" },
             ]}
-            label="1.8M / 2.6M"
+            .label=${html`<hud-label>1.8M</hud-label>
+              <hud-label>2.6M</hud-label>`}
+            label-align="between"
           ></hud-meter>
           <hud-pill
             value="92K"
             tone="gold"
             icon-src=${sampleGoldCoinIcon}
           ></hud-pill>
-        </div>
-        <div class="flex items-center gap-1.5">
+        </hud-kit-row>
+        <hud-form-row>
           <hud-pill
             value="25% (450K)"
             tone="blue"
             icon-src=${sampleSwordIcon}
           ></hud-pill>
-          <input
-            class="h-1.5 w-full cursor-pointer accent-aquarius"
-            type="range"
-            value="25"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          <div
-            class="shrink-0 font-bold text-slate-200 leading-none w-[7.75rem] text-xs"
-          >
-            Import Blend
-          </div>
+          <hud-range value="25" label="Attack ratio"></hud-range>
+        </hud-form-row>
+        <hud-form-row style="--hud-form-label-width: 7.75rem">
+          <hud-field-label>Import Blend</hud-field-label>
           ${this.renderBlendDualRangeSample()}
-        </div>
-      </div>
+        </hud-form-row>
+      </hud-control-panel>
     `;
   }
 
@@ -1518,114 +1229,110 @@ export class HudPanelWorkbench extends LitElement {
 
   private renderEventsMolecules() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div
-          class="inline-grid grid-flow-col auto-cols-fr min-w-0 overflow-hidden border border-white/25 rounded-[2px] bg-slate-950/30 w-fit"
+      <hud-kit-stage stack>
+        <hud-segmented-control
+          .selected=${this.selectedEventFilter}
+          .items=${[
+            {
+              id: "attack",
+              label: "Attack",
+              iconSrc: sampleSwordIcon,
+              tone: "danger",
+            },
+            {
+              id: "nuke",
+              label: "Nuke",
+              iconSrc: sampleNukeIcon,
+              tone: "warning",
+            },
+            {
+              id: "alliance",
+              label: "Alliance",
+              iconSrc: sampleAllianceIcon,
+              tone: "active",
+            },
+            {
+              id: "chat",
+              label: "Chat",
+              iconSrc: sampleChatIcon,
+              tone: "default",
+            },
+          ]}
+          @selection-change=${this.setSelectedEventFilter}
+        ></hud-segmented-control>
+        <hud-event-row
+          meta="00:42"
+          text="Red requested attack on Delta."
+          tone="danger"
         >
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0 bg-malibu-blue/30 hover:bg-malibu-blue/35"
-          >
-            ${this.renderPlainIcon(sampleSwordIcon)}
-          </button>
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleNukeIcon)}
-          </button>
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleAllianceIcon)}
-          </button>
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleChatIcon)}
-          </button>
-        </div>
-        <div
-          class="grid grid-cols-[7ch_minmax(0,1fr)_auto] items-center gap-1 border-b border-white/10 px-2 py-1 text-[10px] leading-[1.2]"
-        >
-          <span class="text-slate-400 tabular-nums">00:42</span>
-          <span class="min-w-0 truncate text-left text-red-300">
-            Red requested attack on Delta.
-          </span>
-          <span class="inline-flex items-center gap-1 whitespace-nowrap">
-            <button
-              class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45"
-            >
-              Focus
-            </button>
-            <button
-              class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45"
-            >
-              Accept
-            </button>
-          </span>
-        </div>
-        <div class="atom-row">
+          <hud-action-group slot="actions">
+            <hud-button>Focus</hud-button>
+            <hud-button variant="active">Accept</hud-button>
+          </hud-action-group>
+        </hud-event-row>
+        <hud-kit-row>
           <hud-pill tone="red" value="3"></hud-pill>
           <hud-pill
             tone="gold"
             value="+12.4K"
             icon-src=${sampleGoldCoinIcon}
           ></hud-pill>
-        </div>
-      </div>
+        </hud-kit-row>
+      </hud-kit-stage>
     `;
+  }
+
+  private setSelectedEventFilter(event: CustomEvent<{ id: string }>) {
+    this.selectedEventFilter = event.detail.id;
   }
 
   private renderUnitDisplayMolecules() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="grid w-fit grid-flow-col grid-rows-1 auto-cols-max gap-0.5">
-          <hud-build-item
+      <hud-kit-stage stack>
+        <hud-unit-display>
+          <hud-unit-button
             hotkey="1"
             icon-src=${sampleSoldierIcon}
             count="9"
             selected
-          ></hud-build-item>
-          <hud-build-item
+          ></hud-unit-button>
+          <hud-unit-button
             hotkey="2"
             icon-src=${sampleBiomassIcon}
             count="6"
-          ></hud-build-item>
-          <hud-build-item
+          ></hud-unit-button>
+          <hud-unit-button
             hotkey="3"
             icon-src=${sampleFuelIcon}
             count="3"
-          ></hud-build-item>
-          <hud-build-item hotkey="4" count="R"></hud-build-item>
-        </div>
+          ></hud-unit-button>
+          <hud-unit-button hotkey="4" fallback="R" count="2"></hud-unit-button>
+        </hud-unit-display>
         <hud-tooltip title="Factory [2]">
-          <div>Improves nearby resource production.</div>
-          <div class="mt-1 text-yellow-300">34 / 18 / 11</div>
+          <hud-label>Improves nearby resource production.</hud-label>
+          <hud-label tone="gold">34 / 18 / 11</hud-label>
         </hud-tooltip>
-      </div>
+      </hud-kit-stage>
     `;
   }
 
   private renderPlayerInfoMolecules() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div class="flex min-w-0 items-center gap-2">
-          <div
-            class="flex min-w-0 flex-1 items-center gap-2 text-xs font-bold text-aquarius"
-          >
-            <span class="h-4 w-6 rounded-[1px] bg-sky-500"></span>
-            <span class="truncate">Blue Harbor</span>
-            <span class="ml-1 flex shrink-0 items-center gap-1">
-              ${this.renderPlainIcon(sampleAllianceIcon, "h-4 w-4")}
-              <span translate="no">🙂</span>
-            </span>
-          </div>
+      <hud-kit-stage stack>
+        <hud-kit-row>
+          <hud-player-identity
+            name="Blue Harbor"
+            icon-src=${sampleAllianceIcon}
+            emoji="🙂"
+            swatch-color="#0ea5e9"
+          ></hud-player-identity>
           <hud-pill
             tone="blue"
             value="01:24"
             icon-src=${sampleAllianceIcon}
           ></hud-pill>
-        </div>
-        <div class="atom-row">
+        </hud-kit-row>
+        <hud-kit-row>
           <hud-pill
             tone="gold"
             value="92K"
@@ -1636,94 +1343,214 @@ export class HudPanelWorkbench extends LitElement {
             value="245K"
             icon-src=${sampleSoldierIcon}
           ></hud-pill>
-        </div>
+        </hud-kit-row>
         <hud-meter
           variant="mini"
           .segments=${[
             { width: 68, tone: "slate" },
             { width: 9, tone: "blue" },
           ]}
-          .label=${html`<span>1.8M</span><span>2.6M</span>`}
+          .label=${html`<hud-label>1.8M</hud-label>
+            <hud-label>2.6M</hud-label>`}
           label-align="between"
         ></hud-meter>
-      </div>
+      </hud-kit-stage>
     `;
   }
 
   private renderSidebarEconomyMolecules() {
     return html`
-      <div class="kit-stage kit-stack">
-        <div
-          class="font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm shadow-xs rounded-[3px] flex w-fit flex-row items-center gap-2 px-2 py-1"
-        >
-          <span
-            class="min-w-[5ch] text-center text-xs font-bold leading-none tabular-nums"
-            >09:42</span
-          >
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleLeaderboardIcon)}
-          </button>
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleSettingsIcon)}
-          </button>
-          <button
-            class="min-h-6 px-2 py-0.5 border border-white/25 rounded-[2px] bg-slate-950/35 text-white text-xs font-medium leading-none transition-colors hover:bg-white/10 hover:border-white/45 inline-grid place-items-center w-6 min-w-6 px-0"
-          >
-            ${this.renderPlainIcon(sampleExitIcon)}
-          </button>
-        </div>
-        <div class="p-0">
-          <div class="flex items-center justify-between gap-2">
-            <div class="font-semibold">Biomass</div>
-            <div class="text-slate-200">54K / 120K</div>
-          </div>
-          <div class="mt-1 h-1.5 overflow-hidden rounded-[2px] bg-black/35">
-            <div class="h-full bg-green-500" style="width: 45%"></div>
-          </div>
-          <div class="mt-2 grid grid-cols-4 gap-2 text-[11px] leading-tight">
-            <div>
-              <div class="text-slate-400">Net</div>
-              <div class="tabular-nums text-emerald-300">+1.2K/s</div>
-            </div>
-            <div>
-              <div class="text-slate-400">Prod</div>
-              <div class="tabular-nums text-emerald-300">+2.0K/s</div>
-            </div>
-            <div>
-              <div class="text-slate-400">Rail</div>
-              <div class="tabular-nums text-slate-300">0/s</div>
-            </div>
-            <div>
-              <div class="text-slate-400">Delta</div>
-              <div class="tabular-nums text-red-300">-120/s</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <hud-kit-stage stack>
+        <hud-toolbar>
+          <hud-timer-label value="09:42"></hud-timer-label>
+          <hud-icon-button label="Leaderboard">
+            <hud-icon .src=${sampleLeaderboardIcon} size="sm"></hud-icon>
+          </hud-icon-button>
+          <hud-icon-button label="Settings">
+            <hud-icon .src=${sampleSettingsIcon} size="sm"></hud-icon>
+          </hud-icon-button>
+          <hud-icon-button label="Exit">
+            <hud-icon .src=${sampleExitIcon} size="sm"></hud-icon>
+          </hud-icon-button>
+        </hud-toolbar>
+        <hud-meter
+          variant="mini"
+          .segments=${[{ width: 45, tone: "green" }]}
+          .label=${html`<hud-label>Biomass</hud-label>
+            <hud-label>54K / 120K</hud-label>`}
+          label-align="between"
+        ></hud-meter>
+        <hud-stat-grid>
+          <hud-stat label="Net" value="+1.2K/s" tone="success"></hud-stat>
+          <hud-stat label="Prod" value="+2.0K/s" tone="success"></hud-stat>
+          <hud-stat label="Rail" value="0/s"></hud-stat>
+          <hud-stat label="Delta" value="-120/s" tone="danger"></hud-stat>
+        </hud-stat-grid>
+      </hud-kit-stage>
     `;
   }
 
-  private renderSampleIcon(src: string, sizeClass: string) {
-    return html`<hud-mask-icon .src=${src} .size=${sizeClass}></hud-mask-icon>`;
+  private renderLayoutSurfaceElements() {
+    return html`<hud-kit-stage stack>
+      <hud-surface>
+        <hud-surface-header>
+          <hud-label>Surface</hud-label>
+          <hud-action-group>
+            <hud-button>Apply</hud-button>
+          </hud-action-group>
+        </hud-surface-header>
+        <hud-surface-body>
+          <hud-stack density="compact">
+            <hud-row justify="between">
+              <hud-label>Stacked layout</hud-label>
+              <hud-pill value="draft" tone="blue"></hud-pill>
+            </hud-row>
+            <hud-grid columns="2">
+              <hud-stat label="Rows" value="4"></hud-stat>
+              <hud-stat label="Gap" value="8px"></hud-stat>
+            </hud-grid>
+          </hud-stack>
+        </hud-surface-body>
+        <hud-surface-footer>
+          <hud-button>Cancel</hud-button>
+          <hud-button variant="active">Save</hud-button>
+        </hud-surface-footer>
+      </hud-surface>
+      <hud-split>
+        <hud-empty-state message="No events selected"></hud-empty-state>
+        <hud-loading-state label="Syncing"></hud-loading-state>
+      </hud-split>
+    </hud-kit-stage>`;
   }
 
-  private renderPlainIcon(src: string, sizeClass = "h-4 w-4") {
-    return html`<img src="${src}" class="shrink-0 ${sizeClass}" />`;
+  private renderOverlayElements() {
+    return html`<hud-kit-stage stack>
+      <hud-popover>
+        <hud-surface-header>
+          <hud-label>Popover</hud-label>
+          <hud-pill value="info" tone="blue"></hud-pill>
+        </hud-surface-header>
+        <hud-surface-body>
+          <hud-list-row>
+            <hud-icon
+              slot="leading"
+              .src=${sampleAllianceIcon}
+              size="sm"
+            ></hud-icon>
+            East March relation
+            <hud-label slot="meta" tone="active">friendly</hud-label>
+          </hud-list-row>
+        </hud-surface-body>
+      </hud-popover>
+      <hud-kit-frame shell style="--hud-kit-frame-width: 320px">
+        <hud-modal-header>
+          <hud-label>Modal shell</hud-label>
+          <hud-icon-button label="Close">
+            ${renderLucideIcon(X, "h-4 w-4")}
+          </hud-icon-button>
+        </hud-modal-header>
+        <hud-modal-body>
+          <hud-label tone="muted">
+            Header, body, and footer can be used inside hud-modal-shell.
+          </hud-label>
+        </hud-modal-body>
+        <hud-modal-footer>
+          <hud-button>Cancel</hud-button>
+          <hud-button variant="active">Confirm</hud-button>
+        </hud-modal-footer>
+      </hud-kit-frame>
+    </hud-kit-stage>`;
+  }
+
+  private renderFeedbackElements() {
+    return html`<hud-kit-stage stack>
+      <hud-alert tone="info">
+        <hud-icon slot="icon" .src=${sampleChatIcon} size="sm"></hud-icon>
+        New alliance message received.
+        <hud-button slot="actions">Open</hud-button>
+      </hud-alert>
+      <hud-alert tone="warning" compact>
+        <hud-icon slot="icon" .src=${sampleNukeIcon} size="sm"></hud-icon>
+        Silo reload delayed.
+      </hud-alert>
+      <hud-toast tone="success">
+        <hud-icon slot="icon" .src=${sampleGoldCoinIcon} size="sm"></hud-icon>
+        Trade route added.
+      </hud-toast>
+      <hud-confirm-actions>
+        <hud-button slot="secondary">Cancel</hud-button>
+        <hud-button variant="active">Apply</hud-button>
+        <hud-button slot="danger" variant="danger">Delete</hud-button>
+      </hud-confirm-actions>
+    </hud-kit-stage>`;
+  }
+
+  private renderMenuElements() {
+    return html`<hud-kit-stage>
+      <hud-menu>
+        <hud-surface-header>
+          <hud-label>Actions</hud-label>
+        </hud-surface-header>
+        <hud-menu-item selected>
+          <hud-icon slot="icon" .src=${sampleSwordIcon} size="sm"></hud-icon>
+          Attack
+          <hud-label slot="meta" tone="active">A</hud-label>
+        </hud-menu-item>
+        <hud-menu-item>
+          <hud-icon slot="icon" .src=${sampleAllianceIcon} size="sm"></hud-icon>
+          Alliance
+          <hud-label slot="meta" tone="muted">F</hud-label>
+        </hud-menu-item>
+        <hud-menu-divider></hud-menu-divider>
+        <hud-menu-item disabled>
+          <hud-icon slot="icon" .src=${sampleNukeIcon} size="sm"></hud-icon>
+          Launch
+          <hud-label slot="meta" tone="warning">locked</hud-label>
+        </hud-menu-item>
+      </hud-menu>
+    </hud-kit-stage>`;
+  }
+
+  private renderRecipeElements() {
+    return html`<hud-kit-stage stack>
+      <hud-surface>
+        <hud-surface-body>
+          <hud-form-row style="--hud-form-label-width: 6.5rem">
+            <hud-field-label>Resource</hud-field-label>
+            <hud-row>
+              <hud-pill
+                value="+18.4K/s"
+                tone="green"
+                icon-src=${sampleBiomassIcon}
+              ></hud-pill>
+              <hud-meter
+                style="flex: 1 1 auto"
+                variant="mini"
+                .segments=${[{ width: 62, tone: "green" }]}
+                .label=${html`<hud-label>54K</hud-label>
+                  <hud-label>120K</hud-label>`}
+                label-align="between"
+              ></hud-meter>
+            </hud-row>
+          </hud-form-row>
+        </hud-surface-body>
+      </hud-surface>
+      <hud-event-row meta="01:08" text="Recipe feed row with actions.">
+        <hud-action-group slot="actions">
+          <hud-button>Focus</hud-button>
+          <hud-button variant="active">Accept</hud-button>
+        </hud-action-group>
+      </hud-event-row>
+      <hud-surface-footer>
+        <hud-button>Secondary</hud-button>
+        <hud-button variant="active">Primary</hud-button>
+      </hud-surface-footer>
+    </hud-kit-stage>`;
   }
 
   private section(title: string, detail: string, content: unknown) {
-    return html`
-      <section class="section">
-        <div class="section-header">
-          <span>${title}</span>
-          <span>${detail}</span>
-        </div>
-        ${content}
-      </section>
-    `;
+    return html`<hud-kit-section .title=${title} .detail=${detail}>
+      ${content}
+    </hud-kit-section>`;
   }
 }

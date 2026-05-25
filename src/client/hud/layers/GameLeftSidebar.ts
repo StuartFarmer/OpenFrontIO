@@ -103,6 +103,10 @@ export class GameLeftSidebar extends LitElement implements Controller {
     return this.game?.config().gameConfig().gameMode === GameMode.Team;
   }
 
+  private renderToolbarIcon(src: string, label: string) {
+    return html`<hud-icon .src=${src} size="md" .label=${label}></hud-icon>`;
+  }
+
   render() {
     return html`
       <aside
@@ -111,8 +115,10 @@ export class GameLeftSidebar extends LitElement implements Controller {
         }`}
         style="margin-top: ${this.barOffset}px;"
       >
-        <div class="flex items-center gap-2">
+        <hud-toolbar>
           <hud-icon-button
+            label=${translateText("help_modal.icon_alt_player_leaderboard") ||
+            "Player Leaderboard"}
             @click=${this.toggleLeaderboard}
             @keydown=${(e: KeyboardEvent) => {
               if (e.key === "Enter" || e.key === " " || e.code === "Space") {
@@ -121,19 +127,20 @@ export class GameLeftSidebar extends LitElement implements Controller {
               }
             }}
           >
-            <img
-              src=${this.isLeaderboardShow
+            ${this.renderToolbarIcon(
+              this.isLeaderboardShow
                 ? leaderboardSolidIcon
-                : leaderboardRegularIcon}
-              alt=${translateText("help_modal.icon_alt_player_leaderboard") ||
-              "Player Leaderboard Icon"}
-              width="20"
-              height="20"
-            />
+                : leaderboardRegularIcon,
+              translateText("help_modal.icon_alt_player_leaderboard") ||
+                "Player Leaderboard",
+            )}
           </hud-icon-button>
           ${this.isTeamGame
             ? html`
                 <hud-icon-button
+                  label=${translateText(
+                    "help_modal.icon_alt_team_leaderboard",
+                  ) || "Team Leaderboard"}
                   @click=${this.toggleTeamLeaderboard}
                   @keydown=${(e: KeyboardEvent) => {
                     if (
@@ -146,16 +153,13 @@ export class GameLeftSidebar extends LitElement implements Controller {
                     }
                   }}
                 >
-                  <img
-                    src=${this.isTeamLeaderboardShow
+                  ${this.renderToolbarIcon(
+                    this.isTeamLeaderboardShow
                       ? teamSolidIcon
-                      : teamRegularIcon}
-                    alt=${translateText(
-                      "help_modal.icon_alt_team_leaderboard",
-                    ) || "Team Leaderboard Icon"}
-                    width="20"
-                    height="20"
-                  />
+                      : teamRegularIcon,
+                    translateText("help_modal.icon_alt_team_leaderboard") ||
+                      "Team Leaderboard",
+                  )}
                 </hud-icon-button>
               `
             : null}
@@ -166,7 +170,7 @@ export class GameLeftSidebar extends LitElement implements Controller {
                 >${this.game?.gameID() ?? ""}</span
               >`
             : null}
-        </div>
+        </hud-toolbar>
         ${this.isPlayerTeamLabelVisible
           ? html`
               <div
