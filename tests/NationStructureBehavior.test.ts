@@ -335,7 +335,7 @@ describe("NationStructureBehavior.tryBuildCapacityPressureStructure", () => {
     };
   }
 
-  it("prioritizes City when troops are near troop capacity", () => {
+  it("prioritizes City when troops are near max population", () => {
     const behavior = makeBehavior(makeCapacityGame(), makeCapacityPlayer(90));
     const maybeSpawn = vi
       .spyOn(behavior as any, "maybeSpawnStructure")

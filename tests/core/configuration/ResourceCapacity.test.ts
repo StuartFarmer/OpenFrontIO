@@ -57,7 +57,7 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("base resource capacity is much lower than per-resource troop capacity", () => {
+  test("base resource capacity is much lower than max population", () => {
     player.conquer(game.ref(0, 0));
     const resourceCapacity = game.config().maxResources(player);
 
@@ -81,6 +81,10 @@ describe("resource capacity config", () => {
 
     expect(resolved.version).toBe(1);
     expect(resolved.populationResources.troopLogisticGrowthRate).toBe(0.02);
+    expect(resolved.populationResources.maxPopulationBase).toBe(50_000);
+    expect(resolved.populationResources.cityMaxPopulationIncrease).toBe(
+      250_000,
+    );
     expect(resolved.populationResources.baselineBiomassProductionShare).toBe(
       0.25,
     );
@@ -89,6 +93,25 @@ describe("resource capacity config", () => {
       energy: 2,
       materials: 1,
     });
+  });
+
+  test("mechanics config migrates legacy troop capacity aliases", () => {
+    const parsed = MechanicsConfigSchema.parse({
+      populationResources: {
+        troopCapacityBase: 12_000,
+        troopCapacityTerritoryScale: 750,
+        troopCapacityTerritoryExponent: 0.8,
+        cityTroopCapacityIncrease: 60_000,
+      },
+    });
+
+    const resolved = resolveMechanicsConfig(parsed);
+
+    expect(resolved.populationResources.maxPopulationBase).toBe(12_000);
+    expect(resolved.populationResources.maxPopulationTilesScale).toBe(750);
+    expect(resolved.populationResources.maxPopulationTilesExponent).toBe(0.8);
+    expect(resolved.populationResources.cityMaxPopulationIncrease).toBe(60_000);
+    expect("troopCapacityBase" in resolved.populationResources).toBe(false);
   });
 
   test("mechanics config rejects invalid values", () => {
@@ -270,7 +293,7 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("biomass-supported troop capacity follows terrain production blend", () => {
+  test("biomass-supported population follows terrain production blend", () => {
     const plainsTile = game.ref(0, 0);
     player.conquer(plainsTile);
     const plainsTroopCapacity = game.config().maxTroops(player);
@@ -294,7 +317,7 @@ describe("resource capacity config", () => {
     ).toBeGreaterThan(game.config().maxTroops(highlandGamePlayer));
   });
 
-  test("custom biomass baseline tunes supported troop capacity", async () => {
+  test("custom biomass baseline tunes supported population", async () => {
     const customGame = await setup(
       "plains",
       {
@@ -318,7 +341,7 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("troopIncreaseRate uses classic logistic growth below carrying capacity", () => {
+  test("troopIncreaseRate uses classic logistic growth below max population", () => {
     player.conquer(game.ref(0, 0));
     const capacity = game.config().effectiveTroopCapacity(game, player);
     player.setTroops(capacity / 2);
@@ -353,6 +376,33 @@ describe("resource capacity config", () => {
       .troopIncreaseRate(customPlayer, customGame);
 
     expect(rate).toBeCloseTo(0.032 * customPlayer.troops() * 0.5, 5);
+  });
+
+  test("custom max population mechanics change maxTroops", async () => {
+    const customGame = await setup(
+      "plains",
+      {
+        mechanics: {
+          populationResources: {
+            maxPopulationBase: 10_000,
+            maxPopulationTilesScale: 500,
+            maxPopulationTilesExponent: 1,
+            cityMaxPopulationIncrease: 40_000,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    const tile = customGame.ref(0, 0);
+    customPlayer.conquer(tile);
+
+    expect(customGame.config().maxTroops(customPlayer)).toBe(21_000);
+
+    customPlayer.buildUnit(UnitType.City, tile, {});
+
+    expect(customGame.config().maxTroops(customPlayer)).toBe(61_000);
+    expect(customGame.config().cityMaxPopulationIncrease()).toBe(40_000);
   });
 
   test("troopIncreaseRate becomes negative above biomass-supported capacity", () => {

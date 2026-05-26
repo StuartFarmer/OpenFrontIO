@@ -140,8 +140,8 @@ export class Config {
     return this._userSettings;
   }
 
-  cityTroopIncrease(): number {
-    return 250_000;
+  cityMaxPopulationIncrease(): number {
+    return this.mechanics.populationResources.cityMaxPopulationIncrease;
   }
 
   factoryResourceCapacityIncrease(): bigint {
@@ -833,13 +833,19 @@ export class Config {
     const maxTroops =
       player.type() === PlayerType.Human && this.hasInfiniteTroopsFor(player)
         ? 1_000_000_000
-        : 2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
+        : 2 *
+            (Math.pow(
+              player.numTilesOwned(),
+              mechanics.maxPopulationTilesExponent,
+            ) *
+              mechanics.maxPopulationTilesScale +
+              mechanics.maxPopulationBase) +
           player
             .units(UnitType.City)
             .filter((u) => !u.isUnderConstruction())
             .map((city) => city.level())
             .reduce((a, b) => a + b, 0) *
-            this.cityTroopIncrease();
+            this.cityMaxPopulationIncrease();
 
     if (player.type() === PlayerType.Bot) {
       return maxTroops * mechanics.botCapacityMultiplier;

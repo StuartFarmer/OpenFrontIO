@@ -21,6 +21,10 @@ export type TerrainResourceWeightsConfig = {
 
 export type PopulationResourceMechanicsConfig = {
   troopLogisticGrowthRate: number;
+  maxPopulationBase: number;
+  maxPopulationTilesScale: number;
+  maxPopulationTilesExponent: number;
+  cityMaxPopulationIncrease: number;
   baselineBiomassProductionShare: number;
   minBaseResourceCapacity: number;
   resourceCapacityTerritoryDivisor: number;
@@ -68,6 +72,19 @@ const TerrainResourceWeightsConfigSchema = z.object({
 
 const PopulationResourceMechanicsConfigSchema = z.object({
   troopLogisticGrowthRate: finiteNonNegative.optional(),
+  maxPopulationBase: finiteNonNegative.optional(),
+  maxPopulationTilesScale: finiteNonNegative.optional(),
+  maxPopulationTilesExponent: finitePositive.optional(),
+  cityMaxPopulationIncrease: finiteNonNegative.optional(),
+  // Legacy aliases accepted so older sandbox JSON/localStorage can migrate.
+  populationCarryingCapacityBase: finiteNonNegative.optional(),
+  populationCarryingCapacityTerritoryScale: finiteNonNegative.optional(),
+  populationCarryingCapacityTerritoryExponent: finitePositive.optional(),
+  cityPopulationCapacityIncrease: finiteNonNegative.optional(),
+  troopCapacityBase: finiteNonNegative.optional(),
+  troopCapacityTerritoryScale: finiteNonNegative.optional(),
+  troopCapacityTerritoryExponent: finitePositive.optional(),
+  cityTroopCapacityIncrease: finiteNonNegative.optional(),
   baselineBiomassProductionShare: finitePositive.optional(),
   minBaseResourceCapacity: finiteNonNegativeInteger.optional(),
   resourceCapacityTerritoryDivisor: finitePositive.optional(),
@@ -96,6 +113,10 @@ export const DEFAULT_MECHANICS_CONFIG: MechanicsConfig = {
   version: 1,
   populationResources: {
     troopLogisticGrowthRate: 0.016,
+    maxPopulationBase: 50_000,
+    maxPopulationTilesScale: 1_000,
+    maxPopulationTilesExponent: 0.6,
+    cityMaxPopulationIncrease: 250_000,
     baselineBiomassProductionShare: 0.25,
     minBaseResourceCapacity: 75_000,
     resourceCapacityTerritoryDivisor: 3,
@@ -149,13 +170,58 @@ export function resolveMechanicsConfig(
   input: MechanicsConfigInput | null | undefined,
 ): MechanicsConfig {
   const populationResources = input?.populationResources;
+  const legacyPopulationResources = populationResources as
+    | (typeof populationResources & {
+        troopCapacityBase?: number;
+        troopCapacityTerritoryScale?: number;
+        troopCapacityTerritoryExponent?: number;
+        cityTroopCapacityIncrease?: number;
+        populationCarryingCapacityBase?: number;
+        populationCarryingCapacityTerritoryScale?: number;
+        populationCarryingCapacityTerritoryExponent?: number;
+        cityPopulationCapacityIncrease?: number;
+      })
+    | undefined;
+  const {
+    troopCapacityBase: _legacyTroopCapacityBase,
+    troopCapacityTerritoryScale: _legacyTroopCapacityTerritoryScale,
+    troopCapacityTerritoryExponent: _legacyTroopCapacityTerritoryExponent,
+    cityTroopCapacityIncrease: _legacyCityTroopCapacityIncrease,
+    populationCarryingCapacityBase: _legacyPopulationCarryingCapacityBase,
+    populationCarryingCapacityTerritoryScale:
+      _legacyPopulationCarryingCapacityTerritoryScale,
+    populationCarryingCapacityTerritoryExponent:
+      _legacyPopulationCarryingCapacityTerritoryExponent,
+    cityPopulationCapacityIncrease: _legacyCityPopulationCapacityIncrease,
+    ...populationResourcesWithoutLegacyAliases
+  } = legacyPopulationResources ?? {};
   const defaults = DEFAULT_MECHANICS_CONFIG.populationResources;
 
   return {
     version: 1,
     populationResources: {
       ...defaults,
-      ...populationResources,
+      ...populationResourcesWithoutLegacyAliases,
+      maxPopulationBase:
+        populationResources?.maxPopulationBase ??
+        legacyPopulationResources?.populationCarryingCapacityBase ??
+        legacyPopulationResources?.troopCapacityBase ??
+        defaults.maxPopulationBase,
+      maxPopulationTilesScale:
+        populationResources?.maxPopulationTilesScale ??
+        legacyPopulationResources?.populationCarryingCapacityTerritoryScale ??
+        legacyPopulationResources?.troopCapacityTerritoryScale ??
+        defaults.maxPopulationTilesScale,
+      maxPopulationTilesExponent:
+        populationResources?.maxPopulationTilesExponent ??
+        legacyPopulationResources?.populationCarryingCapacityTerritoryExponent ??
+        legacyPopulationResources?.troopCapacityTerritoryExponent ??
+        defaults.maxPopulationTilesExponent,
+      cityMaxPopulationIncrease:
+        populationResources?.cityMaxPopulationIncrease ??
+        legacyPopulationResources?.cityPopulationCapacityIncrease ??
+        legacyPopulationResources?.cityTroopCapacityIncrease ??
+        defaults.cityMaxPopulationIncrease,
       terrainWeights: {
         plains: {
           ...defaults.terrainWeights.plains,

@@ -91,7 +91,7 @@ export const hudIconCatalog: HudIconCatalogEntry[] = [
     name: "Troops",
     assetPath: "images/SoldierIcon.svg",
     kind: "image",
-    usage: "Troop counts, troop rates, troop capacity.",
+    usage: "Troop counts, troop rates, max population.",
     preferredSize: "sm",
     toneCompatible: true,
   },
