@@ -62,7 +62,20 @@ describe("LocalServer turn pacing", () => {
     expect(turnMessages(messages)).toHaveLength(2);
   });
 
-  function startLocalServer(eventBus: EventBus): ServerMessage[] {
+  it("does not archive sandbox runs", () => {
+    const eventBus = new EventBus();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    startLocalServer(eventBus, { isSandbox: true } as any);
+
+    servers[0].endGame();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  function startLocalServer(
+    eventBus: EventBus,
+    config: Record<string, unknown> = {},
+  ): ServerMessage[] {
     const messages: ServerMessage[] = [];
     const server = new LocalServer(
       {
@@ -75,7 +88,7 @@ describe("LocalServer turn pacing", () => {
         gameStartInfo: {
           gameID: "game-id",
           lobbyCreatedAt: 0,
-          config: {} as any,
+          config: config as any,
           players: [
             {
               clientID: "client-id",

@@ -28,6 +28,7 @@ import { UserSettings } from "../game/UserSettings";
 import { GameConfig, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
 import { assertNever, sigmoid, toInt, within } from "../Util";
+import { MechanicsConfig, resolveMechanicsConfig } from "./MechanicsConfig";
 import { PastelTheme } from "./PastelTheme";
 import { PastelThemeDark } from "./PastelThemeDark";
 import { Theme } from "./Theme";
@@ -74,9 +75,6 @@ export interface NukeMagnitude {
 const DEFENSE_DEBUFF_MIDPOINT = 150_000;
 const DEFENSE_DEBUFF_DECAY_RATE = Math.LN2 / 50000;
 const DEFAULT_SPAWN_IMMUNITY_TICKS = 5 * 10;
-const TROOP_LOGISTIC_GROWTH_RATE = 0.016;
-const BASELINE_BIOMASS_PRODUCTION_SHARE = 0.25;
-const MIN_BASE_RESOURCE_CAPACITY = 75_000;
 
 export const JwksSchema = z.object({
   keys: z
@@ -97,11 +95,14 @@ export class Config {
   private pastelTheme: PastelTheme = new PastelTheme();
   private pastelThemeDark: PastelThemeDark = new PastelThemeDark();
   private unitInfoCache = new Map<UnitType, UnitInfo>();
+  private mechanics: MechanicsConfig;
   constructor(
     private _gameConfig: GameConfig,
     private _userSettings: UserSettings | null,
     private _isReplay: boolean,
-  ) {}
+  ) {
+    this.mechanics = resolveMechanicsConfig(_gameConfig.mechanics);
+  }
 
   isReplay(): boolean {
     return this._isReplay;
@@ -144,7 +145,9 @@ export class Config {
   }
 
   factoryResourceCapacityIncrease(): bigint {
-    return 250_000n;
+    return BigInt(
+      this.mechanics.populationResources.siloResourceCapacityIncrease,
+    );
   }
 
   falloutDefenseModifier(falloutRatio: number): number {
@@ -826,6 +829,7 @@ export class Config {
   }
 
   maxTroops(player: Player | PlayerView): number {
+    const mechanics = this.mechanics.populationResources;
     const maxTroops =
       player.type() === PlayerType.Human && this.hasInfiniteTroopsFor(player)
         ? 1_000_000_000
@@ -838,28 +842,21 @@ export class Config {
             this.cityTroopIncrease();
 
     if (player.type() === PlayerType.Bot) {
-      return maxTroops / 3;
+      return maxTroops * mechanics.botCapacityMultiplier;
     }
 
     if (player.type() === PlayerType.Human) {
       return maxTroops;
     }
 
-    switch (this._gameConfig.difficulty) {
-      case Difficulty.Easy:
-        return maxTroops * 0.5;
-      case Difficulty.Medium:
-        return maxTroops * 0.75;
-      case Difficulty.Hard:
-        return maxTroops * 1; // Like humans
-      case Difficulty.Impossible:
-        return maxTroops * 1.25;
-      default:
-        assertNever(this._gameConfig.difficulty);
-    }
+    return (
+      maxTroops *
+      mechanics.nationCapacityMultipliers[this._gameConfig.difficulty]
+    );
   }
 
   maxResources(player: Player | PlayerView) {
+    const mechanics = this.mechanics.populationResources;
     const siloLevels = player
       .units(UnitType.Silo)
       .filter((u) => !u.isUnderConstruction())
@@ -869,8 +866,11 @@ export class Config {
       2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000);
     const baseCapacity =
       Math.max(
-        MIN_BASE_RESOURCE_CAPACITY,
-        Math.floor(troopStyleTerritoryCapacity / 3),
+        mechanics.minBaseResourceCapacity,
+        Math.floor(
+          troopStyleTerritoryCapacity /
+            mechanics.resourceCapacityTerritoryDivisor,
+        ),
       ) +
       siloLevels * Number(this.factoryResourceCapacityIncrease());
 
@@ -880,6 +880,7 @@ export class Config {
   }
 
   biomassSupportedTroopCapacity(game: Game, player: Player): number {
+    const mechanics = this.mechanics.populationResources;
     const weights = this.terrainResourceProductionSplit(game, player);
     const totalWeight = weights.food + weights.energy + weights.materials;
     if (totalWeight <= 0n) {
@@ -889,7 +890,7 @@ export class Config {
     const biomassShare = Number(weights.food) / Number(totalWeight);
     return (
       (Number(this.maxResources(player).food) * biomassShare) /
-      BASELINE_BIOMASS_PRODUCTION_SHARE
+      mechanics.baselineBiomassProductionShare
     );
   }
 
@@ -903,6 +904,7 @@ export class Config {
   troopIncreaseRate(player: Player, game: Game): number;
   troopIncreaseRate(player: Player | PlayerView): number;
   troopIncreaseRate(player: Player | PlayerView, game?: Game): number {
+    const mechanics = this.mechanics.populationResources;
     const max = game
       ? this.effectiveTroopCapacity(game, player as Player)
       : this.maxTroops(player);
@@ -912,39 +914,32 @@ export class Config {
       return -troops;
     }
 
-    let toAdd = TROOP_LOGISTIC_GROWTH_RATE * troops * (1 - troops / max);
+    let toAdd = mechanics.troopLogisticGrowthRate * troops * (1 - troops / max);
 
     if (player.type() === PlayerType.Bot) {
-      toAdd *= 0.5;
+      toAdd *= mechanics.botTroopGrowthMultiplier;
     }
 
     if (player.type() === PlayerType.Nation) {
-      switch (this._gameConfig.difficulty) {
-        case Difficulty.Easy:
-          toAdd *= 0.9;
-          break;
-        case Difficulty.Medium:
-          toAdd *= 0.95;
-          break;
-        case Difficulty.Hard:
-          toAdd *= 1; // Like humans
-          break;
-        case Difficulty.Impossible:
-          toAdd *= 1.05;
-          break;
-        default:
-          assertNever(this._gameConfig.difficulty);
-      }
+      toAdd *=
+        mechanics.nationTroopGrowthMultipliers[this._gameConfig.difficulty];
     }
 
     return Math.min(troops + toAdd, max) - troops;
   }
 
   resourceIncreaseRate(game: Game, player: Player) {
+    const mechanics = this.mechanics.populationResources;
     const equalRegen = resourceRegenDelta(
       player.resources(),
       this.maxResources(player),
-      this.resourceRegenMultiplierFor(player) / 3,
+      this.resourceRegenMultiplierFor(player) *
+        mechanics.passiveResourceRegenMultiplier,
+      {
+        base: mechanics.resourceRegenBase,
+        exponent: mechanics.resourceRegenExponent,
+        divisor: mechanics.resourceRegenDivisor,
+      },
     );
     const terrainSplit = this.terrainResourceProductionSplit(game, player);
     const totalRegen =
@@ -965,19 +960,13 @@ export class Config {
     for (const tile of player.tiles()) {
       switch (game.terrainType(tile)) {
         case TerrainType.Plains:
-          weights.food += 1n;
-          weights.energy += 2n;
-          weights.materials += 1n;
+          this.addResourceWeights(weights, "plains");
           break;
         case TerrainType.Highland:
-          weights.food += 2n;
-          weights.energy += 1n;
-          weights.materials += 1n;
+          this.addResourceWeights(weights, "highland");
           break;
         case TerrainType.Mountain:
-          weights.food += 1n;
-          weights.energy += 1n;
-          weights.materials += 2n;
+          this.addResourceWeights(weights, "mountain");
           break;
         default:
           break;
@@ -985,6 +974,17 @@ export class Config {
     }
 
     return weights;
+  }
+
+  private addResourceWeights(
+    weights: ResourceStockpile,
+    terrain: "plains" | "highland" | "mountain",
+  ): void {
+    const terrainWeights =
+      this.mechanics.populationResources.terrainWeights[terrain];
+    weights.food += BigInt(terrainWeights.food);
+    weights.energy += BigInt(terrainWeights.energy);
+    weights.materials += BigInt(terrainWeights.materials);
   }
 
   private splitTotalResourceProduction(
@@ -1009,49 +1009,34 @@ export class Config {
     player: Player | PlayerView,
     capacity: number,
   ): number {
+    const mechanics = this.mechanics.populationResources;
     if (player.type() === PlayerType.Bot) {
-      return capacity / 3;
+      return capacity * mechanics.botCapacityMultiplier;
     }
 
     if (player.type() === PlayerType.Human) {
       return capacity;
     }
 
-    switch (this._gameConfig.difficulty) {
-      case Difficulty.Easy:
-        return capacity * 0.5;
-      case Difficulty.Medium:
-        return capacity * 0.75;
-      case Difficulty.Hard:
-        return capacity * 1;
-      case Difficulty.Impossible:
-        return capacity * 1.25;
-      default:
-        assertNever(this._gameConfig.difficulty);
-    }
+    return (
+      capacity *
+      mechanics.nationCapacityMultipliers[this._gameConfig.difficulty]
+    );
   }
 
   private resourceRegenMultiplierFor(player: Player | PlayerView): number {
+    const mechanics = this.mechanics.populationResources;
     if (player.type() === PlayerType.Bot) {
-      return 0.5;
+      return mechanics.botResourceRegenMultiplier;
     }
 
     if (player.type() !== PlayerType.Nation) {
       return 1;
     }
 
-    switch (this._gameConfig.difficulty) {
-      case Difficulty.Easy:
-        return 0.9;
-      case Difficulty.Medium:
-        return 0.95;
-      case Difficulty.Hard:
-        return 1;
-      case Difficulty.Impossible:
-        return 1.05;
-      default:
-        assertNever(this._gameConfig.difficulty);
-    }
+    return mechanics.nationResourceRegenMultipliers[
+      this._gameConfig.difficulty
+    ];
   }
 
   goldAdditionRate(player: Player | PlayerView): Gold {

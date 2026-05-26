@@ -1,4 +1,8 @@
 import {
+  MechanicsConfigSchema,
+  resolveMechanicsConfig,
+} from "../../../src/core/configuration/MechanicsConfig";
+import {
   Game,
   Player,
   PlayerInfo,
@@ -61,6 +65,84 @@ describe("resource capacity config", () => {
     expect(resourceCapacity.food).toBe(75_000n);
   });
 
+  test("mechanics config resolves partial inputs with defaults", () => {
+    const parsed = MechanicsConfigSchema.parse({
+      populationResources: {
+        troopLogisticGrowthRate: 0.02,
+        terrainWeights: {
+          plains: {
+            food: 5,
+          },
+        },
+      },
+    });
+
+    const resolved = resolveMechanicsConfig(parsed);
+
+    expect(resolved.version).toBe(1);
+    expect(resolved.populationResources.troopLogisticGrowthRate).toBe(0.02);
+    expect(resolved.populationResources.baselineBiomassProductionShare).toBe(
+      0.25,
+    );
+    expect(resolved.populationResources.terrainWeights.plains).toEqual({
+      food: 5,
+      energy: 2,
+      materials: 1,
+    });
+  });
+
+  test("mechanics config rejects invalid values", () => {
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        version: 2,
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          baselineBiomassProductionShare: 0,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          terrainWeights: {
+            plains: {
+              food: -1,
+            },
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
+  test("custom mechanics can tune resource capacity values", async () => {
+    const customGame = await setup(
+      "plains",
+      {
+        instantBuild: true,
+        mechanics: {
+          populationResources: {
+            minBaseResourceCapacity: 100_000,
+            siloResourceCapacityIncrease: 50_000,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    const tile = customGame.ref(0, 0);
+    customPlayer.conquer(tile);
+
+    expect(customGame.config().maxResources(customPlayer).food).toBe(100_000n);
+
+    customPlayer.buildUnit(UnitType.Silo, tile, {});
+
+    expect(customGame.config().maxResources(customPlayer).food).toBe(150_000n);
+    expect(customGame.config().factoryResourceCapacityIncrease()).toBe(50_000n);
+  });
+
   test("completed Silo levels increase resource capacity", () => {
     const tile = game.ref(0, 0);
     player.conquer(tile);
@@ -110,6 +192,36 @@ describe("resource capacity config", () => {
     expect(delta.food).toBeGreaterThan(0n);
     expect(delta.energy).toBeGreaterThan(delta.food);
     expect(delta.energy).toBeGreaterThan(delta.materials);
+  });
+
+  test("custom terrain mechanics change resource production split", async () => {
+    const customGame = await setup(
+      "plains",
+      {
+        mechanics: {
+          populationResources: {
+            terrainWeights: {
+              plains: {
+                food: 4,
+                energy: 0,
+                materials: 0,
+              },
+            },
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    customPlayer.conquer(customGame.ref(0, 0));
+
+    const delta = customGame
+      .config()
+      .resourceIncreaseRate(customGame, customPlayer);
+
+    expect(delta.food).toBeGreaterThan(0n);
+    expect(delta.energy).toBe(0n);
+    expect(delta.materials).toBe(0n);
   });
 
   test("resourceIncreaseRate favors biomass on highland tiles", () => {
@@ -182,6 +294,30 @@ describe("resource capacity config", () => {
     ).toBeGreaterThan(game.config().maxTroops(highlandGamePlayer));
   });
 
+  test("custom biomass baseline tunes supported troop capacity", async () => {
+    const customGame = await setup(
+      "plains",
+      {
+        mechanics: {
+          populationResources: {
+            baselineBiomassProductionShare: 0.5,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    customPlayer.conquer(customGame.ref(0, 0));
+
+    expect(
+      customGame
+        .config()
+        .biomassSupportedTroopCapacity(customGame, customPlayer),
+    ).toBeCloseTo(
+      Number(customGame.config().maxResources(customPlayer).food) / 2,
+    );
+  });
+
   test("troopIncreaseRate uses classic logistic growth below carrying capacity", () => {
     player.conquer(game.ref(0, 0));
     const capacity = game.config().effectiveTroopCapacity(game, player);
@@ -191,6 +327,32 @@ describe("resource capacity config", () => {
 
     expect(rate).toBeCloseTo(0.016 * player.troops() * 0.5, 5);
     expect(rate).toBeGreaterThan(0);
+  });
+
+  test("custom troop growth rate changes troopIncreaseRate", async () => {
+    const customGame = await setup(
+      "plains",
+      {
+        mechanics: {
+          populationResources: {
+            troopLogisticGrowthRate: 0.032,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    customPlayer.conquer(customGame.ref(0, 0));
+    const capacity = customGame
+      .config()
+      .effectiveTroopCapacity(customGame, customPlayer);
+    customPlayer.setTroops(capacity / 2);
+
+    const rate = customGame
+      .config()
+      .troopIncreaseRate(customPlayer, customGame);
+
+    expect(rate).toBeCloseTo(0.032 * customPlayer.troops() * 0.5, 5);
   });
 
   test("troopIncreaseRate becomes negative above biomass-supported capacity", () => {

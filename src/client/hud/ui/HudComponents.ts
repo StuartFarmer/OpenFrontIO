@@ -1139,7 +1139,9 @@ export class HudPill extends HudScopedElement {
             ></hud-icon>`
           : nothing}
       </slot>
-      <span class="value" part="value"><slot>${this.value}</slot></span>
+      <span class="value" part="value">
+        ${this.value ? this.value : html`<slot></slot>`}
+      </span>
     </span>`;
   }
 
@@ -1593,6 +1595,73 @@ export class HudInput extends HudScopedElement {
   }
 
   protected dispatchValueChange(value: HudControlValue) {
+    this.dispatchEvent(
+      new CustomEvent("value-change", {
+        detail: { value },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+}
+
+@customElement("hud-textarea")
+export class HudTextarea extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+      }
+
+      textarea {
+        width: 100%;
+        min-width: 0;
+        min-height: var(--hud-textarea-min-height, 112px);
+        resize: vertical;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        outline: 0;
+        background: rgba(15, 23, 42, 0.5);
+        color: #fff;
+        font: inherit;
+        font-size: 10px;
+        line-height: 1.35;
+        padding: 6px;
+        transition: border-color 120ms ease;
+      }
+
+      textarea:focus {
+        border-color: rgba(34, 211, 238, 0.7);
+      }
+
+      textarea:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+    `,
+  ];
+
+  @property() value = "";
+  @property() placeholder = "";
+  @property({ type: Number }) rows = 8;
+  @property({ type: Boolean, reflect: true }) disabled = false;
+
+  render() {
+    return html`<textarea
+      part="textarea"
+      .value=${this.value}
+      .placeholder=${this.placeholder}
+      .rows=${this.rows}
+      ?disabled=${this.disabled}
+      @input=${this.emitValueChange}
+    ></textarea>`;
+  }
+
+  private emitValueChange(event: Event) {
+    const value = (event.target as HTMLTextAreaElement).value;
+    this.value = value;
     this.dispatchEvent(
       new CustomEvent("value-change", {
         detail: { value },
@@ -2380,6 +2449,72 @@ export class HudControlPanel extends HudScopedElement {
 
   render() {
     return html`<div class="panel" part="panel"><slot></slot></div>`;
+  }
+}
+
+@customElement("hud-player-control-panel")
+export class HudPlayerControlPanel extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+        width: 100%;
+        pointer-events: auto;
+      }
+
+      :host([hidden]) {
+        display: none;
+      }
+
+      .panel {
+        display: grid;
+        gap: var(--hud-player-control-panel-gap, 4px);
+        min-width: 0;
+        width: 100%;
+        border-radius: var(--hud-radius, 3px);
+        background: rgba(31, 41, 55, 0.88);
+        color: #fff;
+        padding: var(--hud-player-control-panel-padding, 4px 8px);
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns:
+          var(--hud-player-control-rate-width, 6.5rem)
+          minmax(0, 1fr)
+          var(--hud-player-control-gold-width, 6.5rem);
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      @media (max-width: 1023px) {
+        .metric-row {
+          grid-template-columns:
+            var(--hud-player-control-rate-width-mobile, 5.7rem)
+            minmax(0, 1fr)
+            var(--hud-player-control-gold-width-mobile, 5.7rem);
+        }
+      }
+    `,
+  ];
+
+  @property({ type: Boolean, reflect: true }) hidden = false;
+
+  render() {
+    return html`
+      <div class="panel" part="panel">
+        <slot name="metric-tabs"></slot>
+        <div class="metric-row" part="metric-row">
+          <slot name="rate"></slot>
+          <slot name="meter"></slot>
+          <slot name="gold"></slot>
+        </div>
+        <slot name="action"></slot>
+      </div>
+    `;
   }
 }
 
@@ -3543,12 +3678,14 @@ declare global {
     "hud-input": HudInput;
     "hud-select": HudSelect;
     "hud-range": HudRange;
+    "hud-textarea": HudTextarea;
     "hud-dual-range": HudDualRange;
     "hud-blend-slider": HudBlendSlider;
     "hud-segmented-control": HudSegmentedControl;
     "hud-unit-display": HudUnitDisplay;
     "hud-unit-button": HudUnitButton;
     "hud-control-panel": HudControlPanel;
+    "hud-player-control-panel": HudPlayerControlPanel;
     "hud-tooltip": HudTooltip;
     "hud-event-row": HudEventRow;
     "hud-attack-row": HudAttackRow;

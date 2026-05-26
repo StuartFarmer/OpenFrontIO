@@ -12,6 +12,18 @@ export interface AddResourcesOptions {
   bonusSource?: "rail" | "ship";
 }
 
+export interface ResourceRegenOptions {
+  base: number;
+  exponent: number;
+  divisor: number;
+}
+
+const DEFAULT_RESOURCE_REGEN_OPTIONS: ResourceRegenOptions = {
+  base: 10,
+  exponent: 0.73,
+  divisor: 4,
+};
+
 export function createZeroResources(): ResourceStockpile {
   return {
     food: 0n,
@@ -104,6 +116,7 @@ export function resourceRegenAmount(
   current: ResourceAmount,
   capacity: ResourceAmount,
   multiplier: number = 1,
+  options: ResourceRegenOptions = DEFAULT_RESOURCE_REGEN_OPTIONS,
 ): ResourceAmount {
   if (capacity <= 0n || current >= capacity || multiplier <= 0) {
     return 0n;
@@ -111,7 +124,8 @@ export function resourceRegenAmount(
 
   const currentAmount = Number(current);
   const maxAmount = Number(capacity);
-  let toAdd = 10 + Math.pow(currentAmount, 0.73) / 4;
+  let toAdd =
+    options.base + Math.pow(currentAmount, options.exponent) / options.divisor;
   toAdd *= 1 - currentAmount / maxAmount;
   toAdd *= multiplier;
 
@@ -126,14 +140,26 @@ export function resourceRegenDelta(
   resources: ResourceStockpile,
   capacity: ResourceStockpile,
   multiplier: number = 1,
+  options: ResourceRegenOptions = DEFAULT_RESOURCE_REGEN_OPTIONS,
 ): ResourceStockpile {
   return {
-    food: resourceRegenAmount(resources.food, capacity.food, multiplier),
-    energy: resourceRegenAmount(resources.energy, capacity.energy, multiplier),
+    food: resourceRegenAmount(
+      resources.food,
+      capacity.food,
+      multiplier,
+      options,
+    ),
+    energy: resourceRegenAmount(
+      resources.energy,
+      capacity.energy,
+      multiplier,
+      options,
+    ),
     materials: resourceRegenAmount(
       resources.materials,
       capacity.materials,
       multiplier,
+      options,
     ),
   };
 }

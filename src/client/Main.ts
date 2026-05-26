@@ -21,7 +21,11 @@ import "./AccountModal";
 import { getUserMe, invalidateUserMe } from "./Api";
 import { userAuth } from "./Auth";
 import "./ClanModal";
-import { joinLobby, type JoinLobbyResult } from "./ClientGameRunner";
+import {
+  joinLobby,
+  removeExistingGameSurfaces,
+  type JoinLobbyResult,
+} from "./ClientGameRunner";
 import { getPlayerCosmeticsRefs } from "./Cosmetics";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
 import "./FlagInput";
@@ -53,6 +57,7 @@ import "./TerritoryPatternsModal";
 import { TerritoryPatternsModal } from "./TerritoryPatternsModal";
 import { TokenLoginModal } from "./TokenLoginModal";
 import {
+  PauseGameIntentEvent,
   SendKickPlayerIntentEvent,
   SendStartGameEvent,
   SendUpdateGameConfigIntentEvent,
@@ -78,6 +83,7 @@ import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
 import "./hud/demo/HudLiveComponentsDemo";
 import "./hud/demo/HudPanelWorkbench";
+import "./sandbox/SandboxBalancer";
 import "./styles.css";
 import "./styles/core/typography.css";
 import "./styles/core/variables.css";
@@ -227,6 +233,7 @@ declare global {
     userMeResponse: CustomEvent<UserMeResponse | false>;
     "leave-lobby": CustomEvent;
     "update-game-config": CustomEvent;
+    "sandbox-pause-game": CustomEvent<{ paused: boolean }>;
   }
 
   // Fixes the globalThis.addEventListener errors
@@ -242,7 +249,13 @@ export interface JoinLobbyEvent {
   gameStartInfo?: GameStartInfo;
   // GameRecord exists when replaying an archived game.
   gameRecord?: GameRecord;
-  source?: "public" | "private" | "host" | "matchmaking" | "singleplayer";
+  source?:
+    | "public"
+    | "private"
+    | "host"
+    | "matchmaking"
+    | "singleplayer"
+    | "sandbox";
   publicLobbyInfo?: GameInfo | PublicGameInfo;
 }
 
@@ -255,9 +268,9 @@ class Client {
   private usernameInput: UsernameInput | null = null;
   private flagInput: FlagInput | null = null;
 
-  private hostModal: HostPrivateLobbyModal;
-  private joinModal: JoinLobbyModal;
-  private gameModeSelector: GameModeSelector;
+  private hostModal: HostPrivateLobbyModal | null = null;
+  private joinModal: JoinLobbyModal | null = null;
+  private gameModeSelector: GameModeSelector | null = null;
   private userSettings: UserSettings = new UserSettings();
   private storeModal: StoreModal;
   private tokenLoginModal: TokenLoginModal;
@@ -268,6 +281,21 @@ class Client {
     token: string;
     createdAt: number;
   }> | null = null;
+
+  initializeSandbox(): void {
+    document.addEventListener("join-lobby", this.handleJoinLobby.bind(this));
+    document.addEventListener("leave-lobby", this.handleLeaveLobby.bind(this));
+    document.addEventListener(
+      "sandbox-pause-game",
+      this.handleSandboxPauseGame.bind(this),
+    );
+    window.addEventListener("beforeunload", async () => {
+      if (this.lobbyHandle !== null) {
+        this.lobbyHandle.stop(true);
+      }
+    });
+    this.applyDarkModeSetting();
+  }
 
   async initialize(): Promise<void> {
     crazyGamesSDK.maybeInit();
@@ -380,6 +408,10 @@ class Client {
     document.addEventListener("kick-player", this.handleKickPlayer.bind(this));
     document.addEventListener("start-game", this.handleStartGame.bind(this));
     document.addEventListener(
+      "sandbox-pause-game",
+      this.handleSandboxPauseGame.bind(this),
+    );
+    document.addEventListener(
       "update-game-config",
       this.handleUpdateGameConfig.bind(this),
     );
@@ -453,12 +485,12 @@ class Client {
     // However, we still want to ensure the modal can be opened.
     // The setupPatternInput above handles the click event for the new buttons.
 
-    this.storeModal.refresh();
+    this.storeModal?.refresh();
 
     window.addEventListener("showPage", (e: any) => {
       if (typeof e?.detail === "string" && e.detail === "page-play") {
         setTimeout(() => {
-          this.storeModal.refresh();
+          this.storeModal?.refresh();
         }, 50);
       }
     });
@@ -546,23 +578,7 @@ class Client {
       this.joinModal.eventBus = this.eventBus;
     }
 
-    const applyDarkMode = (isDark: boolean) => {
-      if (isDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    };
-
-    applyDarkMode(this.userSettings.darkMode());
-
-    globalThis.addEventListener(
-      `${USER_SETTINGS_CHANGED_EVENT}:${DARK_MODE_KEY}`,
-      (e: CustomEvent<string>) => {
-        const isDark = e.detail === "true";
-        applyDarkMode(isDark);
-      },
-    );
+    this.applyDarkModeSetting();
 
     // Attempt to join lobby
     if (document.readyState === "loading") {
@@ -648,6 +664,26 @@ class Client {
       });
   }
 
+  private applyDarkModeSetting() {
+    const applyDarkMode = (isDark: boolean) => {
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    };
+
+    applyDarkMode(this.userSettings.darkMode());
+
+    globalThis.addEventListener(
+      `${USER_SETTINGS_CHANGED_EVENT}:${DARK_MODE_KEY}`,
+      (e: CustomEvent<string>) => {
+        const isDark = e.detail === "true";
+        applyDarkMode(isDark);
+      },
+    );
+  }
+
   private async handleUrl() {
     // Wait for modal custom elements to be defined
     await Promise.all([
@@ -675,7 +711,7 @@ class Client {
         console.log(
           `CrazyGames: joining instant multiplayer lobby from CrazyGames`,
         );
-        this.hostModal.open();
+        this.hostModal?.open();
       }
     });
 
@@ -775,7 +811,7 @@ class Client {
       pathMatch && GAME_ID_REGEX.test(pathMatch[1]) ? pathMatch[1] : null;
     if (lobbyId) {
       window.showPage?.("page-join-lobby");
-      this.joinModal.open({ lobbyId });
+      this.joinModal?.open({ lobbyId });
       console.log(`joining lobby ${lobbyId}`);
       return;
     }
@@ -816,6 +852,9 @@ class Client {
   private async handleJoinLobby(event: CustomEvent<JoinLobbyEvent>) {
     const lobby = event.detail;
     this.mostRecentJoinEvent = event.timeStamp;
+    const isSandbox =
+      lobby.source === "sandbox" ||
+      lobby.gameStartInfo?.config.isSandbox === true;
     if (this.usernameInput && !this.usernameInput.validateOrShowError()) {
       return;
     }
@@ -824,8 +863,11 @@ class Client {
     if (this.lobbyHandle !== null) {
       console.log("joining lobby, stopping existing game");
       this.lobbyHandle.stop(true);
+      this.lobbyHandle = null;
       document.body.classList.remove("in-game");
     }
+    this.eventBus = new EventBus();
+    const gameEventBus = this.eventBus;
     if (lobby.source === "public") {
       this.joinModal?.open({
         lobbyId: lobby.gameID,
@@ -833,17 +875,21 @@ class Client {
       });
     }
     // Only update URL immediately for private lobbies, not public ones
-    if (lobby.source !== "public") {
+    if (lobby.source !== "public" && !isSandbox) {
       this.updateJoinUrlForShare(lobby.gameID);
     }
-    const auth = await userAuth();
+    const auth = isSandbox ? false : await userAuth();
     const playerRole = auth !== false ? (auth.claims.role ?? null) : null;
-    const newLobbyHandle = joinLobby(this.eventBus, {
+    const newLobbyHandle = joinLobby(gameEventBus, {
       gameID: lobby.gameID,
-      cosmetics: await getPlayerCosmeticsRefs(),
+      cosmetics: isSandbox ? {} : await getPlayerCosmeticsRefs(),
       turnstileToken: await this.getTurnstileToken(lobby),
-      playerName: this.usernameInput?.getUsername() ?? genAnonUsername(),
-      playerClanTag: this.usernameInput?.getClanTag() ?? null,
+      playerName: isSandbox
+        ? (lobby.gameStartInfo?.players[0]?.username ?? "Sandbox")
+        : (this.usernameInput?.getUsername() ?? genAnonUsername()),
+      playerClanTag: isSandbox
+        ? (lobby.gameStartInfo?.players[0]?.clanTag ?? null)
+        : (this.usernameInput?.getClanTag() ?? null),
       playerRole,
       gameStartInfo: lobby.gameStartInfo ?? lobby.gameRecord?.info,
       gameRecord: lobby.gameRecord,
@@ -899,50 +945,62 @@ class Client {
           modal.isModalOpen = false;
         }
       });
-      this.gameModeSelector.stop();
+      this.gameModeSelector?.stop();
       document.querySelectorAll(".ad").forEach((ad) => {
         (ad as HTMLElement).style.display = "none";
       });
 
-      crazyGamesSDK.loadingStart();
+      if (!isSandbox) {
+        crazyGamesSDK.loadingStart();
+      }
 
       // show when the game loads
       const startingModal = document.querySelector(
         "game-starting-modal",
       ) as GameStartingModal;
-      if (startingModal && startingModal instanceof GameStartingModal) {
+      if (
+        !isSandbox &&
+        startingModal &&
+        startingModal instanceof GameStartingModal
+      ) {
         startingModal.show();
       }
     });
 
     this.lobbyHandle.join.then(() => {
       this.joinModal?.closeWithoutLeaving();
-      this.gameModeSelector.stop();
-      incrementGamesPlayed();
+      this.gameModeSelector?.stop();
+      if (!isSandbox) {
+        incrementGamesPlayed();
+      }
 
       document.querySelectorAll(".ad").forEach((ad) => {
         (ad as HTMLElement).style.display = "none";
       });
 
-      if (window.PageOS?.session?.newPageView) {
+      if (!isSandbox && window.PageOS?.session?.newPageView) {
         window.PageOS.session.newPageView();
       }
-      crazyGamesSDK.loadingStop();
-      crazyGamesSDK.gameplayStart();
+      if (!isSandbox) {
+        crazyGamesSDK.loadingStop();
+        crazyGamesSDK.gameplayStart();
+      }
       document.body.classList.add("in-game");
 
-      // Ensure there's a homepage entry in history before adding the lobby entry
-      if (window.location.hash === "" || window.location.hash === "#") {
-        history.replaceState(null, "", window.location.origin + "#refresh");
+      if (!isSandbox) {
+        // Ensure there's a homepage entry in history before adding the lobby entry
+        if (window.location.hash === "" || window.location.hash === "#") {
+          history.replaceState(null, "", window.location.origin + "#refresh");
+        }
+        const lobbyIdHidden = !this.userSettings.lobbyIdVisibility();
+        history.pushState(
+          null,
+          "",
+          lobbyIdHidden
+            ? "/streamer-mode"
+            : `/${ClientEnv.workerPath(lobby.gameID)}/game/${lobby.gameID}?live`,
+        );
       }
-      const lobbyIdHidden = !this.userSettings.lobbyIdVisibility();
-      history.pushState(
-        null,
-        "",
-        lobbyIdHidden
-          ? "/streamer-mode"
-          : `/${ClientEnv.workerPath(lobby.gameID)}/game/${lobby.gameID}?live`,
-      );
 
       // Store current URL for popstate confirmation
       this.currentUrl = window.location.href;
@@ -968,6 +1026,7 @@ class Client {
     console.log("leaving lobby, cancelling game");
     this.lobbyHandle.stop(true);
     this.lobbyHandle = null;
+    this.eventBus = new EventBus();
     this.currentUrl = null;
 
     try {
@@ -978,7 +1037,7 @@ class Client {
 
     document.body.classList.remove("in-game");
 
-    if (this.joinModal.isOpen()) {
+    if (this.joinModal?.isOpen()) {
       this.joinModal.close();
       if (event?.detail.cause === "full-lobby") {
         window.dispatchEvent(
@@ -1012,6 +1071,12 @@ class Client {
   private handleStartGame() {
     if (this.eventBus) {
       this.eventBus.emit(new SendStartGameEvent());
+    }
+  }
+
+  private handleSandboxPauseGame(event: CustomEvent<{ paused: boolean }>) {
+    if (this.eventBus) {
+      this.eventBus.emit(new PauseGameIntentEvent(event.detail.paused));
     }
   }
 
@@ -1089,6 +1154,11 @@ const isHudPanelsRoute = () =>
   window.location.pathname === "/hud-panels.html" ||
   window.location.search.includes("hud-panels");
 
+const isSandboxRoute = () =>
+  window.location.pathname === "/sandbox" ||
+  window.location.pathname === "/sandbox.html" ||
+  window.location.search.includes("sandbox");
+
 const renderHudDemo = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
@@ -1106,8 +1176,67 @@ const renderHudPanels = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
 
+const renderSandbox = () => {
+  removeExistingGameSurfaces();
+  document.body.innerHTML = `
+    <sandbox-balancer></sandbox-balancer>
+    <lang-selector style="display: none"></lang-selector>
+    <div id="app"></div>
+    <div
+      class="fixed bottom-0 left-0 w-full z-[200] flex flex-col pointer-events-none sm:flex-row sm:items-end lg:grid lg:grid-cols-[1fr_500px_1fr] lg:items-end min-[1200px]:px-4"
+      style="
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      "
+    >
+      <div class="contents sm:flex sm:flex-col sm:pointer-events-none w-full sm:w-[500px] lg:col-start-2 sm:z-10">
+        <attacks-display class="w-full pointer-events-auto order-1 sm:order-none"></attacks-display>
+        <div class="pointer-events-auto font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm rounded-[3px] shadow-lg order-3 sm:order-none">
+          <control-panel class="w-full"></control-panel>
+          <unit-display class="hidden lg:block w-full"></unit-display>
+        </div>
+      </div>
+      <div class="flex flex-col pointer-events-none items-end order-2 sm:order-none sm:flex-1 lg:col-start-3 lg:self-end lg:justify-end min-[1200px]:mr-4">
+        <chat-display class="w-full sm:w-auto pointer-events-auto"></chat-display>
+        <events-display class="w-full sm:w-auto pointer-events-auto"></events-display>
+      </div>
+    </div>
+    <emoji-table></emoji-table>
+    <build-menu></build-menu>
+    <win-modal></win-modal>
+    <game-starting-modal></game-starting-modal>
+    <div class="flex flex-col items-end fixed top-0 right-0 min-[1200px]:top-4 min-[1200px]:right-4 z-1000 gap-2">
+      <game-right-sidebar></game-right-sidebar>
+      <replay-panel></replay-panel>
+    </div>
+    <settings-modal></settings-modal>
+    <player-panel></player-panel>
+    <spawn-timer></spawn-timer>
+    <immunity-timer></immunity-timer>
+    <in-game-promo></in-game-promo>
+    <game-info-modal></game-info-modal>
+    <alert-frame></alert-frame>
+    <chat-modal></chat-modal>
+    <multi-tab-modal></multi-tab-modal>
+    <game-left-sidebar></game-left-sidebar>
+    <performance-overlay></performance-overlay>
+    <player-info-overlay></player-info-overlay>
+    <leader-board></leader-board>
+    <team-stats></team-stats>
+    <heads-up-message></heads-up-message>
+  `;
+};
+
 // Initialize the client when the DOM is loaded
 const bootstrap = () => {
+  if (isSandboxRoute()) {
+    renderSandbox();
+    installSafariPinchZoomBlocker();
+    new Client().initializeSandbox();
+    return;
+  }
+
   if (isHudKitRoute()) {
     renderHudKit();
     return;

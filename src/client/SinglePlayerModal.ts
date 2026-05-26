@@ -3,14 +3,7 @@ import { customElement, state } from "lit/decorators.js";
 import { translateText } from "../client/Utils";
 import { UserMeResponse } from "../core/ApiSchemas";
 import { assetUrl } from "../core/AssetUrls";
-import {
-  Difficulty,
-  GameMapSize,
-  GameMapType,
-  GameMode,
-  GameType,
-  UnitType,
-} from "../core/game/Game";
+import { Difficulty, GameMapType, GameMode, UnitType } from "../core/game/Game";
 import { TeamCountConfig } from "../core/Schemas";
 import { generateID } from "../core/Util";
 import { hasLinkedAccount } from "./Api";
@@ -35,6 +28,7 @@ import {
   sliderToNationsConfig,
   toOptionalNumber,
 } from "./utilities/GameConfigHelpers";
+import { createSinglePlayerGameStartInfo } from "./utilities/SinglePlayerGameStart";
 
 import { terrainMapFileLoader } from "./TerrainMapFileLoader";
 
@@ -653,55 +647,39 @@ export class SinglePlayerModal extends BaseModal {
       new CustomEvent("join-lobby", {
         detail: {
           gameID: gameID,
-          gameStartInfo: {
-            gameID: gameID,
-            players: [
-              {
-                clientID,
-                username: usernameInput.getUsername(),
-                clanTag: usernameInput.getClanTag() ?? null,
-                cosmetics: await getPlayerCosmetics(),
-              },
-            ],
-            config: {
-              gameMap: this.selectedMap,
-              gameMapSize: this.compactMap
-                ? GameMapSize.Compact
-                : GameMapSize.Normal,
-              gameType: GameType.Singleplayer,
-              gameMode: this.gameMode,
-              playerTeams: this.teamCount,
-              difficulty: this.selectedDifficulty,
-              maxTimerValue: finalMaxTimerValue,
-              bots: this.bots,
-              infiniteGold: this.infiniteGold,
-              donateGold: this.gameMode === GameMode.Team,
-              donateTroops: this.gameMode === GameMode.Team,
-              infiniteTroops: this.infiniteTroops,
-              instantBuild: this.instantBuild,
-              randomSpawn: this.randomSpawn,
-              disabledUnits: this.disabledUnits
-                .map((u) => Object.values(UnitType).find((ut) => ut === u))
-                .filter((ut): ut is UnitType => ut !== undefined),
-              nations: sliderToNationsConfig(
-                this.nations,
-                this.defaultNationCount,
-              ),
-              ...(this.goldMultiplier && this.goldMultiplierValue
-                ? { goldMultiplier: this.goldMultiplierValue }
-                : {}),
-              ...(this.startingGold && this.startingGoldValue !== undefined
-                ? {
-                    startingGold: Math.round(
-                      this.startingGoldValue * 1_000_000,
-                    ),
-                  }
-                : {}),
-              ...(this.disableAlliances ? { disableAlliances: true } : {}),
-              ...(this.waterNukes ? { waterNukes: true } : {}),
-            },
-            lobbyCreatedAt: Date.now(), // ms; server should be authoritative in MP
-          },
+          gameStartInfo: createSinglePlayerGameStartInfo({
+            gameID,
+            clientID,
+            username: usernameInput.getUsername(),
+            clanTag: usernameInput.getClanTag() ?? null,
+            cosmetics: await getPlayerCosmetics(),
+            selectedMap: this.selectedMap,
+            compactMap: this.compactMap,
+            gameMode: this.gameMode,
+            teamCount: this.teamCount,
+            difficulty: this.selectedDifficulty,
+            maxTimerValue: finalMaxTimerValue,
+            bots: this.bots,
+            infiniteGold: this.infiniteGold,
+            infiniteTroops: this.infiniteTroops,
+            instantBuild: this.instantBuild,
+            randomSpawn: this.randomSpawn,
+            disabledUnits: this.disabledUnits,
+            nations: sliderToNationsConfig(
+              this.nations,
+              this.defaultNationCount,
+            ),
+            ...(this.goldMultiplier && this.goldMultiplierValue
+              ? { goldMultiplier: this.goldMultiplierValue }
+              : {}),
+            ...(this.startingGold && this.startingGoldValue !== undefined
+              ? {
+                  startingGold: Math.round(this.startingGoldValue * 1_000_000),
+                }
+              : {}),
+            disableAlliances: this.disableAlliances,
+            waterNukes: this.waterNukes,
+          }),
           source: "singleplayer",
         } satisfies JoinLobbyEvent,
         bubbles: true,

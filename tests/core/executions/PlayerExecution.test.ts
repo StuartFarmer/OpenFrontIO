@@ -41,6 +41,39 @@ describe("PlayerExecution", () => {
     expect(player.gold()).toBe(0n);
   });
 
+  test("passive income uses custom mechanics during tick execution", async () => {
+    const customGame = await setup(
+      "big_plains",
+      {
+        mechanics: {
+          populationResources: {
+            passiveResourceRegenMultiplier: 1,
+            resourceRegenBase: 1_000,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, "client_id1", "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    customGame.addExecution(new PlayerExecution(customPlayer));
+
+    customPlayer.conquer(customGame.ref(50, 50));
+    const expectedResources = customGame
+      .config()
+      .resourceIncreaseRate(customGame, customPlayer);
+
+    expect(
+      expectedResources.food +
+        expectedResources.energy +
+        expectedResources.materials,
+    ).toBeGreaterThan(1_000n);
+
+    executeTicks(customGame, 2);
+
+    expect(customPlayer.resources()).toEqual(expectedResources);
+    expect(customPlayer.gold()).toBe(0n);
+  });
+
   test("passive resource regen clamps each resource to capacity", () => {
     player.conquer(game.ref(50, 50));
     const capacity = game.config().maxResources(player);

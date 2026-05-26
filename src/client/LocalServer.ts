@@ -287,6 +287,9 @@ export class LocalServer {
     if (this.isReplay) {
       return;
     }
+    if (this.lobbyConfig.gameStartInfo?.config.isSandbox === true) {
+      return;
+    }
     const players: PlayerRecord[] = [
       {
         persistentID: getPersistentID(),

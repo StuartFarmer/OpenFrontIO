@@ -319,6 +319,19 @@ export const hudCatalogEntries: HudCatalogEntry[] = [
     examples: ["form-controls"],
   },
   {
+    name: "Textarea",
+    tagName: "hud-textarea",
+    category: "control",
+    status: "stable",
+    sourcePath: hudComponentsPath,
+    summary: "Compact multiline HUD text input.",
+    attributes: [
+      { name: "rows", type: "number", description: "Visible text rows." },
+    ],
+    events: [valueChangeEvent],
+    examples: ["form-controls", "json-editor"],
+  },
+  {
     name: "Select",
     tagName: "hud-select",
     category: "control",
@@ -394,6 +407,31 @@ export const hudCatalogEntries: HudCatalogEntry[] = [
     examples: ["segmented-control"],
   },
   {
+    name: "Player Control Panel",
+    tagName: "hud-player-control-panel",
+    category: "recipe",
+    status: "stable",
+    sourcePath: hudComponentsPath,
+    summary:
+      "Bottom-HUD player control panel layout for metric tabs, rate, meter, gold, and selected action controls.",
+    slots: [
+      {
+        name: "metric-tabs",
+        type: "slot",
+        description: "Metric selector control.",
+      },
+      { name: "rate", type: "slot", description: "Selected metric rate." },
+      { name: "meter", type: "slot", description: "Selected metric meter." },
+      { name: "gold", type: "slot", description: "Gold display." },
+      {
+        name: "action",
+        type: "slot",
+        description: "Attack ratio or resource blend controls.",
+      },
+    ],
+    examples: ["player-control-panel"],
+  },
+  {
     name: "Tabs",
     tagName: "hud-tabs",
     category: "control",
@@ -416,7 +454,8 @@ export const hudCatalogEntries: HudCatalogEntry[] = [
     category: "control",
     status: "draft",
     sourcePath: hudComponentsPath,
-    summary: "Generic selectable command item with icon, label, and meta slots.",
+    summary:
+      "Generic selectable command item with icon, label, and meta slots.",
     slots: [
       defaultSlot,
       { name: "icon", type: "slot", description: "Leading icon." },
@@ -483,7 +522,8 @@ export const hudCatalogEntries: HudCatalogEntry[] = [
     category: "row",
     status: "draft",
     sourcePath: hudComponentsPath,
-    summary: "Generic dense row with leading, content, meta, and actions slots.",
+    summary:
+      "Generic dense row with leading, content, meta, and actions slots.",
     slots: [
       { name: "leading", type: "slot", description: "Leading icon or rank." },
       defaultSlot,
@@ -544,7 +584,8 @@ export const hudCatalogEntries: HudCatalogEntry[] = [
     category: "surface",
     status: "draft",
     sourcePath: hudComponentsPath,
-    summary: "Stack, row, grid, split, scroll, and safe-area composition helpers.",
+    summary:
+      "Stack, row, grid, split, scroll, and safe-area composition helpers.",
     examples: ["layout-helpers"],
   },
   {

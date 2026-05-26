@@ -404,62 +404,28 @@ export class ControlPanel extends LitElement implements Controller {
     ];
   }
 
-  private renderMetricBar(metric: MetricView, compact: boolean) {
+  private renderMetricBar(metric: MetricView) {
     const { greenPercent, orangePercent } = this.calculateMetricBar(metric);
-    const label = compact
-      ? html`
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${this.metricValueText(metric)}</span
-          >
-          <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >${this.metricValueText({
-              ...metric,
-              value: metric.capacity,
-            })}</span
-          >
-        `
-      : html`
-          <span class="flex-1 flex justify-end h-full items-center pr-0.5">
-            <span class="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-              >${this.metricValueText(metric)}</span
-            >
-          </span>
-          <span
-            class="h-full flex items-center px-0.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-            >/</span
-          >
-          <span
-            class="flex-1 flex justify-start h-full items-center pl-0.5 gap-0.5"
-          >
-            <span
-              class="text-white tabular-nums w-[3.5rem] drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
-              >${this.metricValueText({
-                ...metric,
-                value: metric.capacity,
-              })}</span
-            >
-            <span class="ml-1.5">${metric.icon}</span>
-          </span>
-        `;
+    const label = `${this.metricValueText(metric)} / ${this.metricValueText({
+      ...metric,
+      value: metric.capacity,
+    })}`;
 
     return html`<hud-meter
+      slot="meter"
       .segments=${[
         { width: greenPercent, tone: metric.barTone },
         { width: orangePercent, tone: "cyan" },
       ].filter((segment) => segment.width > 0)}
       .label=${label}
-      label-align=${compact ? "between" : "center"}
-      style=${compact
-        ? "--hud-meter-label-size: 12px"
-        : "--hud-meter-label-size: 18px"}
     ></hud-meter>`;
   }
 
-  private renderRatePill(metric: MetricView, compact = false) {
+  private renderRatePill(metric: MetricView) {
     return html`<hud-pill
-      .value=${this.metricRateText(metric)}
+      slot="rate"
+      .value=${`Rate ${this.metricRateText(metric)}`}
       .tone=${metric.rateIsIncreasing ? "green" : "orange"}
-      style=${`width: ${compact ? "4.75rem" : "5.5rem"}`}
     >
       <span slot="icon">${metric.icon}</span>
     </hud-pill>`;
@@ -467,7 +433,7 @@ export class ControlPanel extends LitElement implements Controller {
 
   private renderMetricTabs() {
     return html`<hud-segmented-control
-      class="mb-1"
+      slot="metric-tabs"
       .selected=${this._selectedMetric}
       .items=${this.metricTabs().map((metric) => ({
         id: metric.key,
@@ -484,29 +450,21 @@ export class ControlPanel extends LitElement implements Controller {
     this._selectedMetric = event.detail.id as MetricKey;
   }
 
-  private renderAttackRatioControl(compact = false) {
+  private renderAttackRatioControl() {
     return html`
       <hud-form-row
-        style=${`--hud-form-label-width: ${compact ? "4.75rem" : "8rem"}`}
+        slot="action"
+        style="--hud-form-label-width: 8rem"
         translate="no"
       >
         <hud-pill
           tone="blue"
-          .value=${`${(this.attackRatio * 100).toFixed(0)}%${
-            compact
-              ? ""
-              : ` (${renderTroops(
-                  (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
-                )})`
-          }`}
-          style=${compact ? "width: 4.75rem" : "width: 8rem"}
+          .value=${`${(this.attackRatio * 100).toFixed(0)}%${` (${renderTroops(
+            (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
+          )})`}`}
         >
-          <span slot="icon">
-            ${this.renderMaskIcon(
-              swordIcon,
-              compact ? "h-2.5 w-2.5" : "h-3 w-3",
-            )}
-          </span>
+          <hud-mask-icon slot="icon" .src=${swordIcon} size="h-3 w-3">
+          </hud-mask-icon>
         </hud-pill>
         <hud-range
           min="1"
@@ -519,17 +477,12 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
-  private renderResourceBlendControl(compact = false) {
+  private renderResourceBlendControl() {
     return html`
-      <div class="space-y-1" translate="no">
+      <hud-stack slot="action" density="compact" translate="no">
+        ${this.renderBlendRow("Production Blend", this._productionBlend, null)}
         ${this.renderBlendRow(
-          compact ? "Prod" : "Production Blend",
-          this._productionBlend,
-          null,
-          compact,
-        )}
-        ${this.renderBlendRow(
-          compact ? "Import" : "Import Blend",
+          "Import Blend",
           {
             food: this._importBlendFirst,
             energy: this._importBlendSecond - this._importBlendFirst,
@@ -540,10 +493,9 @@ export class ControlPanel extends LitElement implements Controller {
             first: this._importBlendFirst,
             second: this._importBlendSecond,
           },
-          compact,
         )}
         ${this.renderBlendRow(
-          compact ? "Export" : "Export Blend",
+          "Export Blend",
           {
             food: this._exportBlendFirst,
             energy: this._exportBlendSecond - this._exportBlendFirst,
@@ -554,9 +506,8 @@ export class ControlPanel extends LitElement implements Controller {
             first: this._exportBlendFirst,
             second: this._exportBlendSecond,
           },
-          compact,
         )}
-      </div>
+      </hud-stack>
     `;
   }
 
@@ -564,12 +515,9 @@ export class ControlPanel extends LitElement implements Controller {
     label: string,
     blend: ResourceBlendPercents,
     handles: { kind: BlendKind; first: number; second: number } | null,
-    compact: boolean,
   ) {
     return html`
-      <hud-form-row
-        style=${`--hud-form-label-width: ${compact ? "4.75rem" : "7.75rem"}`}
-      >
+      <hud-form-row style="--hud-form-label-width: 7.75rem">
         <hud-field-label>${label}</hud-field-label>
         ${this.renderBlendBar(blend, handles)}
       </hud-form-row>
@@ -667,79 +615,36 @@ export class ControlPanel extends LitElement implements Controller {
     this.updateResourceExportBlend();
   }
 
-  private renderSelectedActionControl(compact = false) {
+  private renderSelectedActionControl() {
     return this._selectedMetric === "troops"
-      ? this.renderAttackRatioControl(compact)
-      : this.renderResourceBlendControl(compact);
-  }
-
-  private renderDesktop() {
-    const metric = this.selectedMetric();
-    return html`
-      <!-- Row 1: metric tabs -->
-      ${this.renderMetricTabs()}
-      <!-- Row 2: selected metric rate | selected metric bar | gold -->
-      <div class="flex gap-1.5 items-center mb-1">
-        ${this.renderRatePill(metric)}
-        <div class="flex-1">${this.renderMetricBar(metric, false)}</div>
-        <hud-pill
-          tone="gold"
-          .value=${renderNumber(this._gold)}
-          style="width: 4.5rem"
-        >
-          <span slot="icon">
-            ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
-          </span>
-        </hud-pill>
-      </div>
-      <!-- Row 3: attack ratio or resource import/export blends -->
-      ${this.renderSelectedActionControl(false)}
-    `;
-  }
-
-  private renderMobile() {
-    const metric = this.selectedMetric();
-    return html`
-      <div>
-        ${this.renderMetricTabs()}
-        <div class="flex gap-1.5 items-center">
-          ${this.renderRatePill(metric, true)}
-          <div class="min-w-0 flex-1 flex items-center">
-            ${this.renderMetricBar(metric, true)}
-          </div>
-          <hud-pill
-            tone="gold"
-            .value=${renderNumber(this._gold)}
-            style="width: 3.75rem; --hud-pill-justify: center"
-          >
-            <span slot="icon">
-              ${this.renderMaskIcon(goldCoinIcon, "h-[13px] w-[13px]")}
-            </span>
-          </hud-pill>
-        </div>
-        <div class="mt-1">${this.renderSelectedActionControl(true)}</div>
-      </div>
-    `;
+      ? this.renderAttackRatioControl()
+      : this.renderResourceBlendControl();
   }
 
   render() {
+    const metric = this.selectedMetric();
     return html`
-      <div
-        class="relative pointer-events-auto ${this._isVisible
-          ? "relative w-full text-sm px-2 py-1"
-          : "hidden"}"
+      <hud-player-control-panel
+        ?hidden=${!this._isVisible}
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <hud-control-panel>
-          <div class="lg:hidden">${this.renderMobile()}</div>
-          <div class="hidden lg:block">${this.renderDesktop()}</div>
-        </hud-control-panel>
-      </div>
+        ${this.renderMetricTabs()} ${this.renderRatePill(metric)}
+        ${this.renderMetricBar(metric)}
+        <hud-pill
+          slot="gold"
+          tone="gold"
+          .value=${`Gold ${renderNumber(this._gold)}`}
+        >
+          <hud-mask-icon
+            slot="icon"
+            .src=${goldCoinIcon}
+            size="h-[13px] w-[13px]"
+          >
+          </hud-mask-icon>
+        </hud-pill>
+        ${this.renderSelectedActionControl()}
+      </hud-player-control-panel>
     `;
-  }
-
-  createRenderRoot() {
-    return this; // Disable shadow DOM to allow Tailwind styles
   }
 }
 

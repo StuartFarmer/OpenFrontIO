@@ -71,6 +71,9 @@ import { GameView as WebGLGameView } from "./render/gl";
 import { ALL_UNIT_TYPES } from "./render/types";
 import { SoundManager } from "./sound/SoundManager";
 
+const WEBGL_CANVAS_ID = "webgl-debug-canvas";
+const GAME_INPUT_OVERLAY_ID = "game-input-overlay";
+
 export interface LobbyConfig {
   cosmetics: PlayerCosmeticRefs;
   playerName: string;
@@ -105,7 +108,9 @@ export function joinLobby(
   console.log(`joining lobby: gameID: ${lobbyConfig.gameID}`);
 
   const userSettings: UserSettings = new UserSettings();
-  startGame(lobbyConfig.gameID, lobbyConfig.gameStartInfo?.config ?? {});
+  if (!isSandboxLobby(lobbyConfig)) {
+    startGame(lobbyConfig.gameID, lobbyConfig.gameStartInfo?.config ?? {});
+  }
 
   const transport = new Transport(lobbyConfig, eventBus);
 
@@ -234,6 +239,54 @@ export function joinLobby(
   };
 }
 
+function isSandboxLobby(lobbyConfig: LobbyConfig): boolean {
+  return lobbyConfig.gameStartInfo?.config.isSandbox === true;
+}
+
+function emitSandboxDiagnostics(lobby: LobbyConfig, gameView: GameView) {
+  if (!isSandboxLobby(lobby)) {
+    return;
+  }
+
+  const player = gameView.myPlayer();
+  if (!player) {
+    return;
+  }
+
+  const resources = player.resources();
+  const resourceCapacity = player.resourceCapacity();
+  window.dispatchEvent(
+    new CustomEvent("sandbox-diagnostics", {
+      detail: {
+        gameID: lobby.gameID,
+        tick: gameView.ticks(),
+        troops: player.troops(),
+        troopIncreaseRate: player.troopIncreaseRate(),
+        effectiveTroopCapacity: player.effectiveTroopCapacity(),
+        biomassSupportedTroopCapacity: player.biomassSupportedTroopCapacity(),
+        resources: {
+          food: Number(resources.food),
+          energy: Number(resources.energy),
+          materials: Number(resources.materials),
+        },
+        resourceCapacity: {
+          food: Number(resourceCapacity.food),
+          energy: Number(resourceCapacity.energy),
+          materials: Number(resourceCapacity.materials),
+        },
+      },
+    }),
+  );
+}
+
+export function removeExistingGameSurfaces(): void {
+  document
+    .querySelectorAll<HTMLElement>(
+      `#${WEBGL_CANVAS_ID}, #${GAME_INPUT_OVERLAY_ID}`,
+    )
+    .forEach((element) => element.remove());
+}
+
 // Build the WebGL view + its glCanvas. Must run before createRenderer so the
 // controllers can be wired directly to the view.
 function createWebGLView(terrainMap: TerrainMapData): {
@@ -253,7 +306,7 @@ function createWebGLView(terrainMap: TerrainMapData): {
   }
 
   const glCanvas = createCanvas();
-  glCanvas.id = "webgl-debug-canvas";
+  glCanvas.id = WEBGL_CANVAS_ID;
   glCanvas.style.pointerEvents = "none";
   document.body.insertBefore(glCanvas, document.body.firstChild);
 
@@ -307,7 +360,7 @@ function mountWebGLFrameLoop(
   transformHandler: import("./TransformHandler").TransformHandler,
   gameView: GameView,
   eventBus: EventBus,
-): { builder: WebGLFrameBuilder } {
+): { builder: WebGLFrameBuilder; stop: () => void } {
   const gameMap = terrainMap.gameMap;
   const mapWidth = gameMap.width();
   const mapHeight = gameMap.height();
@@ -366,13 +419,29 @@ function mountWebGLFrameLoop(
   // TransformHandler, pushes it to WebGL, and synchronously invokes the
   // renderer's captured frame callback (which draws). One RAF = one
   // synchronized camera-update + WebGL render.
+  let stopped = false;
+  let animationFrameID: number | null = null;
   const driveFrame = (): void => {
+    if (stopped) {
+      return;
+    }
     syncCamera();
-    requestAnimationFrame(driveFrame);
+    animationFrameID = requestAnimationFrame(driveFrame);
   };
-  requestAnimationFrame(driveFrame);
+  animationFrameID = requestAnimationFrame(driveFrame);
 
-  return { builder: new WebGLFrameBuilder(view) };
+  return {
+    builder: new WebGLFrameBuilder(view),
+    stop: () => {
+      stopped = true;
+      resizeObs.disconnect();
+      cachedWebGLFrameCallback.current = null;
+      if (animationFrameID !== null) {
+        cancelAnimationFrame(animationFrameID);
+        animationFrameID = null;
+      }
+    },
+  };
 }
 
 async function createClientGame(
@@ -416,11 +485,13 @@ async function createClientGame(
     lobbyConfig.gameStartInfo.players,
   );
 
+  removeExistingGameSurfaces();
+
   // Transparent fullscreen overlay used purely as the pointer-event /
   // bounding-rect target for InputHandler + TransformHandler. The actual
   // map drawing happens on the WebGL canvas created in createWebGLView.
   const inputOverlay = document.createElement("div");
-  inputOverlay.id = "game-input-overlay";
+  inputOverlay.id = GAME_INPUT_OVERLAY_ID;
   inputOverlay.style.position = "fixed";
   inputOverlay.style.left = "0";
   inputOverlay.style.top = "0";
@@ -430,9 +501,13 @@ async function createClientGame(
   document.body.appendChild(inputOverlay);
 
   const soundManager = new SoundManager(eventBus, userSettings);
+  let glCanvas: HTMLCanvasElement | null = null;
+  let stopWebGLFrameLoop: (() => void) | null = null;
+  let cleanupGameSurface: (() => void) | null = null;
   try {
-    const { view, glCanvas, cachedWebGLFrameCallback } =
-      createWebGLView(gameMap);
+    const webGLView = createWebGLView(gameMap);
+    const { view, cachedWebGLFrameCallback } = webGLView;
+    glCanvas = webGLView.glCanvas;
 
     // Bind the WebGL renderer's day/night mode to the existing darkMode
     // UserSetting so the in-game map matches the rest of the UI. Initial
@@ -465,7 +540,7 @@ async function createClientGame(
       view,
     );
 
-    const { builder: webglBuilder } = mountWebGLFrameLoop(
+    const webGLFrameLoop = mountWebGLFrameLoop(
       gameMap,
       view,
       glCanvas,
@@ -474,6 +549,27 @@ async function createClientGame(
       gameView,
       eventBus,
     );
+    const webglBuilder = webGLFrameLoop.builder;
+    stopWebGLFrameLoop = webGLFrameLoop.stop;
+    const inputHandler = new InputHandler(
+      gameView,
+      gameRenderer.uiState,
+      inputOverlay,
+      eventBus,
+    );
+    cleanupGameSurface = () => {
+      stopWebGLFrameLoop?.();
+      stopWebGLFrameLoop = null;
+      inputHandler.destroy();
+      view.dispose();
+      const debugWindow = window as unknown as { __webglView?: unknown };
+      if (debugWindow.__webglView === view) {
+        delete debugWindow.__webglView;
+      }
+      inputOverlay.remove();
+      glCanvas?.remove();
+      glCanvas = null;
+    };
 
     console.log(
       `creating private game got difficulty: ${lobbyConfig.gameStartInfo.config.difficulty}`,
@@ -484,16 +580,27 @@ async function createClientGame(
       clientID,
       eventBus,
       gameRenderer,
-      new InputHandler(gameView, gameRenderer.uiState, inputOverlay, eventBus),
+      inputHandler,
       transport,
       worker,
       gameView,
       soundManager,
       userSettings,
       webglBuilder,
+      () => {
+        cleanupGameSurface?.();
+        cleanupGameSurface = null;
+      },
     );
   } catch (err) {
+    cleanupGameSurface?.();
+    if (cleanupGameSurface === null) {
+      stopWebGLFrameLoop?.();
+      inputOverlay.remove();
+      glCanvas?.remove();
+    }
     soundManager.dispose();
+    worker.cleanup();
     throw err;
   }
 }
@@ -524,6 +631,7 @@ export class ClientGameRunner {
     private soundManager: SoundManager,
     private userSettings: UserSettings,
     private webglBuilder: WebGLFrameBuilder | null = null,
+    private cleanupDom: () => void = () => {},
   ) {
     this.lastMessageTime = Date.now();
   }
@@ -544,6 +652,9 @@ export class ClientGameRunner {
   }
 
   private async saveGame(update: WinUpdate) {
+    if (isSandboxLobby(this.lobby)) {
+      return;
+    }
     if (!this.clientID) {
       return;
     }
@@ -634,6 +745,7 @@ export class ClientGameRunner {
         this.eventBus.emit(new SendHashEvent(hu.tick, hu.hash));
       });
       this.gameView.update(gu);
+      emitSandboxDiagnostics(this.lobby, this.gameView);
       this.webglBuilder?.update(this.gameView);
       this.renderer.tick();
 
@@ -780,6 +892,7 @@ export class ClientGameRunner {
 
   public stop() {
     this.soundManager.dispose();
+    this.cleanupDom();
     if (!this.isActive) return;
 
     this.isActive = false;

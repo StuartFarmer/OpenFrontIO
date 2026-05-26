@@ -19,8 +19,14 @@ function collectText(node: Node): string {
   return text;
 }
 
-function queryDeepAll<T extends Element>(root: ParentNode, selector: string): T[] {
+function queryDeepAll<T extends Element>(
+  root: ParentNode,
+  selector: string,
+): T[] {
   const matches = Array.from(root.querySelectorAll<T>(selector));
+  if (root instanceof Element && root.shadowRoot) {
+    matches.push(...queryDeepAll<T>(root.shadowRoot, selector));
+  }
   for (const element of Array.from(root.querySelectorAll("*"))) {
     if (element.shadowRoot) {
       matches.push(...queryDeepAll<T>(element.shadowRoot, selector));
@@ -98,14 +104,26 @@ describe("ControlPanel resources", () => {
     panel.tick();
     await panel.updateComplete;
 
-    const metalsTab = queryDeepAll<HTMLButtonElement>(panel, "button").find(
-      (button) => button.textContent?.includes("Metals"),
+    const metricSelector = queryDeepAll<HTMLElement>(
+      panel,
+      "hud-segmented-control",
+    ).find(
+      (element) =>
+        (element as unknown as { selected?: string }).selected === "troops",
     );
-    expect(metalsTab).toBeDefined();
-    metalsTab!.click();
+    expect(metricSelector).toBeDefined();
+    metricSelector!.dispatchEvent(
+      new CustomEvent("selection-change", {
+        detail: { id: "materials" },
+        bubbles: true,
+        composed: true,
+      }),
+    );
     await panel.updateComplete;
 
-    expect(metalsTab!.getAttribute("aria-pressed")).toBe("true");
+    expect((metricSelector as unknown as { selected?: string }).selected).toBe(
+      "materials",
+    );
     const text = collectText(panel);
     expect(text).toContain("3.00K");
     expect(text).toContain("34%");
