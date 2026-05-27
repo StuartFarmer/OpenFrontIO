@@ -43,11 +43,11 @@ describe("sandbox-balancer", () => {
     clickAction(el, "start");
     const initialGrowth =
       events[0].detail.gameStartInfo.config.mechanics.populationResources
-        .troopLogisticGrowthRate;
+        .populationGrowthRate;
 
     dispatchValue(
       el,
-      'hud-input[data-mechanic-input="troopLogisticGrowthRate"]',
+      'hud-input[data-mechanic-input="populationGrowthRate"]',
       0.025,
     );
     await el.updateComplete;
@@ -64,7 +64,7 @@ describe("sandbox-balancer", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const refreshedGrowth =
       reloadedEvents[0].detail.gameStartInfo.config.mechanics
-        .populationResources.troopLogisticGrowthRate;
+        .populationResources.populationGrowthRate;
 
     expect(initialGrowth).toBe(0.016);
     expect(refreshedGrowth).toBe(0.025);
@@ -118,7 +118,13 @@ describe("sandbox-balancer", () => {
       "hud-textarea[data-json]",
       JSON.stringify({
         version: 1,
-        populationResources: { passiveResourceRegenMultiplier: 0.75 },
+        populationResources: {
+          passiveResourceRegenMultiplier: 0.75,
+          populationFoodConstraintMode: "dynamic-shortage",
+          foodAllocationToPopulation: 0.6,
+          foodConsumptionPerPopulation: 0.01,
+          wartimeFoodConsumptionMultiplier: 1.5,
+        },
       }),
     );
     clickAction(el, "import-json");
@@ -128,6 +134,22 @@ describe("sandbox-balancer", () => {
       events[0].detail.gameStartInfo.config.mechanics.populationResources
         .passiveResourceRegenMultiplier,
     ).toBe(0.75);
+    expect(
+      events[0].detail.gameStartInfo.config.mechanics.populationResources
+        .populationFoodConstraintMode,
+    ).toBe("dynamic-shortage");
+    expect(
+      events[0].detail.gameStartInfo.config.mechanics.populationResources
+        .foodAllocationToPopulation,
+    ).toBe(0.6);
+    expect(
+      events[0].detail.gameStartInfo.config.mechanics.populationResources
+        .foodConsumptionPerPopulation,
+    ).toBe(0.01);
+    expect(
+      events[0].detail.gameStartInfo.config.mechanics.populationResources
+        .wartimeFoodConsumptionMultiplier,
+    ).toBe(1.5);
 
     dispatchValue(el, "hud-textarea[data-json]", "{");
     clickAction(el, "import-json");

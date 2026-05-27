@@ -478,6 +478,10 @@ export class PlayerView {
     return this.state.troopIncreaseRate;
   }
 
+  stockFlowDiagnostics() {
+    return this.state.stockFlowDiagnostics;
+  }
+
   troops(): number {
     return this.state.troops;
   }

@@ -80,6 +80,9 @@ export class MainRadialMenu extends LitElement implements Controller {
   init() {
     this.radialMenu.init();
     this.eventBus.on(ContextMenuEvent, (event) => {
+      if (event.consumed) {
+        return;
+      }
       const worldCoords = this.transformHandler.screenToWorldCoordinates(
         event.x,
         event.y,

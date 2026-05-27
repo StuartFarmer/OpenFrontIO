@@ -4,6 +4,7 @@ import { z } from "zod";
 import { TokenPayload, TokenPayloadSchema } from "../core/ApiSchemas";
 import { base64urlToUuid } from "../core/Base64";
 import { getApiBase, getAudience } from "./Api";
+import { shouldUseBundledServiceFallbacks } from "./LocalServices";
 import { generateCryptoRandomUUID } from "./Utils";
 
 export type UserAuth = { jwt: string; claims: TokenPayload } | false;
@@ -81,7 +82,12 @@ export async function userAuth(
     const jwt = __jwt;
     if (!jwt) {
       if (!shouldRefresh) {
-        console.warn("No JWT found and shouldRefresh is false");
+        if (!shouldUseBundledServiceFallbacks()) {
+          console.warn("No JWT found and shouldRefresh is false");
+        }
+        return false;
+      }
+      if (shouldUseBundledServiceFallbacks()) {
         return false;
       }
       console.log("No JWT found");
@@ -154,6 +160,11 @@ async function refreshJwt(): Promise<void> {
 }
 
 async function doRefreshJwt(): Promise<void> {
+  if (shouldUseBundledServiceFallbacks()) {
+    __jwt = null;
+    return;
+  }
+
   try {
     console.log("Refreshing jwt");
     const response = await fetch(getApiBase() + "/auth/refresh", {

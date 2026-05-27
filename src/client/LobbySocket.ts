@@ -1,5 +1,6 @@
 import { ClientEnv } from "src/client/ClientEnv";
 import { PublicGames, PublicGamesSchema } from "../core/Schemas";
+import { areLocalServicesEnabled } from "./LocalServices";
 
 interface LobbySocketOptions {
   reconnectDelay?: number;
@@ -32,6 +33,10 @@ export class PublicLobbySocket {
   }
 
   async start() {
+    if (!areLocalServicesEnabled()) {
+      return;
+    }
+
     this.stopped = false;
     this.wsConnectionAttempts = 0;
     // Get config to determine number of workers, then pick a random one

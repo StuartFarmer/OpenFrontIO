@@ -46,6 +46,10 @@ export function diffPlayerUpdate(
     resourceStockpileEqual(prev.resourceCapacity, next.resourceCapacity),
   );
   setIfDifferent(
+    "stockFlowDiagnostics",
+    jsonEqual(prev.stockFlowDiagnostics, next.stockFlowDiagnostics),
+  );
+  setIfDifferent(
     "effectiveTroopCapacity",
     prev.effectiveTroopCapacity === next.effectiveTroopCapacity,
   );
@@ -125,6 +129,9 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
       energy: Number(pu.resourceCapacity.energy),
       materials: Number(pu.resourceCapacity.materials),
     };
+  }
+  if (pu.stockFlowDiagnostics !== undefined) {
+    target.stockFlowDiagnostics = pu.stockFlowDiagnostics;
   }
   if (pu.effectiveTroopCapacity !== undefined) {
     target.effectiveTroopCapacity = pu.effectiveTroopCapacity;

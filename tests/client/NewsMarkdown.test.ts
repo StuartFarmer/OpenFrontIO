@@ -1,4 +1,8 @@
-import { normalizeNewsMarkdown } from "../../src/client/NewsMarkdown";
+import {
+  normalizeNewsMarkdown,
+  renderMarkdown,
+  renderMarkdownInline,
+} from "../../src/client/NewsMarkdown";
 
 describe("normalizeNewsMarkdown", () => {
   it("converts openfront pull request URLs to short markdown links", () => {
@@ -45,5 +49,20 @@ describe("normalizeNewsMarkdown", () => {
     const result = normalizeNewsMarkdown(input);
 
     expect(result).toBe(input);
+  });
+
+  it("renders inline links and bold text with the local renderer", () => {
+    const result = renderMarkdownInline(
+      "Read **news** at [OpenFront](https://openfront.io)",
+    );
+
+    expect(result[0]).toBe("Read ");
+    expect(result.some((node) => typeof node !== "string")).toBe(true);
+  });
+
+  it("renders block markdown for the news modal", () => {
+    const result = renderMarkdown("# Title\n\n- One\n- Two\n\nPlain text");
+
+    expect(result).toHaveLength(3);
   });
 });

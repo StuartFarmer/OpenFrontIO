@@ -1,5 +1,3 @@
-import { Platform } from "./Platform";
-
 export function initLayout() {
   // Wait for play-page component to render before setting up hamburger menu
   customElements.whenDefined("play-page").then(() => {
@@ -7,27 +5,10 @@ export function initLayout() {
     const sidebar = document.getElementById("sidebar-menu");
     const backdrop = document.getElementById("mobile-menu-backdrop");
 
-    // Force sidebar visibility style to ensure it's not hidden by other CSS
-    if (sidebar && Platform.isMobileWidth) {
-      sidebar.style.display = "flex";
-    }
-
-    if (!hb) {
-      console.error("Hamburger button not found");
-      return;
-    }
+    if (!hb || !sidebar || !backdrop) return;
 
     // Disable fallback inline handler now that JS is loaded
     hb.onclick = null;
-
-    if (!sidebar) {
-      console.error("Sidebar menu not found");
-      return;
-    }
-    if (!backdrop) {
-      console.error("Mobile menu backdrop not found");
-      return;
-    }
 
     const setMenuState = (open: boolean) => {
       sidebar.classList.toggle("open", open);
@@ -60,9 +41,6 @@ export function initLayout() {
 
     // Close menu when clicking a menu link or button (Mobile only)
     sidebar.addEventListener("click", (e) => {
-      // On desktop, we want the menu to stay open unless explicitly toggled
-      if (!Platform.isMobileWidth) return;
-
       // If the click happened on or inside an anchor/button/menu item, close the menu
       const clickedElement = (e.target as Element).closest
         ? (e.target as Element).closest(
@@ -77,7 +55,6 @@ export function initLayout() {
 
     // Close on Escape (Mobile only)
     document.addEventListener("keydown", (e) => {
-      if (!Platform.isMobileWidth) return;
       if (e.key === "Escape" && sidebar.classList.contains("open")) {
         closeMenu();
       }

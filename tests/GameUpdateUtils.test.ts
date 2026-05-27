@@ -96,6 +96,57 @@ describe("diffPlayerUpdate", () => {
     });
   });
 
+  it("detects stock-flow diagnostic changes structurally", () => {
+    const prev = makePlayerUpdate({
+      stockFlowDiagnostics: {
+        outputs: { "population.growth": 1 },
+        flows: [
+          {
+            id: "population.growthFlow",
+            stock: "population.current",
+            amount: 1,
+          },
+        ],
+        stocks: [
+          {
+            stock: "population.current",
+            before: 10,
+            delta: 1,
+            unclampedAfter: 11,
+            after: 11,
+            clamped: false,
+          },
+        ],
+      },
+    });
+    const next = makePlayerUpdate({
+      stockFlowDiagnostics: {
+        outputs: { "population.growth": 2 },
+        flows: [
+          {
+            id: "population.growthFlow",
+            stock: "population.current",
+            amount: 2,
+          },
+        ],
+        stocks: [
+          {
+            stock: "population.current",
+            before: 10,
+            delta: 2,
+            unclampedAfter: 12,
+            after: 12,
+            clamped: false,
+          },
+        ],
+      },
+    });
+
+    const diff = diffPlayerUpdate(prev, next);
+
+    expect(diff?.stockFlowDiagnostics).toEqual(next.stockFlowDiagnostics);
+  });
+
   it("detects allies array additions", () => {
     const prev = makePlayerUpdate({ allies: [2, 3] });
     const next = makePlayerUpdate({ allies: [2, 3, 4] });

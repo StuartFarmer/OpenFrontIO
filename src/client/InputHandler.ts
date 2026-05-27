@@ -55,6 +55,8 @@ export class MouseMoveEvent implements GameEvent {
 }
 
 export class ContextMenuEvent implements GameEvent {
+  public consumed = false;
+
   constructor(
     public readonly x: number,
     public readonly y: number,
@@ -835,6 +837,9 @@ export class InputHandler {
   private onContextMenu(event: MouseEvent) {
     event.preventDefault();
     if (this.gameView.inSpawnPhase()) {
+      if (this.gameView.config().gameConfig().isSandbox) {
+        this.eventBus.emit(new ContextMenuEvent(event.clientX, event.clientY));
+      }
       return;
     }
     if (this.uiState.ghostStructure !== null) {

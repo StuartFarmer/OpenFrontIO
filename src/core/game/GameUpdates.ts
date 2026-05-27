@@ -1,4 +1,5 @@
 import { AllPlayersStats, ClientID, Winner } from "../Schemas";
+import type { StockFlowDiagnostics } from "../systems/StockFlowDiagnostics";
 import {
   EmojiMessage,
   GameUpdates,
@@ -192,6 +193,7 @@ export interface PlayerUpdate {
   gold?: Gold;
   resources?: ResourceStockpile;
   resourceCapacity?: ResourceStockpile;
+  stockFlowDiagnostics?: StockFlowDiagnostics;
   effectiveTroopCapacity?: number;
   biomassSupportedTroopCapacity?: number;
   troopIncreaseRate?: number;

@@ -113,14 +113,12 @@ describe("PlayerExecution", () => {
     expect(player.gold()).toBe(0n);
   });
 
-  test("biomass-constrained logistic growth reduces over-supported troops", () => {
+  test("population growth is constrained by max population from owned tiles", () => {
     const tile = game.ref(50, 50);
     player.conquer(tile);
     player.buildUnit(UnitType.City, tile, {});
-    const biomassCapacity = game
-      .config()
-      .biomassSupportedTroopCapacity(game, player);
-    player.setTroops(biomassCapacity * 1.1);
+    const capacity = game.config().maxTroops(player);
+    player.setTroops(capacity * 1.1);
     const before = player.troops();
 
     executeTicks(game, 2);

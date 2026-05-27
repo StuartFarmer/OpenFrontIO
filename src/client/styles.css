@@ -82,6 +82,20 @@ body {
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+desktop-nav-bar,
+play-page,
+game-mode-selector,
+username-input,
+page-footer {
+  display: block;
+  width: 100%;
+}
+
+play-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 * {
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;

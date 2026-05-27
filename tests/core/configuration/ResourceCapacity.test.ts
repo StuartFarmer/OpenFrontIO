@@ -68,7 +68,7 @@ describe("resource capacity config", () => {
   test("mechanics config resolves partial inputs with defaults", () => {
     const parsed = MechanicsConfigSchema.parse({
       populationResources: {
-        troopLogisticGrowthRate: 0.02,
+        populationGrowthRate: 0.02,
         terrainWeights: {
           plains: {
             food: 5,
@@ -80,11 +80,22 @@ describe("resource capacity config", () => {
     const resolved = resolveMechanicsConfig(parsed);
 
     expect(resolved.version).toBe(1);
-    expect(resolved.populationResources.troopLogisticGrowthRate).toBe(0.02);
-    expect(resolved.populationResources.maxPopulationBase).toBe(50_000);
-    expect(resolved.populationResources.cityMaxPopulationIncrease).toBe(
-      250_000,
+    expect(resolved.populationResources.populationGrowthRate).toBe(0.02);
+    expect(resolved.populationResources.initialPopulation).toBe(25_000);
+    expect(resolved.populationResources.maxPopulationPerTile).toBe(100_000);
+    expect(resolved.populationResources.populationFoodConstraintMode).toBe(
+      "hard-min-cap",
     );
+    expect(resolved.populationResources.foodAllocationToPopulation).toBe(1);
+    expect(resolved.populationResources.foodConsumptionPerPopulation).toBe(0);
+    expect(
+      resolved.populationResources.foodConsumptionPerMobilizedPopulation,
+    ).toBe(0);
+    expect(resolved.populationResources.wartimeFoodConsumptionMultiplier).toBe(
+      1,
+    );
+    expect(resolved.populationResources.foodShortageBirthPenalty).toBe(1);
+    expect(resolved.populationResources.famineDeathRate).toBe(0);
     expect(resolved.populationResources.baselineBiomassProductionShare).toBe(
       0.25,
     );
@@ -107,11 +118,11 @@ describe("resource capacity config", () => {
 
     const resolved = resolveMechanicsConfig(parsed);
 
-    expect(resolved.populationResources.maxPopulationBase).toBe(12_000);
-    expect(resolved.populationResources.maxPopulationTilesScale).toBe(750);
-    expect(resolved.populationResources.maxPopulationTilesExponent).toBe(0.8);
-    expect(resolved.populationResources.cityMaxPopulationIncrease).toBe(60_000);
+    expect(resolved.populationResources.maxPopulationPerTile).toBe(750);
     expect("troopCapacityBase" in resolved.populationResources).toBe(false);
+    expect("troopCapacityTerritoryScale" in resolved.populationResources).toBe(
+      false,
+    );
   });
 
   test("mechanics config rejects invalid values", () => {
@@ -135,6 +146,27 @@ describe("resource capacity config", () => {
               food: -1,
             },
           },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          foodConsumptionPerPopulation: -1,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          foodAllocationToPopulation: 1.1,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          populationFoodConstraintMode: "invalid",
         },
       }),
     ).toThrow();
@@ -314,7 +346,7 @@ describe("resource capacity config", () => {
 
     expect(
       game.config().biomassSupportedTroopCapacity(game, highlandGamePlayer),
-    ).toBeGreaterThan(game.config().maxTroops(highlandGamePlayer));
+    ).toBeGreaterThan(plainsBiomassCapacity);
   });
 
   test("custom biomass baseline tunes supported population", async () => {
@@ -358,7 +390,7 @@ describe("resource capacity config", () => {
       {
         mechanics: {
           populationResources: {
-            troopLogisticGrowthRate: 0.032,
+            populationGrowthRate: 0.032,
           },
         },
       },
@@ -384,10 +416,7 @@ describe("resource capacity config", () => {
       {
         mechanics: {
           populationResources: {
-            maxPopulationBase: 10_000,
-            maxPopulationTilesScale: 500,
-            maxPopulationTilesExponent: 1,
-            cityMaxPopulationIncrease: 40_000,
+            maxPopulationPerTile: 10_000,
           },
         },
       },
@@ -397,29 +426,21 @@ describe("resource capacity config", () => {
     const tile = customGame.ref(0, 0);
     customPlayer.conquer(tile);
 
-    expect(customGame.config().maxTroops(customPlayer)).toBe(21_000);
+    expect(customGame.config().maxTroops(customPlayer)).toBe(10_000);
 
     customPlayer.buildUnit(UnitType.City, tile, {});
 
-    expect(customGame.config().maxTroops(customPlayer)).toBe(61_000);
-    expect(customGame.config().cityMaxPopulationIncrease()).toBe(40_000);
+    expect(customGame.config().maxTroops(customPlayer)).toBe(10_000);
   });
 
-  test("troopIncreaseRate becomes negative above biomass-supported capacity", () => {
+  test("troopIncreaseRate becomes negative above max population", () => {
     const tile = game.ref(0, 0);
     player.conquer(tile);
-    const biomassCapacity = game
-      .config()
-      .biomassSupportedTroopCapacity(game, player);
-    player.buildUnit(UnitType.City, tile, {});
+    const capacity = game.config().effectiveTroopCapacity(game, player);
 
-    expect(game.config().maxTroops(player)).toBeGreaterThan(biomassCapacity);
-    expect(game.config().effectiveTroopCapacity(game, player)).toBeCloseTo(
-      biomassCapacity,
-      0,
-    );
+    expect(capacity).toBe(game.config().maxTroops(player));
 
-    player.setTroops(biomassCapacity * 1.1);
+    player.setTroops(capacity * 1.1);
 
     expect(game.config().troopIncreaseRate(player, game)).toBeLessThan(0);
   });

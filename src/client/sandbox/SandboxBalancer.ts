@@ -11,7 +11,11 @@ import {
   resolveMechanicsConfig,
 } from "../../core/configuration/MechanicsConfig";
 import { Difficulty, GameMapType, GameMode } from "../../core/game/Game";
+import { createZeroResources } from "../../core/game/Resources";
 import { GameStartInfoSchema } from "../../core/Schemas";
+import { evaluateFoodSystem } from "../../core/systems/models/FoodSystem";
+import { evaluatePopulationSystem } from "../../core/systems/models/PopulationSystem";
+import { evaluateResourceProductionSystem } from "../../core/systems/models/ResourceProductionSystem";
 import { generateID } from "../../core/Util";
 import "../hud/ui";
 import type {
@@ -19,11 +23,13 @@ import type {
   HudSelectOption,
 } from "../hud/ui/HudComponents";
 import type { JoinLobbyEvent } from "../Main";
+import { MS_PER_TICK } from "../render/GameConstants";
 import { createSinglePlayerGameStartInfo } from "../utilities/SinglePlayerGameStart";
 
 type PopulationNumberKey = Exclude<
   keyof PopulationResourceMechanicsConfig,
   | "terrainWeights"
+  | "populationFoodConstraintMode"
   | "nationCapacityMultipliers"
   | "nationTroopGrowthMultipliers"
   | "nationResourceRegenMultipliers"
@@ -32,12 +38,15 @@ type TerrainKey = keyof PopulationResourceMechanicsConfig["terrainWeights"];
 type ResourceKey =
   keyof PopulationResourceMechanicsConfig["terrainWeights"]["plains"];
 type LaunchMode = "isolated" | "scenario";
-type PopulationTab = "growth" | "resources" | "terrain" | "ai";
+type PopulationTab = "growth" | "resources" | "food" | "terrain" | "ai";
+type ControlScale = "linear" | "log";
 type GraphId =
-  | "troop-capacity"
-  | "troop-growth"
-  | "biomass-cap"
+  | "max-population"
+  | "population-growth"
+  | "population-over-time"
   | "resource-regen"
+  | "food-shortage"
+  | "food-wartime"
   | "capacity";
 
 interface SandboxSettings {
@@ -57,11 +66,19 @@ interface NumberControl {
   min: number;
   max: number;
   step: number;
+  scale?: ControlScale;
+  logMin?: number;
+  integer?: boolean;
 }
 
 interface GraphPoint {
   x: number;
   y: number;
+  label: string;
+}
+
+interface GraphMarker {
+  x: number;
   label: string;
 }
 
@@ -83,64 +100,108 @@ interface SandboxDiagnostics {
 
 const populationControls: NumberControl[] = [
   {
-    key: "troopLogisticGrowthRate",
+    key: "populationGrowthRate",
     tab: "growth",
-    label: "Troop growth",
+    label: "Growth rate (r)",
     description:
-      "Raises or lowers how quickly troops refill below the cap. Higher values mean faster recovery and faster early expansion; lower values make losses recover slowly.",
+      "Maximum per-capita population growth rate in dN/dt = rN(1 - N / max population). Higher values refill population faster below the cap; lower values slow recovery.",
     min: 0,
-    max: 0.05,
-    step: 0.001,
+    max: 1,
+    step: 0.0001,
+    scale: "log",
+    logMin: 0.0001,
   },
   {
-    key: "maxPopulationBase",
+    key: "initialPopulation",
     tab: "growth",
-    label: "Base max pop",
+    label: "Initial population (N0)",
     description:
-      "Starting max population before tiles owned and cities are added. Higher values help small countries hold more troops; lower values makes them hit the limit sooner.",
+      "Population at game start. Higher values start players closer to max population; values above max population shrink until they fall under the cap.",
+    min: 0,
+    max: 500000,
+    step: 5000,
+    scale: "log",
+    logMin: 1,
+    integer: true,
+  },
+  {
+    key: "maxPopulationPerTile",
+    tab: "growth",
+    label: "Max population / tile",
+    description:
+      "Population each owned tile can support. Max population = tiles owned * this value. Higher values make land support larger populations; lower values make the cap tighter.",
     min: 0,
     max: 250000,
     step: 5000,
+    scale: "log",
+    logMin: 1,
+    integer: true,
   },
   {
-    key: "maxPopulationTilesScale",
-    tab: "growth",
-    label: "Tiles owned scale",
+    key: "foodAllocationToPopulation",
+    tab: "food",
+    label: "Food allocation",
     description:
-      "How much tiles owned raise max population. Higher values make expansion add more population; lower values make land matter less.",
+      "Share of available food stock and new food production made available for feeding population this tick. Lower values reserve food for building/spending but create shortages sooner.",
     min: 0,
-    max: 5000,
-    step: 100,
-  },
-  {
-    key: "maxPopulationTilesExponent",
-    tab: "growth",
-    label: "Tiles owned curve",
-    description:
-      "Shape of max population from tiles owned. Higher values favor large empires; lower values front-load early population and flatten late-game scaling.",
-    min: 0.1,
-    max: 1.25,
-    step: 0.01,
-  },
-  {
-    key: "cityMaxPopulationIncrease",
-    tab: "growth",
-    label: "City max pop",
-    description:
-      "Max population added by each completed city level. Higher values make cities stronger; lower values make cities less important for population.",
-    min: 0,
-    max: 1000000,
-    step: 10000,
-  },
-  {
-    key: "baselineBiomassProductionShare",
-    tab: "growth",
-    label: "Biomass baseline",
-    description:
-      "Food-share needed to support max population. Higher values make biomass more restrictive; lower values let the same food share support more population.",
-    min: 0.01,
     max: 1,
     step: 0.01,
+  },
+  {
+    key: "foodConsumptionPerPopulation",
+    tab: "food",
+    label: "Food / population",
+    description:
+      "Food consumed by each population unit per tick. Higher values make food shortages happen earlier; zero disables baseline food consumption.",
+    min: 0,
+    max: 2,
+    step: 0.001,
+    scale: "log",
+    logMin: 0.0001,
+  },
+  {
+    key: "foodConsumptionPerMobilizedPopulation",
+    tab: "food",
+    label: "Food / mobilized",
+    description:
+      "Extra food consumed by mobilized population per tick. Higher values make active wars strain food faster.",
+    min: 0,
+    max: 5,
+    step: 0.001,
+    scale: "log",
+    logMin: 0.0001,
+  },
+  {
+    key: "wartimeFoodConsumptionMultiplier",
+    tab: "food",
+    label: "Wartime food x",
+    description:
+      "Multiplier applied to total food need while population is mobilized. Higher values make wars more expensive to feed.",
+    min: 0,
+    max: 5,
+    step: 0.01,
+  },
+  {
+    key: "foodShortageBirthPenalty",
+    tab: "food",
+    label: "Shortage birth penalty",
+    description:
+      "How strongly food shortage suppresses population growth. Higher values reduce births faster as shortage rises.",
+    min: 0,
+    max: 3,
+    step: 0.01,
+  },
+  {
+    key: "famineDeathRate",
+    tab: "food",
+    label: "Famine death rate",
+    description:
+      "Additional per-tick death rate at full food shortage. Higher values make sustained shortage shrink population faster.",
+    min: 0,
+    max: 0.1,
+    step: 0.0001,
+    scale: "log",
+    logMin: 0.0001,
   },
   {
     key: "minBaseResourceCapacity",
@@ -261,6 +322,7 @@ const launchModeItems: HudSegmentedItem[] = [
 const populationTabItems: HudSegmentedItem[] = [
   { id: "growth", label: "Growth", value: "troops" },
   { id: "resources", label: "Resources", value: "stock" },
+  { id: "food", label: "Food", value: "flows" },
   { id: "terrain", label: "Terrain", value: "yield" },
   { id: "ai", label: "AI", value: "bots" },
 ];
@@ -270,7 +332,19 @@ const populationTabOptions: HudSelectOption[] = populationTabItems.map(
     value: item.id,
   }),
 );
+const populationFoodConstraintOptions: HudSelectOption[] = [
+  {
+    label: "Hard min capacity",
+    value: "hard-min-cap",
+  },
+  {
+    label: "Dynamic shortage pressure",
+    value: "dynamic-shortage",
+  },
+];
 const SANDBOX_SETTINGS_STORAGE_KEY = "openfront.sandbox.settings.v1";
+const AVERAGE_STARTING_TILES = 2_500;
+const LATE_GAME_TILES = 562_500;
 const DEFAULT_SANDBOX_SETTINGS: SandboxSettings = {
   mechanics: cloneMechanics(DEFAULT_MECHANICS_CONFIG),
   launchMode: "isolated",
@@ -540,6 +614,19 @@ export class SandboxBalancer extends LitElement {
       stroke-width: 2;
     }
 
+    .marker-line {
+      stroke: rgba(251, 146, 60, 0.85);
+      stroke-dasharray: 3 3;
+      stroke-width: 1.25;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .marker-label {
+      fill: #fed7aa;
+      font-size: 8.5px;
+      font-weight: 700;
+    }
+
     .axis-label {
       fill: #94a3b8;
       font-size: 9px;
@@ -775,15 +862,41 @@ export class SandboxBalancer extends LitElement {
             ${this.renderPopulationTabVisual()}
             ${this.activePopulationTab === "terrain"
               ? this.renderTerrainControls()
-              : controls.map((control) => this.renderNumberControl(control))}
+              : html`${this.activePopulationTab === "food"
+                  ? this.renderFoodConstraintModeControl()
+                  : nothing}
+                ${controls.map((control) => this.renderNumberControl(control))}`}
           </hud-stack>
         </hud-surface-body>
       </hud-surface>
     `;
   }
 
+  private renderFoodConstraintModeControl(): TemplateResult {
+    return html`
+      <hud-form-row>
+        <hud-field-label>
+          <span class="control-label">
+            Food constraint
+            ${this.renderHelp(
+              "Hard min capacity makes food-supported population a real population cap. Dynamic shortage pressure keeps land as the cap and applies shortage as birth/death pressure.",
+            )}
+          </span>
+        </hud-field-label>
+        <hud-select
+          data-food-constraint-mode
+          .options=${populationFoodConstraintOptions}
+          .value=${this.pendingMechanics.populationResources
+            .populationFoodConstraintMode}
+          @value-change=${this.handleFoodConstraintModeChange}
+        ></hud-select>
+      </hud-form-row>
+    `;
+  }
+
   private renderNumberControl(control: NumberControl): TemplateResult {
     const value = this.pendingMechanics.populationResources[control.key];
+    const sliderValue = this.sliderValueForControl(control, value);
     return html`
       <hud-form-row>
         <hud-field-label>
@@ -794,13 +907,16 @@ export class SandboxBalancer extends LitElement {
         <div class="control-pair">
           <hud-range
             data-mechanic=${control.key}
-            .min=${control.min}
-            .max=${control.max}
-            .step=${control.step}
-            .value=${value}
+            .min=${this.sliderMinForControl(control)}
+            .max=${this.sliderMaxForControl(control)}
+            .step=${this.sliderStepForControl(control)}
+            .value=${sliderValue}
             .label=${control.label}
             @value-change=${(event: CustomEvent<{ value: string | number }>) =>
-              this.setPopulationValue(control.key, numberFromEvent(event))}
+              this.setPopulationValue(
+                control.key,
+                this.valueFromSlider(control, numberFromEvent(event)),
+              )}
           ></hud-range>
           <hud-input
             data-mechanic-input=${control.key}
@@ -821,12 +937,62 @@ export class SandboxBalancer extends LitElement {
     </span>`;
   }
 
+  private sliderMinForControl(control: NumberControl): number {
+    return control.scale === "log" ? 0 : control.min;
+  }
+
+  private sliderMaxForControl(control: NumberControl): number {
+    return control.scale === "log" ? 1000 : control.max;
+  }
+
+  private sliderStepForControl(control: NumberControl): number {
+    return control.scale === "log" ? 1 : control.step;
+  }
+
+  private sliderValueForControl(control: NumberControl, value: number): number {
+    if (control.scale !== "log") return value;
+
+    const min = control.logMin ?? Math.max(control.min, Number.EPSILON);
+    const max = Math.max(min, control.max);
+    const clamped = clamp(value <= 0 ? min : value, min, max);
+    const minLog = Math.log10(min);
+    const maxLog = Math.log10(max);
+    return ((Math.log10(clamped) - minLog) / (maxLog - minLog)) * 1000;
+  }
+
+  private valueFromSlider(control: NumberControl, sliderValue: number): number {
+    if (control.scale !== "log") {
+      return this.normalizeControlValue(control, sliderValue);
+    }
+
+    const min = control.logMin ?? Math.max(control.min, Number.EPSILON);
+    const max = Math.max(min, control.max);
+    const minLog = Math.log10(min);
+    const maxLog = Math.log10(max);
+    const pct = clamp(sliderValue, 0, 1000) / 1000;
+    return this.normalizeControlValue(
+      control,
+      10 ** (minLog + (maxLog - minLog) * pct),
+    );
+  }
+
+  private normalizeControlValue(control: NumberControl, value: number): number {
+    const clamped = clamp(value, control.min, control.max);
+    if (control.integer) return Math.round(clamped);
+    if (control.key === "populationGrowthRate") {
+      return Number(clamped.toFixed(6));
+    }
+    return clamped;
+  }
+
   private populationTabDescription(): string {
     switch (this.activePopulationTab) {
       case "growth":
-        return "Controls max population and troop refill speed. More max population lets players support larger armies; more growth makes armies recover faster below that limit.";
+        return "Controls the land-based population model before cities or biomass. Max population = tiles owned * max population / tile. Population changes by dN/dt = rN(1 - N / max population).";
       case "resources":
         return "Controls storage capacity and passive resource regeneration before terrain yield weights split output.";
+      case "food":
+        return "Controls explicit food consumption, war-driven food demand, and how food shortages affect population growth.";
       case "terrain":
         return "Controls how terrain composition splits generated resources between food, energy, and materials.";
       case "ai":
@@ -838,12 +1004,17 @@ export class SandboxBalancer extends LitElement {
     switch (this.activePopulationTab) {
       case "growth":
         return html`<div class="graph-stack">
-          ${this.renderTroopCapacityGraph()} ${this.renderTroopGrowthGraph()}
-          ${this.renderBiomassCapGraph()}
+          ${this.renderMaxPopulationGraph()}
+          ${this.renderPopulationGrowthGraph()}
+          ${this.renderPopulationOverTimeGraph()}
         </div>`;
       case "resources":
         return html`<div class="graph-stack">
           ${this.renderResourceRegenGraph()} ${this.renderCapacityGraph()}
+        </div>`;
+      case "food":
+        return html`<div class="graph-stack">
+          ${this.renderFoodShortageGraph()} ${this.renderWartimeFoodGraph()}
         </div>`;
       case "terrain":
         return this.renderTerrainMixPreview();
@@ -852,82 +1023,143 @@ export class SandboxBalancer extends LitElement {
     }
   }
 
-  private renderTroopGrowthGraph(): TemplateResult {
+  private renderPopulationGrowthGraph(): TemplateResult {
     const mechanics = this.pendingMechanics.populationResources;
-    const capacity = this.maxPopulationForTiles(100);
+    const capacity = this.maxPopulationForTiles(AVERAGE_STARTING_TILES);
     const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
       const pct = index / 60;
-      const troops = pct * capacity;
-      const growth =
-        mechanics.troopLogisticGrowthRate * troops * (1 - troops / capacity);
+      const population = pct * capacity;
+      const growth = evaluatePopulationSystem(mechanics, {
+        population,
+        tilesOwned: AVERAGE_STARTING_TILES,
+        maxPopulationOverride: 0,
+        capacityMultiplier: 1,
+        growthMultiplier: 1,
+      }).growth;
       return {
         x: pct * 100,
         y: Math.max(0, growth),
-        label: `${Math.round(pct * 100)}% cap: +${formatValue(
+        label: `${Math.round(pct * 100)}% max: +${formatValue(
           Math.max(0, growth),
-        )} troops/tick`,
+        )} population/tick`,
       };
     });
+    const n0Pct =
+      capacity > 0 ? (mechanics.initialPopulation / capacity) * 100 : 0;
 
     return this.renderCurveGraph(
-      "troop-growth",
-      "Troop Growth Curve",
-      `Uses the current cap formula at 100 owned tiles: ${formatValue(
+      "population-growth",
+      "Population Growth Curve",
+      `At ${formatValue(AVERAGE_STARTING_TILES)} tiles, max population is ${formatValue(
         capacity,
-      )} max population. Raising troop growth increases every point on this curve.`,
+      )}. N0 is ${formatValue(mechanics.initialPopulation)} (${formatValue(
+        n0Pct,
+      )}% of max).`,
       points,
-      "Current troops (% of cap)",
-      "Troops/tick",
+      "Current population (% of max)",
+      "Population/tick",
+      [{ x: n0Pct, label: "N0" }],
     );
   }
 
-  private renderTroopCapacityGraph(): TemplateResult {
-    const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
-      const tiles = (index / 60) * 600;
+  private renderMaxPopulationGraph(): TemplateResult {
+    const points: GraphPoint[] = this.logTileSamples().map((tiles) => {
       const capacity = this.maxPopulationForTiles(tiles);
       return {
         x: tiles,
         y: capacity,
         label: `${Math.round(tiles)} tiles: ${formatValue(
           capacity,
-        )} max population before biomass`,
+        )} max population`,
       };
     });
 
     return this.renderCurveGraph(
-      "troop-capacity",
+      "max-population",
       "Max Population / Tiles Owned",
-      "Raising base max pop lifts the whole line. Raising tiles owned scale or curve makes expansion add more max population, especially at larger sizes.",
+      `Formula: max population = tiles owned * max population / tile. X-axis is logarithmic from ${formatValue(
+        AVERAGE_STARTING_TILES,
+      )} average starting tiles to ${formatValue(LATE_GAME_TILES)} late-game tiles.`,
       points,
       "Owned tiles",
-      "Population cap",
+      "Max population",
     );
   }
 
-  private renderBiomassCapGraph(): TemplateResult {
+  private renderPopulationOverTimeGraph(): TemplateResult {
     const mechanics = this.pendingMechanics.populationResources;
-    const foodCapacity = 100_000;
-    const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
-      const foodShare = index / 60;
-      const cap =
-        (foodCapacity * foodShare) / mechanics.baselineBiomassProductionShare;
-      return {
-        x: foodShare * 100,
-        y: Math.max(0, cap),
-        label: `${Math.round(foodShare * 100)}% food share: ${formatValue(
-          cap,
-        )} biomass population cap`,
-      };
-    });
+    const capacity = this.maxPopulationForTiles(AVERAGE_STARTING_TILES);
+    const maxTicks = this.populationSaturationTicks(
+      mechanics.initialPopulation,
+      capacity,
+      mechanics.populationGrowthRate,
+      0.9,
+    );
+    const sampleEveryTicks = Math.max(1, Math.ceil(maxTicks / 60));
+    let population = Math.max(0, mechanics.initialPopulation);
+    const points: GraphPoint[] = [];
+
+    for (let tick = 0; tick <= maxTicks; tick += sampleEveryTicks) {
+      points.push({
+        x: tick,
+        y: population,
+        label: `T${tick} (${formatValue(
+          (tick * MS_PER_TICK) / 1000,
+        )}s): ${formatValue(population)} population`,
+      });
+
+      for (
+        let step = 0;
+        step < sampleEveryTicks && tick + step < maxTicks;
+        step++
+      ) {
+        const delta = evaluatePopulationSystem(mechanics, {
+          population,
+          tilesOwned: AVERAGE_STARTING_TILES,
+          maxPopulationOverride: 0,
+          capacityMultiplier: 1,
+          growthMultiplier: 1,
+        }).growth;
+        population = clamp(population + delta, 0, capacity);
+      }
+    }
 
     return this.renderCurveGraph(
-      "biomass-cap",
-      "Biomass Supported Population",
-      "Food can lower the real max population. Formula: food storage * terrain food share / biomass baseline. If this is below max population from tiles owned, this becomes the cap.",
+      "population-over-time",
+      "Population Over Time",
+      `Discrete game ticks from N0=${formatValue(
+        mechanics.initialPopulation,
+      )} toward 90% of max population=${formatValue(
+        capacity * 0.9,
+      )} at ${formatValue(AVERAGE_STARTING_TILES)} owned tiles. ${formatValue(
+        maxTicks / (1000 / MS_PER_TICK),
+      )} seconds shown.`,
       points,
-      "Food share of terrain yield",
-      "Population cap",
+      "Ticks",
+      "Population",
     );
+  }
+
+  private populationSaturationTicks(
+    initialPopulation: number,
+    capacity: number,
+    growthRate: number,
+    saturation: number,
+  ): number {
+    if (capacity <= 0 || growthRate <= 0 || initialPopulation <= 0) {
+      return 1800;
+    }
+
+    const targetPopulation = capacity * saturation;
+    const clampedInitial = clamp(initialPopulation, 0, capacity);
+    if (clampedInitial >= targetPopulation) {
+      return 120;
+    }
+
+    const initialOdds = (capacity - clampedInitial) / clampedInitial;
+    const targetOdds = (capacity - targetPopulation) / targetPopulation;
+    const ticks = Math.ceil(Math.log(initialOdds / targetOdds) / growthRate);
+    return Math.max(120, ticks);
   }
 
   private renderResourceRegenGraph(): TemplateResult {
@@ -936,12 +1168,26 @@ export class SandboxBalancer extends LitElement {
     const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
       const pct = index / 60;
       const current = pct * capacity;
+      const regenResult = evaluateResourceProductionSystem(mechanics, {
+        resources: {
+          food: BigInt(Math.floor(current)),
+          energy: BigInt(Math.floor(current)),
+          materials: BigInt(Math.floor(current)),
+        },
+        tilesOwned: AVERAGE_STARTING_TILES,
+        siloLevels: 0,
+        capacityMultiplier: 1,
+        regenMultiplier: 1,
+        terrainWeights: {
+          food: 1,
+          energy: 1,
+          materials: 1,
+        },
+      });
       const regen =
-        (mechanics.resourceRegenBase +
-          Math.pow(current, mechanics.resourceRegenExponent) /
-            mechanics.resourceRegenDivisor) *
-        (1 - current / capacity) *
-        mechanics.passiveResourceRegenMultiplier;
+        Number(regenResult.delta.food) +
+        Number(regenResult.delta.energy) +
+        Number(regenResult.delta.materials);
       return {
         x: pct * 100,
         y: Math.max(0, regen),
@@ -961,29 +1207,123 @@ export class SandboxBalancer extends LitElement {
     );
   }
 
-  private maxPopulationForTiles(tiles: number, cityLevels = 0): number {
+  private renderFoodShortageGraph(): TemplateResult {
     const mechanics = this.pendingMechanics.populationResources;
-    return (
-      2 *
-        (Math.pow(Math.max(0, tiles), mechanics.maxPopulationTilesExponent) *
-          mechanics.maxPopulationTilesScale +
-          mechanics.maxPopulationBase) +
-      cityLevels * mechanics.cityMaxPopulationIncrease
+    const population = mechanics.initialPopulation;
+    const produced = Number(
+      evaluateResourceProductionSystem(mechanics, {
+        resources: createZeroResources(),
+        tilesOwned: AVERAGE_STARTING_TILES,
+        siloLevels: 0,
+        capacityMultiplier: 1,
+        regenMultiplier: 1,
+        terrainWeights: {
+          food: 1,
+          energy: 0,
+          materials: 0,
+        },
+      }).delta.food,
+    );
+    const maxFood = Math.max(produced * 2, population, 100);
+    const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
+      const foodStock = (index / 60) * maxFood;
+      const result = evaluateFoodSystem(mechanics, {
+        stock: foodStock,
+        produced,
+        population,
+        mobilizedPopulation: 0,
+        warFoodConsumptionMultiplier: 1,
+      });
+      return {
+        x: foodStock,
+        y: result.shortageRatio * 100,
+        label: `${formatValue(foodStock)} food: ${formatValue(
+          result.shortageRatio * 100,
+        )}% shortage, ${formatValue(result.consumed)} consumed`,
+      };
+    });
+
+    return this.renderCurveGraph(
+      "food-shortage",
+      "Food Shortage From Stock",
+      `Uses model outputs at ${formatValue(
+        AVERAGE_STARTING_TILES,
+      )} tiles and N=${formatValue(population)}. Higher food stock reduces shortage.`,
+      points,
+      "Food stock",
+      "Shortage %",
+    );
+  }
+
+  private renderWartimeFoodGraph(): TemplateResult {
+    const mechanics = this.pendingMechanics.populationResources;
+    const population = mechanics.initialPopulation;
+    const foodStock = Math.max(population * 2, 100);
+    const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
+      const mobilized = population * (index / 60);
+      const result = evaluateFoodSystem(mechanics, {
+        stock: foodStock,
+        produced: 0,
+        population,
+        mobilizedPopulation: mobilized,
+        warFoodConsumptionMultiplier:
+          mobilized > 0 ? mechanics.wartimeFoodConsumptionMultiplier : 1,
+      });
+      return {
+        x: mobilized,
+        y: result.needed,
+        label: `${formatValue(mobilized)} mobilized: ${formatValue(
+          result.needed,
+        )} food needed/tick`,
+      };
+    });
+
+    return this.renderCurveGraph(
+      "food-wartime",
+      "Wartime Food Need",
+      "Shows how mobilized population and wartime multiplier increase total food demand.",
+      points,
+      "Mobilized population",
+      "Food needed/tick",
+    );
+  }
+
+  private maxPopulationForTiles(tiles: number): number {
+    const mechanics = this.pendingMechanics.populationResources;
+    return evaluatePopulationSystem(mechanics, {
+      population: mechanics.initialPopulation,
+      tilesOwned: Math.max(0, tiles),
+      maxPopulationOverride: 0,
+      capacityMultiplier: 1,
+      growthMultiplier: 1,
+    }).capacity;
+  }
+
+  private logTileSamples(): number[] {
+    const minLog = Math.log10(AVERAGE_STARTING_TILES);
+    const maxLog = Math.log10(LATE_GAME_TILES);
+    return Array.from(
+      { length: 61 },
+      (_, index) => 10 ** (minLog + (maxLog - minLog) * (index / 60)),
     );
   }
 
   private renderCapacityGraph(): TemplateResult {
     const mechanics = this.pendingMechanics.populationResources;
-    const points: GraphPoint[] = Array.from({ length: 61 }, (_, index) => {
-      const tiles = (index / 60) * 600;
-      const troopStyleTerritoryCapacity =
-        2 * (Math.pow(tiles, 0.6) * 1000 + 50000);
-      const capacity = Math.max(
-        mechanics.minBaseResourceCapacity,
-        Math.floor(
-          troopStyleTerritoryCapacity /
-            mechanics.resourceCapacityTerritoryDivisor,
-        ),
+    const points: GraphPoint[] = this.logTileSamples().map((tiles) => {
+      const capacity = Number(
+        evaluateResourceProductionSystem(mechanics, {
+          resources: createZeroResources(),
+          tilesOwned: tiles,
+          siloLevels: 0,
+          capacityMultiplier: 1,
+          regenMultiplier: 0,
+          terrainWeights: {
+            food: 0,
+            energy: 0,
+            materials: 0,
+          },
+        }).capacity.food,
       );
       return {
         x: tiles,
@@ -997,7 +1337,9 @@ export class SandboxBalancer extends LitElement {
     return this.renderCurveGraph(
       "capacity",
       "Territory Resource Capacity",
-      "Per-resource capacity from owned land before silo bonuses and AI/nation multipliers.",
+      `Per-resource capacity from owned land before silo bonuses and AI/nation multipliers. X-axis is logarithmic from ${formatValue(
+        AVERAGE_STARTING_TILES,
+      )} to ${formatValue(LATE_GAME_TILES)} tiles.`,
       points,
       "Owned tiles",
       "Capacity",
@@ -1011,6 +1353,7 @@ export class SandboxBalancer extends LitElement {
     points: GraphPoint[],
     xLabel: string,
     yLabel: string,
+    markers: GraphMarker[] = [],
   ): TemplateResult {
     const width = 320;
     const height = 150;
@@ -1058,6 +1401,10 @@ export class SandboxBalancer extends LitElement {
         label: formatValue(value),
       };
     });
+    const visibleMarkers = markers.map((marker) => ({
+      ...marker,
+      x: toX(clamp(marker.x, minX, maxX)),
+    }));
 
     return html`
       <div class="graph">
@@ -1161,6 +1508,24 @@ export class SandboxBalancer extends LitElement {
             y2=${top + plotH}
           ></line>
           <path class="curve-line" d=${path}></path>
+          ${visibleMarkers.map(
+            (marker) => svg`
+              <line
+                class="marker-line"
+                x1=${marker.x}
+                x2=${marker.x}
+                y1=${top}
+                y2=${top + plotH}
+              ></line>
+              <text
+                class="marker-label"
+                x=${marker.x + 4}
+                y=${top + 10}
+              >
+                ${marker.label}
+              </text>
+            `,
+          )}
           <line
             class="hover-line"
             x1=${hoverX}
@@ -1351,16 +1716,16 @@ export class SandboxBalancer extends LitElement {
           <hud-stack>
             <hud-stat-grid columns="2">
               <hud-stat
-                label="Active growth"
-                value=${active
-                  ? formatValue(active.troopLogisticGrowthRate)
-                  : "-"}
+                label="Active r"
+                value=${active ? formatValue(active.populationGrowthRate) : "-"}
               ></hud-stat>
               <hud-stat
-                label="Biomass baseline"
-                value=${active
-                  ? formatValue(active.baselineBiomassProductionShare)
-                  : "-"}
+                label="N0"
+                value=${active ? formatValue(active.initialPopulation) : "-"}
+              ></hud-stat>
+              <hud-stat
+                label="Max pop / tile"
+                value=${active ? formatValue(active.maxPopulationPerTile) : "-"}
               ></hud-stat>
             </hud-stat-grid>
             ${this.diagnostics ? this.renderLiveDiagnostics() : nothing}
@@ -1375,20 +1740,16 @@ export class SandboxBalancer extends LitElement {
     return html`
       <hud-stat-grid columns="2">
         <hud-stat
-          label="Troops"
+          label="Population"
           value=${formatValue(diagnostics.troops)}
         ></hud-stat>
         <hud-stat
-          label="Troop delta"
+          label="Pop delta"
           value=${formatValue(diagnostics.troopIncreaseRate)}
         ></hud-stat>
         <hud-stat
-          label="Effective cap"
+          label="Max population"
           value=${formatValue(diagnostics.effectiveTroopCapacity)}
-        ></hud-stat>
-        <hud-stat
-          label="Biomass cap"
-          value=${formatValue(diagnostics.biomassSupportedTroopCapacity)}
         ></hud-stat>
         <hud-stat
           label="Food"
@@ -1414,7 +1775,12 @@ export class SandboxBalancer extends LitElement {
 
   private setPopulationValue(key: PopulationNumberKey, value: number) {
     const next = cloneMechanics(this.pendingMechanics);
-    next.populationResources[key] = value;
+    const control = populationControls.find(
+      (candidate) => candidate.key === key,
+    );
+    next.populationResources[key] = control
+      ? this.normalizeControlValue(control, value)
+      : value;
     this.setPendingMechanics(next);
   }
 
@@ -1538,6 +1904,16 @@ export class SandboxBalancer extends LitElement {
   ) => {
     this.activePopulationTab = event.detail.value;
     this.graphHover = null;
+  };
+
+  private handleFoodConstraintModeChange = (
+    event: CustomEvent<{
+      value: PopulationResourceMechanicsConfig["populationFoodConstraintMode"];
+    }>,
+  ) => {
+    const next = cloneMechanics(this.pendingMechanics);
+    next.populationResources.populationFoodConstraintMode = event.detail.value;
+    this.setPendingMechanics(next);
   };
 
   private handleLaunchModeChange = (event: CustomEvent<{ id: LaunchMode }>) => {

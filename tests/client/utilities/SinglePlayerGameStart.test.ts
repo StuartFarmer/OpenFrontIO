@@ -66,7 +66,7 @@ describe("createSinglePlayerGameStartInfo", () => {
       nations: "disabled",
       mechanics: {
         populationResources: {
-          troopLogisticGrowthRate: 0.02,
+          populationGrowthRate: 0.02,
         },
       },
       isSandbox: true,
@@ -78,7 +78,7 @@ describe("createSinglePlayerGameStartInfo", () => {
     expect(info.config.nations).toBe("disabled");
     expect(info.config.bots).toBe(0);
     expect(
-      info.config.mechanics?.populationResources?.troopLogisticGrowthRate,
+      info.config.mechanics?.populationResources?.populationGrowthRate,
     ).toBe(0.02);
   });
 });

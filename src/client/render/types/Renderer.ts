@@ -56,6 +56,23 @@ export interface ResourceState {
   materials: number;
 }
 
+export interface StockFlowDiagnosticsState {
+  outputs: Record<string, number | boolean | string>;
+  flows: readonly {
+    id: string;
+    stock: string;
+    amount: number;
+  }[];
+  stocks: readonly {
+    stock: string;
+    before: number;
+    delta: number;
+    unclampedAfter: number;
+    after: number;
+    clamped: boolean;
+  }[];
+}
+
 export interface PlayerState {
   smallID: number;
   isAlive: boolean;
@@ -64,6 +81,7 @@ export interface PlayerState {
   gold: number;
   resources: ResourceState;
   resourceCapacity: ResourceState;
+  stockFlowDiagnostics?: StockFlowDiagnosticsState;
   effectiveTroopCapacity: number;
   biomassSupportedTroopCapacity: number;
   troopIncreaseRate: number;

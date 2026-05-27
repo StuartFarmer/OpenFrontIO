@@ -12,6 +12,7 @@ import {
 } from "../core/ApiSchemas";
 import { AnalyticsRecord, AnalyticsRecordSchema } from "../core/Schemas";
 import { getAuthHeader, logOut, userAuth } from "./Auth";
+import { isLocalhost, shouldUseBundledServiceFallbacks } from "./LocalServices";
 
 export async function fetchPlayerById(
   playerId: string,
@@ -277,6 +278,9 @@ export function getApiBase() {
 }
 
 export function getAudience() {
+  if (isLocalhost()) {
+    return "localhost";
+  }
   const { hostname } = new URL(window.location.href);
   const domainname = hostname.split(".").slice(-2).join(".");
   return domainname;
@@ -368,6 +372,10 @@ export async function fetchPlayerLeaderboard(
 }
 
 export async function getNews(): Promise<NewsItem[]> {
+  if (shouldUseBundledServiceFallbacks()) {
+    return newsItemsFallback as NewsItem[];
+  }
+
   try {
     const res = await fetch(`${getApiBase()}/news.json`, {
       headers: { Accept: "application/json" },

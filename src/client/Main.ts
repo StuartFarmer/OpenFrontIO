@@ -17,10 +17,7 @@ import {
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
 } from "../core/game/UserSettings";
-import "./AccountModal";
-import { getUserMe, invalidateUserMe } from "./Api";
 import { userAuth } from "./Auth";
-import "./ClanModal";
 import {
   joinLobby,
   removeExistingGameSurfaces,
@@ -28,154 +25,41 @@ import {
 } from "./ClientGameRunner";
 import { getPlayerCosmeticsRefs } from "./Cosmetics";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
-import "./FlagInput";
-import { FlagInput } from "./FlagInput";
-import "./FlagInputModal";
-import { FlagInputModal } from "./FlagInputModal";
-import { GameInfoModal } from "./GameInfoModal";
 import "./GameModeSelector";
 import { GameModeSelector } from "./GameModeSelector";
 import { GameStartingModal } from "./GameStartingModal";
-import "./GoogleAdElement";
-import { HelpModal } from "./HelpModal";
-import "./HomepagePromos";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import "./LangSelector";
 import { LangSelector } from "./LangSelector";
-import { initLayout } from "./Layout";
-import "./LeaderboardModal";
-import "./Matchmaking";
-import { MatchmakingModal } from "./Matchmaking";
+import { areLocalServicesEnabled } from "./LocalServices";
 import { modalRouter } from "./ModalRouter";
 import { initNavigation } from "./Navigation";
-import "./NewsModal";
-import "./PatternInput";
 import "./SinglePlayerModal";
-import { StoreModal } from "./Store";
-import "./TerritoryPatternsModal";
-import { TerritoryPatternsModal } from "./TerritoryPatternsModal";
-import { TokenLoginModal } from "./TokenLoginModal";
 import {
   PauseGameIntentEvent,
   SendKickPlayerIntentEvent,
   SendStartGameEvent,
   SendUpdateGameConfigIntentEvent,
 } from "./Transport";
-import { UserSettingModal } from "./UserSettingModal";
 import "./UsernameInput";
 import { genAnonUsername, UsernameInput } from "./UsernameInput";
-import {
-  getDiscordAvatarUrl,
-  incrementGamesPlayed,
-  isInIframe,
-  translateText,
-} from "./Utils";
+import { incrementGamesPlayed, translateText } from "./Utils";
 import { installSafariPinchZoomBlocker } from "./utilities/DisableSafariPinchZoom";
 
 import "./components/DesktopNavBar";
 import "./components/Footer";
-import "./components/MainLayout";
-import "./components/MobileNavBar";
 import "./components/PlayPage";
-import "./components/RankedModal";
 import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
 import "./hud/demo/HudLiveComponentsDemo";
 import "./hud/demo/HudPanelWorkbench";
-import "./sandbox/SandboxBalancer";
 import "./styles.css";
 import "./styles/core/typography.css";
 import "./styles/core/variables.css";
 import "./styles/layout/container.css";
 import "./styles/layout/header.css";
 import "./styles/modal/chat.css";
-
-function updateAccountNavButton(userMeResponse: UserMeResponse | false) {
-  const button = document.getElementById("nav-account-button");
-  if (!button) return;
-
-  const avatarEl = document.getElementById("nav-account-avatar") as
-    | (HTMLImageElement & { _navToken?: symbol })
-    | null;
-  const personIconEl = document.getElementById(
-    "nav-account-person-icon",
-  ) as SVGElement | null;
-  const emailBadgeEl = document.getElementById(
-    "nav-account-email-badge",
-  ) as HTMLElement | null;
-  const signInTextEl = document.getElementById(
-    "nav-account-signin-text",
-  ) as HTMLSpanElement | null;
-
-  // Unique token for this update call
-  const navToken = Symbol();
-  if (avatarEl) avatarEl._navToken = navToken;
-
-  const showAvatar = (src: string, alt?: string) => {
-    if (avatarEl) {
-      avatarEl.alt = alt ?? translateText("main.discord_avatar_alt");
-      // If the avatar fails to load (bad URL / CDN issue / offline), fall back
-      // to the default sign-in UI instead of leaving a broken image.
-      avatarEl.onerror = () => {
-        if (avatarEl._navToken !== navToken) return;
-        avatarEl.onerror = null;
-        avatarEl.src = "https://cdn.discordapp.com/embed/avatars/0.png";
-      };
-      avatarEl.onload = () => {
-        // Only handle if this is the latest update
-        if (avatarEl._navToken !== navToken) return;
-        // Clear error handler after a successful load.
-        avatarEl.onerror = null;
-      };
-      avatarEl.src = src;
-      avatarEl.classList.remove("hidden");
-    }
-    personIconEl?.classList.add("hidden");
-    emailBadgeEl?.classList.add("hidden");
-    signInTextEl?.classList.add("hidden");
-    button?.classList.remove("border", "border-white/20");
-  };
-
-  const showSignIn = () => {
-    avatarEl?.classList.add("hidden");
-    personIconEl?.classList.remove("hidden");
-    emailBadgeEl?.classList.add("hidden");
-    signInTextEl?.classList.remove("hidden");
-    // Restore border when showing signin state
-    button?.classList.add("border", "border-white/20");
-  };
-
-  const showEmailLoggedIn = () => {
-    avatarEl?.classList.add("hidden");
-    personIconEl?.classList.remove("hidden");
-    emailBadgeEl?.classList.remove("hidden");
-    signInTextEl?.classList.add("hidden");
-    button?.classList.add("border", "border-white/20");
-  };
-
-  const discord =
-    userMeResponse !== false ? userMeResponse.user.discord : undefined;
-  if (discord && avatarEl) {
-    const avatarAlt = translateText("main.user_avatar_alt", {
-      username: discord.username,
-    });
-    const url = getDiscordAvatarUrl(discord);
-    if (url) {
-      showAvatar(url, avatarAlt);
-      return;
-    }
-  }
-
-  const email =
-    userMeResponse !== false ? userMeResponse.user.email : undefined;
-  if (email) {
-    showEmailLoggedIn();
-    return;
-  }
-
-  showSignIn();
-}
 
 declare global {
   interface Window {
@@ -229,7 +113,6 @@ declare global {
     "kick-player": CustomEvent;
     "start-game": CustomEvent;
     "join-changed": CustomEvent;
-    "open-matchmaking": CustomEvent<undefined>;
     userMeResponse: CustomEvent<UserMeResponse | false>;
     "leave-lobby": CustomEvent;
     "update-game-config": CustomEvent;
@@ -266,15 +149,11 @@ class Client {
   private currentUrl: string | null = null;
 
   private usernameInput: UsernameInput | null = null;
-  private flagInput: FlagInput | null = null;
 
   private hostModal: HostPrivateLobbyModal | null = null;
   private joinModal: JoinLobbyModal | null = null;
   private gameModeSelector: GameModeSelector | null = null;
   private userSettings: UserSettings = new UserSettings();
-  private storeModal: StoreModal;
-  private tokenLoginModal: TokenLoginModal;
-  private matchmakingModal: MatchmakingModal;
   private mostRecentJoinEvent: number;
 
   private turnstileTokenPromise: Promise<{
@@ -298,57 +177,23 @@ class Client {
   }
 
   async initialize(): Promise<void> {
-    crazyGamesSDK.maybeInit();
+    if (areLocalServicesEnabled()) {
+      crazyGamesSDK.maybeInit();
+    }
 
-    // Register modals with the URL router. Lobby modals (join/host) and
-    // matchmaking are intentionally omitted — they own their own URL state
-    // (path-based) or none at all.
-    modalRouter.register("store", {
-      tag: "store-modal",
-      pageId: "page-item-store",
-    });
-    modalRouter.register("settings", {
-      tag: "user-setting",
-      pageId: "page-settings",
-    });
-    modalRouter.register("leaderboard", {
-      tag: "leaderboard-modal",
-      pageId: "page-leaderboard",
-    });
-    modalRouter.register("clan", { tag: "clan-modal", pageId: "page-clan" });
-    modalRouter.register("account", {
-      tag: "account-modal",
-      pageId: "page-account",
-    });
-    modalRouter.register("help", { tag: "help-modal", pageId: "page-help" });
-    modalRouter.register("news", { tag: "news-modal", pageId: "page-news" });
-    modalRouter.register("language", {
-      tag: "language-modal",
-      pageId: "page-language",
-    });
+    // Keep URL routing only for play-critical modals.
     modalRouter.register("single-player", {
       tag: "single-player-modal",
       pageId: "page-single-player",
     });
-    modalRouter.register("ranked", {
-      tag: "ranked-modal",
-      pageId: "page-ranked",
-    });
-    modalRouter.register("troubleshooting", {
-      tag: "troubleshooting-modal",
-      pageId: "page-troubleshooting",
-    });
-    modalRouter.register("territory-patterns", {
-      tag: "territory-patterns-modal",
-    });
-    modalRouter.register("flag-input", { tag: "flag-input-modal" });
 
     // Prefetch turnstile token so it is available when
     // the user joins a lobby.
-    this.turnstileTokenPromise = getTurnstileToken();
+    if (areLocalServicesEnabled()) {
+      this.turnstileTokenPromise = getTurnstileToken();
+    }
 
     // Wait for components to render before setting version
-    await customElements.whenDefined("mobile-nav-bar");
     await customElements.whenDefined("desktop-nav-bar");
 
     const openFrontFont = new FontFace(
@@ -377,11 +222,6 @@ class Client {
     ) as LangSelector;
     if (!langSelector) {
       console.warn("Lang selector element not found");
-    }
-
-    this.flagInput = document.querySelector("flag-input") as FlagInput;
-    if (!this.flagInput) {
-      console.warn("Flag input element not found");
     }
 
     this.usernameInput = document.querySelector(
@@ -415,150 +255,8 @@ class Client {
       "update-game-config",
       this.handleUpdateGameConfig.bind(this),
     );
-    document.addEventListener(
-      "open-matchmaking",
-      this.handleOpenMatchmaking.bind(this),
-    );
 
-    const hlpModal = document.querySelector("help-modal") as HelpModal;
-    if (!hlpModal || !(hlpModal instanceof HelpModal)) {
-      console.warn("Help modal element not found");
-    }
-    const giModal = document.querySelector("game-info-modal") as GameInfoModal;
-    if (!giModal || !(giModal instanceof GameInfoModal)) {
-      console.warn("Game info modal element not found");
-    }
-    const helpButton = document.getElementById("help-button");
-    if (helpButton) {
-      helpButton.addEventListener("click", () => {
-        if (hlpModal && hlpModal instanceof HelpModal) {
-          hlpModal.open();
-        }
-      });
-    }
-
-    const flagInputModal = document.querySelector(
-      "flag-input-modal",
-    ) as FlagInputModal;
-    if (!flagInputModal || !(flagInputModal instanceof FlagInputModal)) {
-      console.warn("Flag input modal element not found");
-    }
-
-    // Attach listener to any flag-input component (desktop or potentially others)
-    document.querySelectorAll("flag-input").forEach((flagInput) => {
-      flagInput.addEventListener("flag-input-click", () => {
-        if (flagInputModal && flagInputModal instanceof FlagInputModal) {
-          flagInputModal.open();
-        }
-      });
-    });
-
-    this.storeModal = document.getElementById("page-item-store") as StoreModal;
-    if (!this.storeModal || !(this.storeModal instanceof StoreModal)) {
-      console.warn("Store modal element not found");
-    }
-
-    const patternsModal = document.getElementById(
-      "territory-patterns-modal",
-    ) as TerritoryPatternsModal;
-    if (!patternsModal || !(patternsModal instanceof TerritoryPatternsModal)) {
-      console.warn("Patterns modal element not found");
-    }
-
-    // Attach listener to any pattern-input component
-    document.querySelectorAll("pattern-input").forEach((patternInput) => {
-      patternInput.addEventListener("pattern-input-click", () => {
-        patternsModal.open();
-      });
-    });
-
-    if (isInIframe()) {
-      const mobilePat = document.getElementById("pattern-input-mobile");
-      if (mobilePat) mobilePat.style.display = "none";
-    }
-
-    if (!this.storeModal || !(this.storeModal instanceof StoreModal)) {
-      console.warn("Store modal element not found");
-    }
-
-    // We no longer need to manually manage the preview button as PatternInput handles it component-side.
-    // However, we still want to ensure the modal can be opened.
-    // The setupPatternInput above handles the click event for the new buttons.
-
-    this.storeModal?.refresh();
-
-    window.addEventListener("showPage", (e: any) => {
-      if (typeof e?.detail === "string" && e.detail === "page-play") {
-        setTimeout(() => {
-          this.storeModal?.refresh();
-        }, 50);
-      }
-    });
-
-    this.tokenLoginModal = document.querySelector(
-      "token-login",
-    ) as TokenLoginModal;
-    if (
-      !this.tokenLoginModal ||
-      !(this.tokenLoginModal instanceof TokenLoginModal)
-    ) {
-      console.warn("Token login modal element not found");
-    }
-
-    this.matchmakingModal = document.querySelector(
-      "matchmaking-modal",
-    ) as MatchmakingModal;
-    if (
-      !this.matchmakingModal ||
-      !(this.matchmakingModal instanceof MatchmakingModal)
-    ) {
-      console.warn("Matchmaking modal element not found");
-    }
-
-    const onUserMe = async (userMeResponse: UserMeResponse | false) => {
-      updateAccountNavButton(userMeResponse);
-      const isAdFree =
-        userMeResponse !== false && userMeResponse.player?.adfree === true;
-      window.adsEnabled = !isAdFree && !crazyGamesSDK.isOnCrazyGames();
-      document.dispatchEvent(
-        new CustomEvent("userMeResponse", {
-          detail: userMeResponse,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-
-      if (userMeResponse !== false) {
-        // Authorized
-        console.log(
-          `Your player ID is ${userMeResponse.player.publicId}\n` +
-            "Sharing this ID will allow others to view your game history and stats.",
-        );
-      }
-    };
-
-    if ((await userAuth()) === false) {
-      // Not logged in
-      onUserMe(false);
-    } else {
-      // JWT appears to be valid
-      // TODO: Add caching
-      getUserMe().then(onUserMe);
-    }
-
-    const settingsModal = document.querySelector(
-      "user-setting",
-    ) as UserSettingModal;
-    if (!settingsModal || !(settingsModal instanceof UserSettingModal)) {
-      console.warn("User settings modal element not found");
-    }
-    document
-      .getElementById("settings-button")
-      ?.addEventListener("click", () => {
-        if (settingsModal && settingsModal instanceof UserSettingModal) {
-          settingsModal.open();
-        }
-      });
+    window.adsEnabled = false;
 
     this.hostModal = document.querySelector(
       "host-lobby-modal",
@@ -722,87 +420,10 @@ class Client {
         window.location.pathname + window.location.search,
       );
 
-    const alertAndStrip = (message: string) => {
-      alert(message);
-      strip();
-    };
-
     const hash = window.location.hash;
 
     // Decode the hash first to handle encoded characters
     const decodedHash = decodeURIComponent(hash);
-    const params = new URLSearchParams(decodedHash.split("?")[1] || "");
-
-    // Handle different hash sections
-    if (decodedHash.startsWith("#purchase-completed")) {
-      // Parse params after the ?
-      const status = params.get("status");
-
-      if (status !== "true") {
-        alertAndStrip("purchase failed");
-        return;
-      }
-
-      const type = params.get("type");
-      if (type === "currency_pack") {
-        alertAndStrip(translateText("store.currency_pack_purchase_success"));
-        return;
-      }
-
-      if (type === "subscription_tier") {
-        alert(translateText("store.subscription_purchase_success"));
-        strip();
-        invalidateUserMe();
-        window.location.reload();
-        return;
-      }
-
-      const cosmeticName = params.get("cosmetic");
-      if (!cosmeticName) {
-        alert("Something went wrong. Please contact support.");
-        console.error("purchase-completed but no pattern name");
-        return;
-      }
-
-      const setCosmetic = () => {
-        if (cosmeticName.startsWith("pattern:")) {
-          this.userSettings.setSelectedPatternName(cosmeticName);
-        } else if (cosmeticName.startsWith("flag:")) {
-          this.userSettings.setFlag(cosmeticName);
-        }
-      };
-      const token = params.get("login-token");
-
-      if (token) {
-        strip();
-        window.addEventListener("beforeunload", () => {
-          // The page reloads after token login, so we need to save the pattern name
-          // in case it is unset during reload.
-          setCosmetic();
-        });
-        this.tokenLoginModal.openWithToken(token);
-      } else {
-        alertAndStrip(`purchase succeeded: ${cosmeticName}`);
-        setCosmetic();
-        this.storeModal.refresh();
-      }
-      return;
-    }
-
-    if (decodedHash.startsWith("#token-login")) {
-      const token = params.get("token-login");
-
-      if (!token) {
-        alertAndStrip(
-          `login failed! Please try again later or contact support.`,
-        );
-        return;
-      }
-
-      strip();
-      this.tokenLoginModal.openWithToken(token);
-      return;
-    }
 
     const pathMatch = window.location.pathname.match(
       /^\/(?:w\d+\/)?game\/([^/]+)/,
@@ -818,35 +439,10 @@ class Client {
     if (modalRouter.routeFromHash()) {
       return;
     }
-    if (decodedHash.startsWith("#affiliate=")) {
-      const affiliateCode = decodedHash.replace("#affiliate=", "");
-      strip();
-      if (affiliateCode) {
-        this.storeModal?.open({ affiliateCode });
-      }
-    }
     if (decodedHash.startsWith("#refresh")) {
+      strip();
       window.location.href = "/";
     }
-
-    if (this.consumeRequeueUrl()) {
-      document.dispatchEvent(new CustomEvent("open-matchmaking"));
-    }
-  }
-
-  private consumeRequeueUrl(): boolean {
-    const searchParams = new URLSearchParams(window.location.search);
-    if (!searchParams.has("requeue")) {
-      return false;
-    }
-
-    searchParams.delete("requeue");
-    const newUrl =
-      window.location.pathname +
-      (searchParams.toString() ? `?${searchParams.toString()}` : "") +
-      window.location.hash;
-    history.replaceState(null, "", newUrl);
-    return true;
   }
 
   private async handleJoinLobby(event: CustomEvent<JoinLobbyEvent>) {
@@ -919,21 +515,9 @@ class Client {
         "host-lobby-modal",
         "game-starting-modal",
         "game-top-bar",
-        "help-modal",
-        "user-setting",
-        "troubleshooting-modal",
-        "territory-patterns-modal",
-        "store-modal",
-        "language-modal",
-        "news-modal",
-        "flag-input-modal",
         "account-button",
         "leaderboard-button",
-        "token-login",
-        "matchmaking-modal",
-        "clan-modal",
         "lang-selector",
-        "homepage-promos",
       ].forEach((tag) => {
         const modal = document.querySelector(tag) as HTMLElement & {
           close?: () => void;
@@ -1055,10 +639,6 @@ class Client {
     crazyGamesSDK.gameplayStop();
   }
 
-  private handleOpenMatchmaking(_event: CustomEvent<undefined>) {
-    this.matchmakingModal?.open();
-  }
-
   private handleKickPlayer(event: CustomEvent) {
     const { target } = event.detail;
 
@@ -1159,6 +739,24 @@ const isSandboxRoute = () =>
   window.location.pathname === "/sandbox.html" ||
   window.location.search.includes("sandbox");
 
+const isFoodSystemsSandboxRoute = () =>
+  window.location.pathname === "/sandbox/food" ||
+  window.location.pathname === "/sandbox-food" ||
+  window.location.pathname === "/food-sandbox" ||
+  window.location.search.includes("food-sandbox");
+
+const isPopulationFoodSystemsSandboxRoute = () =>
+  window.location.pathname === "/sandbox/population-food" ||
+  window.location.pathname === "/sandbox/food-dynamics" ||
+  window.location.pathname === "/population-food-sandbox" ||
+  window.location.search.includes("population-food-sandbox");
+
+const isWarBattleSystemsSandboxRoute = () =>
+  window.location.pathname === "/sandbox/war" ||
+  window.location.pathname === "/sandbox/war-battle" ||
+  window.location.pathname === "/war-battle-sandbox" ||
+  window.location.search.includes("war-battle-sandbox");
+
 const renderHudDemo = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
@@ -1176,7 +774,8 @@ const renderHudPanels = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
 
-const renderSandbox = () => {
+const renderSandbox = async () => {
+  await import("./sandbox/SandboxBalancer");
   removeExistingGameSurfaces();
   document.body.innerHTML = `
     <sandbox-balancer></sandbox-balancer>
@@ -1228,10 +827,45 @@ const renderSandbox = () => {
   `;
 };
 
+const renderFoodSystemsSandbox = async () => {
+  await import("./sandbox/FoodSystemsSandbox");
+  removeExistingGameSurfaces();
+  document.body.innerHTML = "<food-systems-sandbox></food-systems-sandbox>";
+};
+
+const renderPopulationFoodSystemsSandbox = async () => {
+  await import("./sandbox/PopulationFoodSystemsSandbox");
+  removeExistingGameSurfaces();
+  document.body.innerHTML =
+    "<population-food-systems-sandbox></population-food-systems-sandbox>";
+};
+
+const renderWarBattleSystemsSandbox = async () => {
+  await import("./sandbox/WarBattleSystemsSandbox");
+  removeExistingGameSurfaces();
+  document.body.innerHTML =
+    "<war-battle-systems-sandbox></war-battle-systems-sandbox>";
+};
+
 // Initialize the client when the DOM is loaded
-const bootstrap = () => {
+const bootstrap = async () => {
+  if (isWarBattleSystemsSandboxRoute()) {
+    await renderWarBattleSystemsSandbox();
+    return;
+  }
+
+  if (isPopulationFoodSystemsSandboxRoute()) {
+    await renderPopulationFoodSystemsSandbox();
+    return;
+  }
+
+  if (isFoodSystemsSandboxRoute()) {
+    await renderFoodSystemsSandbox();
+    return;
+  }
+
   if (isSandboxRoute()) {
-    renderSandbox();
+    await renderSandbox();
     installSafariPinchZoomBlocker();
     new Client().initializeSandbox();
     return;
@@ -1261,7 +895,6 @@ const bootstrap = () => {
   // on iOS and can softlock the HUD. See issue #2330.
   installSafariPinchZoomBlocker();
 
-  initLayout();
   new Client().initialize();
   initNavigation();
 
@@ -1297,6 +930,7 @@ async function getTurnstileToken(): Promise<{
   const widgetId = window.turnstile.render("#turnstile-container", {
     sitekey: ClientEnv.turnstileSiteKey(),
     size: "normal",
+    execution: "execute",
     appearance: "interaction-only",
     theme: "light",
   });
