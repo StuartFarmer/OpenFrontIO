@@ -8,6 +8,7 @@ import type {
   ClanStats,
 } from "../../ClanApi";
 import { showToast, translateText } from "../../Utils";
+import "../ui";
 import "./ClanStatsBreakdown";
 export { renderLoadingSpinner } from "../BaseModal";
 export { showToast };
@@ -70,27 +71,28 @@ export function renderRoleIcon(role: string): TemplateResult {
 }
 
 export function renderStat(label: string, value: string): TemplateResult {
-  return html`
-    <div class="bg-white/5 rounded-xl border border-white/10 p-4 text-center">
-      <div
-        class="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1"
-      >
-        ${label}
-      </div>
-      <div class="text-white font-bold text-sm truncate">${value}</div>
-    </div>
-  `;
+  return html`<ui-stat style="--ui-stat-padding: 16px; --ui-stat-radius: 12px">
+    <span slot="label">${label}</span>
+    ${value}
+  </ui-stat>`;
 }
 
 export function renderClanWL(stats: ClanStats): TemplateResult | string {
   if (stats.games === 0) return "";
   return html`
-    <div class="bg-white/5 rounded-xl border border-white/10 p-5 space-y-3">
-      <h3 class="text-sm font-bold text-white/60 uppercase tracking-wider">
-        ${translateText("clan_modal.statistics")}
-      </h3>
-      <clan-stats-breakdown .stats=${stats.stats}></clan-stats-breakdown>
-    </div>
+    <ui-surface
+      tone="muted"
+      style="--ui-radius: 12px; --ui-surface-shadow: none"
+    >
+      <ui-surface-body style="--ui-surface-body-padding: 20px">
+        <div class="space-y-3">
+          <h3 class="text-sm font-bold text-white/60 uppercase tracking-wider">
+            ${translateText("clan_modal.statistics")}
+          </h3>
+          <clan-stats-breakdown .stats=${stats.stats}></clan-stats-breakdown>
+        </div>
+      </ui-surface-body>
+    </ui-surface>
   `;
 }
 
@@ -101,49 +103,41 @@ function renderPaginationButtons(
 ): TemplateResult {
   return html`
     <div class="flex items-center gap-1">
-      <button
+      <ui-button
+        size="xs"
+        variant="ghost"
         @click=${() => onPageChange(1)}
         ?disabled=${currentPage <= 1}
-        class="px-2 py-1 text-xs font-bold rounded-lg transition-all
-          ${currentPage <= 1
-          ? "text-white/20 cursor-not-allowed"
-          : "text-white/60 hover:text-white hover:bg-white/10"}"
       >
         &lt;&lt;
-      </button>
-      <button
+      </ui-button>
+      <ui-button
+        size="xs"
+        variant="ghost"
         @click=${() => onPageChange(Math.max(1, currentPage - 1))}
         ?disabled=${currentPage <= 1}
-        class="px-2 py-1 text-xs font-bold rounded-lg transition-all
-          ${currentPage <= 1
-          ? "text-white/20 cursor-not-allowed"
-          : "text-white/60 hover:text-white hover:bg-white/10"}"
       >
         &lt;
-      </button>
+      </ui-button>
       <span class="text-xs text-white/50 font-medium px-1">
         ${currentPage} / ${totalPages}
       </span>
-      <button
+      <ui-button
+        size="xs"
+        variant="ghost"
         @click=${() => onPageChange(Math.min(totalPages, currentPage + 1))}
         ?disabled=${currentPage >= totalPages}
-        class="px-2 py-1 text-xs font-bold rounded-lg transition-all
-          ${currentPage >= totalPages
-          ? "text-white/20 cursor-not-allowed"
-          : "text-white/60 hover:text-white hover:bg-white/10"}"
       >
         &gt;
-      </button>
-      <button
+      </ui-button>
+      <ui-button
+        size="xs"
+        variant="ghost"
         @click=${() => onPageChange(totalPages)}
         ?disabled=${currentPage >= totalPages}
-        class="px-2 py-1 text-xs font-bold rounded-lg transition-all
-          ${currentPage >= totalPages
-          ? "text-white/20 cursor-not-allowed"
-          : "text-white/60 hover:text-white hover:bg-white/10"}"
       >
         &gt;&gt;
-      </button>
+      </ui-button>
     </div>
   `;
 }
@@ -169,23 +163,13 @@ export function renderMemberSearchInput(
 ): TemplateResult {
   const input = html`
     <div class="relative w-full sm:flex-1 sm:min-w-0">
-      <input
+      <ui-input
         type="text"
+        class="w-full"
+        style="--ui-input-radius: 12px"
         @input=${onInput}
-        class="w-full h-10 pl-10 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10 text-sm"
-        placeholder="${translateText(placeholderKey)}"
-      />
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.35-4.35" />
-      </svg>
+        placeholder=${translateText(placeholderKey)}
+      ></ui-input>
     </div>
   `;
   if (!trailing) {
@@ -248,32 +232,31 @@ export function renderMemberSortControl(
       >
         ${translateText("clan_modal.sort_by")}
       </label>
-      <select
+      <ui-select
+        class="flex-1 sm:flex-none"
+        style="min-width: 12rem; --ui-input-radius: 12px"
+        label=${translateText("clan_modal.sort_by")}
+        .value=${sort}
+        .options=${sortOptions.map((opt) => ({
+          value: opt.value,
+          label: translateText(opt.labelKey),
+        }))}
         @change=${(e: Event) =>
-          onSortChange((e.target as HTMLSelectElement).value as ClanMemberSort)}
-        class="flex-1 sm:flex-none h-10 pl-3 pr-8 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10 text-sm appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1rem] bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22rgba(255,255,255,0.5)%22 stroke-width=%222%22><path stroke-linecap=%22round%22 stroke-linejoin=%22round%22 d=%22m6 9 6 6 6-6%22/></svg>')]"
-      >
-        ${sortOptions.map(
-          (opt) => html`
-            <option
-              value=${opt.value}
-              ?selected=${opt.value === sort}
-              class="bg-neutral-900"
-            >
-              ${translateText(opt.labelKey)}
-            </option>
-          `,
-        )}
-      </select>
-      <button
+          onSortChange(
+            (e.target as HTMLElement & { value: string })
+              .value as ClanMemberSort,
+          )}
+      ></ui-select>
+      <ui-button
+        size="sm"
+        variant="ghost"
         type="button"
         @click=${onOrderToggle}
         title=${orderLabel}
         aria-label=${orderLabel}
-        class="h-10 w-10 shrink-0 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all"
       >
         ${renderOrderIcon(order)}
-      </button>
+      </ui-button>
     </div>
   `;
 }
@@ -302,15 +285,13 @@ export function renderMemberPagination(
         </span>
         ${perPageOptions.map(
           (opt) => html`
-            <button
+            <ui-button
+              size="xs"
+              variant=${membersPerPage === opt ? "primary" : "ghost"}
               @click=${() => onPerPageChange(opt)}
-              class="px-2 py-1 text-xs font-bold rounded-lg transition-all
-                ${membersPerPage === opt
-                ? "bg-malibu-blue/15 text-aquarius border border-malibu-blue/30"
-                : "text-white/40 hover:text-white/70 border border-transparent"}"
             >
               ${opt}
-            </button>
+            </ui-button>
           `,
         )}
       </div>
@@ -394,11 +375,12 @@ export function renderMemberRow(
 ): TemplateResult {
   const isMe = member.publicId === myPublicId;
   return html`
-    <div
-      class="flex flex-col py-2.5 px-3 rounded-xl border
+    <ui-list-row
+      class="flex flex-col rounded-xl border
         ${isMe
         ? "bg-malibu-blue/10 border-malibu-blue/20"
         : "bg-white/5 border-white/10"}"
+      style="--ui-list-row-padding: 10px 12px; flex-direction: column; align-items: stretch"
     >
       <div class="flex items-center gap-3">
         <div
@@ -430,7 +412,7 @@ export function renderMemberRow(
         </div>
       </div>
       ${renderMemberStats(member.stats)}
-    </div>
+    </ui-list-row>
   `;
 }
 

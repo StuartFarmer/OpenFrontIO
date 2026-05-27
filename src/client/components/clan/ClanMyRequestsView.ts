@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { invalidateUserMe } from "../../Api";
 import { withdrawClanRequest } from "../../ClanApi";
 import { translateText } from "../../Utils";
+import "../ui";
 import { formatClanDate, showToast } from "./ClanShared";
 
 @customElement("clan-my-requests-view")
@@ -46,9 +47,11 @@ export class ClanMyRequestsView extends LitElement {
     return html`
       <div>
         ${this.myPendingRequests.length === 0
-          ? html`<p class="text-white/40 text-sm text-center py-8">
-              ${translateText("clan_modal.no_pending_applications")}
-            </p>`
+          ? html`<ui-empty-state>
+              <span slot="label"
+                >${translateText("clan_modal.no_pending_applications")}</span
+              >
+            </ui-empty-state>`
           : html`
               <div class="space-y-3">
                 ${this.myPendingRequests.map(

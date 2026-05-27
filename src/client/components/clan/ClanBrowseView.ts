@@ -2,6 +2,7 @@ import { html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { type ClanBrowseResponse, fetchClans } from "../../ClanApi";
 import { translateText } from "../../Utils";
+import "../ui";
 import "./ClanCard";
 import { type ClanRole, renderLoadingSpinner } from "./ClanShared";
 
@@ -103,24 +104,13 @@ export class ClanBrowseView extends LitElement {
     return html`
       <div class="space-y-4">
         <div class="relative">
-          <input
+          <ui-input
             type="text"
             .value=${this.searchQuery}
             @input=${(e: Event) => this.onSearchInput(e)}
-            class="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10 text-sm"
-            placeholder="${translateText("clan_modal.search_placeholder")}"
-          />
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
+            style="--ui-input-radius: 12px"
+            placeholder=${translateText("clan_modal.search_placeholder")}
+          ></ui-input>
         </div>
 
         ${this.errorMsg
@@ -131,9 +121,11 @@ export class ClanBrowseView extends LitElement {
 
         <div class="space-y-3">
           ${filtered.length === 0 && this.browseData
-            ? html`<p class="text-white/40 text-sm text-center py-8">
-                ${translateText("clan_modal.no_results")}
-              </p>`
+            ? html`<ui-empty-state>
+                <span slot="label"
+                  >${translateText("clan_modal.no_results")}</span
+                >
+              </ui-empty-state>`
             : filtered.map(
                 (clan) =>
                   html`<clan-card

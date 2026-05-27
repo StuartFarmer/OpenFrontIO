@@ -1,6 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { translateText } from "../../../Utils";
+import "../../ui";
 import { RankType } from "./GameInfoRanking";
 
 const economyRankings = new Set([
@@ -62,14 +63,13 @@ export class RankingControls extends LitElement {
 
   private renderButton(type: RankType, active: boolean, label: string) {
     return html`
-      <button
-        class="px-6 py-2 text-xs font-bold transition-all duration-200 rounded-lg uppercase tracking-widest hover:text-white hover:bg-white/5 border ${active
-          ? "bg-malibu-blue/20 text-aquarius border-malibu-blue/30 shadow-[var(--shadow-malibu-blue)]"
-          : "text-white/40 border-transparent"}"
+      <ui-button
+        size="sm"
+        variant=${active ? "primary" : "ghost"}
         @click=${() => this.onSort(type)}
       >
         ${translateText(label)}
-      </button>
+      </ui-button>
     `;
   }
 
@@ -117,14 +117,13 @@ export class RankingControls extends LitElement {
 
   private renderSubButton(type: RankType, active: boolean, label: string) {
     return html`
-      <button
+      <ui-button
+        size="xs"
+        variant=${active ? "primary" : "ghost"}
         @click=${() => this.onSort(type)}
-        class="text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 hover:bg-white/20 px-3 py-1 rounded text-white/60 hover:text-white transition-colors ${active
-          ? "outline-1 outline-white/80 font-bold"
-          : ""}"
       >
         ${translateText(label)}
-      </button>
+      </ui-button>
     `;
   }
 

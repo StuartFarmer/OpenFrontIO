@@ -8,6 +8,7 @@ import { UserSettings } from "../../../core/game/UserSettings";
 import { Controller } from "../../Controller";
 import { AlternateViewEvent, RefreshGraphicsEvent } from "../../InputHandler";
 import { translateText } from "../../Utils";
+import "../../components/ui";
 import {
   SetBackgroundMusicVolumeEvent,
   SetSoundEffectsVolumeEvent,
@@ -203,12 +204,11 @@ export class SettingsModal extends LitElement implements Controller {
         class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-xs z-2000 flex items-center justify-center p-4"
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <div
-          class="bg-slate-800 border border-slate-600 rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto"
+        <ui-surface
+          class="max-w-md w-full max-h-[80vh] overflow-y-auto"
+          style="--ui-radius: 8px; --ui-surface-bg: rgb(30 41 59); --ui-surface-border: rgb(71 85 105)"
         >
-          <div
-            class="flex items-center justify-between p-4 border-b border-slate-600"
-          >
+          <ui-surface-header style="--ui-surface-header-padding: 16px">
             <div class="flex items-center gap-2">
               <img
                 src=${settingsIcon}
@@ -221,329 +221,328 @@ export class SettingsModal extends LitElement implements Controller {
                 ${translateText("user_setting.tab_basic")}
               </h2>
             </div>
-            <button
-              class="text-slate-400 hover:text-white text-2xl font-bold leading-none"
-              @click=${this.closeModal}
-            >
+            <ui-icon-button variant="ghost" @click=${this.closeModal}>
               ×
-            </button>
-          </div>
+            </ui-icon-button>
+          </ui-surface-header>
 
-          <div class="p-4 flex flex-col gap-3">
-            <div
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-            >
-              <img src=${musicIcon} alt="musicIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.background_music_volume")}
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  .value=${this.userSettings.backgroundMusicVolume() * 100}
-                  @input=${this.onVolumeChange}
-                  class="w-full border border-slate-500 rounded-lg"
-                />
-              </div>
-              <div class="text-sm text-slate-400">
-                ${Math.round(this.userSettings.backgroundMusicVolume() * 100)}%
-              </div>
-            </div>
-
-            <div
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-            >
-              <img
-                src=${musicIcon}
-                alt="soundEffectsIcon"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.sound_effects_volume")}
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  .value=${this.userSettings.soundEffectsVolume() * 100}
-                  @input=${this.onSoundEffectsVolumeChange}
-                  class="w-full border border-slate-500 rounded-lg"
-                />
-              </div>
-              <div class="text-sm text-slate-400">
-                ${Math.round(this.userSettings.soundEffectsVolume() * 100)}%
-              </div>
-            </div>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onTerrainButtonClick}"
-            >
-              <img src=${treeIcon} alt="treeIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.toggle_terrain")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.toggle_view_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.alternateView
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleEmojisButtonClick}"
-            >
-              <img src=${emojiIcon} alt="emojiIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.emojis_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.emojis_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.emojis()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleDarkModeButtonClick}"
-            >
-              <img
-                src=${darkModeIcon}
-                alt="darkModeIcon"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.dark_mode_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.dark_mode_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.darkMode()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleSpecialEffectsButtonClick}"
-            >
-              <img
-                src=${explosionIcon}
-                alt="specialEffects"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.special_effects_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.special_effects_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.fxLayer()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleAlertFrameButtonClick}"
-            >
-              <img src=${sirenIcon} alt="alertFrame" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.alert_frame_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.alert_frame_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.alertFrame()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleStructureSpritesButtonClick}"
-            >
-              <img
-                src=${structureIcon}
-                alt="structureSprites"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.structure_sprites_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.structure_sprites_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.structureSprites()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleAttackingTroopsOverlayButtonClick}"
-            >
-              <img src=${swordIcon} alt="swordIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText(
-                    "user_setting.attacking_troops_overlay_label",
-                  )}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.attacking_troops_overlay_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.attackingTroopsOverlay()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleCursorCostLabelButtonClick}"
-            >
-              <img
-                src=${cursorPriceIcon}
-                alt="cursorCostLabel"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.cursor_cost_label_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.cursor_cost_label_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.cursorCostLabel()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleRandomNameModeButtonClick}"
-            >
-              <img src=${ninjaIcon} alt="ninjaIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.anonymous_names_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.anonymous_names_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.anonymousNames()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onToggleLeftClickOpensMenu}"
-            >
-              <img src=${mouseIcon} alt="mouseIcon" width="20" height="20" />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.left_click_menu")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.left_click_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.leftClickOpensMenu()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <button
-              class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              @click="${this.onTogglePerformanceOverlayButtonClick}"
-            >
-              <img
-                src=${settingsIcon}
-                alt="performanceIcon"
-                width="20"
-                height="20"
-              />
-              <div class="flex-1">
-                <div class="font-medium">
-                  ${translateText("user_setting.performance_overlay_label")}
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${translateText("user_setting.performance_overlay_desc")}
-                </div>
-              </div>
-              <div class="text-sm text-slate-400">
-                ${this.userSettings.performanceOverlay()
-                  ? translateText("user_setting.on")
-                  : translateText("user_setting.off")}
-              </div>
-            </button>
-
-            <div class="border-t border-slate-600 pt-3 mt-4">
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-red-600/20 rounded-sm text-red-400 transition-colors"
-                @click="${this.onExitButtonClick}"
+          <ui-surface-body style="--ui-surface-body-padding: 16px">
+            <div class="flex flex-col gap-3">
+              <div
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
               >
-                <img src=${exitIcon} alt="exitIcon" width="20" height="20" />
+                <img src=${musicIcon} alt="musicIcon" width="20" height="20" />
                 <div class="flex-1">
                   <div class="font-medium">
-                    ${translateText("user_setting.exit_game_label")}
+                    ${translateText("user_setting.background_music_volume")}
+                  </div>
+                  <ui-range
+                    min="0"
+                    max="100"
+                    .value=${this.userSettings.backgroundMusicVolume() * 100}
+                    @input=${this.onVolumeChange}
+                  ></ui-range>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${Math.round(
+                    this.userSettings.backgroundMusicVolume() * 100,
+                  )}%
+                </div>
+              </div>
+
+              <div
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+              >
+                <img
+                  src=${musicIcon}
+                  alt="soundEffectsIcon"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.sound_effects_volume")}
+                  </div>
+                  <ui-range
+                    min="0"
+                    max="100"
+                    .value=${this.userSettings.soundEffectsVolume() * 100}
+                    @input=${this.onSoundEffectsVolumeChange}
+                  ></ui-range>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${Math.round(this.userSettings.soundEffectsVolume() * 100)}%
+                </div>
+              </div>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onTerrainButtonClick}"
+              >
+                <img src=${treeIcon} alt="treeIcon" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.toggle_terrain")}
                   </div>
                   <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.exit_game_info")}
+                    ${translateText("user_setting.toggle_view_desc")}
                   </div>
                 </div>
+                <div class="text-sm text-slate-400">
+                  ${this.alternateView
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
               </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleEmojisButtonClick}"
+              >
+                <img src=${emojiIcon} alt="emojiIcon" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.emojis_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.emojis_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.emojis()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleDarkModeButtonClick}"
+              >
+                <img
+                  src=${darkModeIcon}
+                  alt="darkModeIcon"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.dark_mode_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.dark_mode_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.darkMode()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleSpecialEffectsButtonClick}"
+              >
+                <img
+                  src=${explosionIcon}
+                  alt="specialEffects"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.special_effects_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.special_effects_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.fxLayer()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleAlertFrameButtonClick}"
+              >
+                <img src=${sirenIcon} alt="alertFrame" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.alert_frame_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.alert_frame_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.alertFrame()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleStructureSpritesButtonClick}"
+              >
+                <img
+                  src=${structureIcon}
+                  alt="structureSprites"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.structure_sprites_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.structure_sprites_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.structureSprites()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleAttackingTroopsOverlayButtonClick}"
+              >
+                <img src=${swordIcon} alt="swordIcon" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText(
+                      "user_setting.attacking_troops_overlay_label",
+                    )}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText(
+                      "user_setting.attacking_troops_overlay_desc",
+                    )}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.attackingTroopsOverlay()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleCursorCostLabelButtonClick}"
+              >
+                <img
+                  src=${cursorPriceIcon}
+                  alt="cursorCostLabel"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.cursor_cost_label_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.cursor_cost_label_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.cursorCostLabel()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleRandomNameModeButtonClick}"
+              >
+                <img src=${ninjaIcon} alt="ninjaIcon" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.anonymous_names_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.anonymous_names_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.anonymousNames()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onToggleLeftClickOpensMenu}"
+              >
+                <img src=${mouseIcon} alt="mouseIcon" width="20" height="20" />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.left_click_menu")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.left_click_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.leftClickOpensMenu()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <button
+                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
+                @click="${this.onTogglePerformanceOverlayButtonClick}"
+              >
+                <img
+                  src=${settingsIcon}
+                  alt="performanceIcon"
+                  width="20"
+                  height="20"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">
+                    ${translateText("user_setting.performance_overlay_label")}
+                  </div>
+                  <div class="text-sm text-slate-400">
+                    ${translateText("user_setting.performance_overlay_desc")}
+                  </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                  ${this.userSettings.performanceOverlay()
+                    ? translateText("user_setting.on")
+                    : translateText("user_setting.off")}
+                </div>
+              </button>
+
+              <div class="border-t border-slate-600 pt-3 mt-4">
+                <button
+                  class="flex gap-3 items-center w-full text-left p-3 hover:bg-red-600/20 rounded-sm text-red-400 transition-colors"
+                  @click="${this.onExitButtonClick}"
+                >
+                  <img src=${exitIcon} alt="exitIcon" width="20" height="20" />
+                  <div class="flex-1">
+                    <div class="font-medium">
+                      ${translateText("user_setting.exit_game_label")}
+                    </div>
+                    <div class="text-sm text-slate-400">
+                      ${translateText("user_setting.exit_game_info")}
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+          </ui-surface-body>
+        </ui-surface>
       </div>
     `;
   }

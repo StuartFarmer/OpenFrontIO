@@ -1,15 +1,8 @@
-import {
-  Execution,
-  Game,
-  MessageType,
-  Player,
-  Unit,
-  UnitType,
-} from "../game/Game";
+import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PathFinding } from "../pathfinding/PathFinder";
 import { PathStatus, SteppingPathFinder } from "../pathfinding/types";
-import { NukeType } from "../StatsSchemas";
+import { ProjectileSystem } from "../systems/gameplay/ProjectileSystem";
 
 export class SAMMissileExecution implements Execution {
   private active = true;
@@ -17,6 +10,7 @@ export class SAMMissileExecution implements Execution {
   private SAMMissile: Unit | undefined;
   private mg: Game;
   private speed: number = 0;
+  private projectileSystem = new ProjectileSystem();
 
   constructor(
     private spawn: TileRef,
@@ -33,10 +27,9 @@ export class SAMMissileExecution implements Execution {
   }
 
   tick(ticks: number): void {
-    this.SAMMissile ??= this._owner.buildUnit(
-      UnitType.SAMMissile,
+    this.SAMMissile ??= this.projectileSystem.buildSamMissile(
+      this._owner,
       this.spawn,
-      {},
     );
     if (!this.SAMMissile.isActive()) {
       this.active = false;
@@ -50,11 +43,7 @@ export class SAMMissileExecution implements Execution {
       this.target.owner() === this.SAMMissile.owner() ||
       !nukesWhitelist.includes(this.target.type())
     ) {
-      // Clear the flag so other SAMs can re-target this nuke
-      if (this.target.isActive()) {
-        this.target.setTargetedBySAM(false);
-      }
-      this.SAMMissile.delete(false);
+      this.projectileSystem.cancelSamMissile(this.SAMMissile, this.target);
       this.active = false;
       return;
     }
@@ -64,21 +53,13 @@ export class SAMMissileExecution implements Execution {
         this.targetTile,
       );
       if (result.status === PathStatus.COMPLETE) {
-        this.mg.displayMessage(
-          "events_display.missile_intercepted",
-          MessageType.SAM_HIT,
-          this._owner.id(),
-          undefined,
-          { unit: this.target.type() },
-        );
         this.active = false;
-        this.target.delete(true, this._owner);
-        this.SAMMissile.delete(false);
-
-        // Record stats
-        this.mg
-          .stats()
-          .bombIntercept(this._owner, this.target.type() as NukeType, 1);
+        this.projectileSystem.completeSamIntercept(
+          this.mg,
+          this.SAMMissile,
+          this.target,
+          this._owner,
+        );
         return;
       } else if (result.status === PathStatus.NEXT) {
         this.SAMMissile.move(result.node);

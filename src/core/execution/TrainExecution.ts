@@ -7,10 +7,10 @@ import {
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { MotionPlanRecord } from "../game/MotionPlans";
 import { RailNetwork } from "../game/RailNetwork";
 import { getOrientedRailroad, OrientedRailroad } from "../game/Railroad";
 import { TrainStation } from "../game/TrainStation";
+import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class TrainExecution implements Execution {
   private active = true;
@@ -25,6 +25,7 @@ export class TrainExecution implements Execution {
   private currentRailroad: OrientedRailroad | null = null;
   private speed: number = 2;
   private _tradeStopsVisited: number = 0;
+  private mobileUnitSystem = new MobileUnitSystem();
 
   constructor(
     private railNetwork: RailNetwork,
@@ -88,8 +89,7 @@ export class TrainExecution implements Execution {
       pathTiles.unshift(startTile);
     }
 
-    const plan: MotionPlanRecord = {
-      kind: "train",
+    this.mobileUnitSystem.recordTrainMotionPlan(this.mg, {
       engineUnitId: this.train.id(),
       carUnitIds,
       planId: 1,
@@ -97,8 +97,7 @@ export class TrainExecution implements Execution {
       speed: this.speed,
       spacing: this.spacing,
       path: pathTiles,
-    };
-    this.mg.recordMotionPlan(plan);
+    });
   }
 
   tick(ticks: number): void {

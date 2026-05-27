@@ -48,10 +48,10 @@ behavior.
 `npx vitest run tests/core/systems tests/core/executions/PlayerExecution.test.ts tests/core/configuration/ResourceCapacity.test.ts`
 **Acceptance Checks**:
 
-- [ ] Economy deltas match current behavior through parity snapshots.
-- [ ] `Config.maxTroops`, `troopIncreaseRate`, `maxResources`, and
+- [x] Economy deltas match current behavior through parity snapshots.
+- [x] `Config.maxTroops`, `troopIncreaseRate`, `maxResources`, and
       `resourceIncreaseRate` remain compatibility wrappers.
-- [ ] Player update diffing remains stable, including optional stock-flow
+- [x] Player update diffing remains stable, including optional stock-flow
       diagnostics.
 
 **Dependencies**: D1, D2.
@@ -66,10 +66,10 @@ events are owned by native systems with 1:1 parity against `AttackExecution`.
 `npx vitest run tests/Attack.test.ts tests/Disconnected.test.ts tests/AttackStats.test.ts tests/core/game/GameImpl.test.ts tests/core/systems/WarBattleSystem.test.ts`
 **Acceptance Checks**:
 
-- [ ] Existing attack tests pass through the systems path.
-- [ ] Legacy and systems paths match for active attack state, troop movement,
+- [x] Existing attack tests pass through the systems path.
+- [x] Legacy and systems paths match for active attack state, troop movement,
       defender troop loss, tile ownership, conquest events, stats, and hashes.
-- [ ] Sandbox battle model remains aligned with canonical combat boundaries or
+- [x] Sandbox battle model remains aligned with canonical combat boundaries or
       is clearly scoped as non-canonical tuning support.
 
 **Dependencies**: D1, D2, D3.

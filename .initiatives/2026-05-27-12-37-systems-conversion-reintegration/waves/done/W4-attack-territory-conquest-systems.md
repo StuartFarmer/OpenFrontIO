@@ -1,6 +1,6 @@
 # W4: Attack, Territory, And Conquest Systems
 
-**Status**: TODO
+**Status**: DONE
 **Entry**: W3 gives a proven native-system migration pattern.
 **Exit**: Live attacks, territory capture, retreat, and conquest behavior run
 through systems with 1:1 parity.
@@ -19,7 +19,9 @@ tick, Track B = S4.4 territory/conquest application; S4.5 joins with parity.
 
 ## Exit Criteria
 
-- [ ] Existing attack tests pass through systems.
+- [x] Existing attack tests pass through systems.
 - [ ] Legacy and systems paths match active attack state, troop losses, tile
       ownership, stats, updates, and hashes.
-- [ ] Sandbox battle model role is explicit and non-conflicting.
+- [x] Legacy and systems paths match active attack state, troop losses, tile
+      ownership, stats, updates, and hashes.
+- [x] Sandbox battle model role is explicit and non-conflicting.

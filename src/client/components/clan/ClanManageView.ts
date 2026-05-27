@@ -17,6 +17,7 @@ import {
 import { translateText } from "../../Utils";
 import "../ConfirmDialog";
 import "../CopyButton";
+import "../ui";
 import {
   type ClanRole,
   defaultOrderForSort,
@@ -333,30 +334,34 @@ export class ClanManageView extends LitElement {
               class="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2"
               >${translateText("clan_modal.clan_name")}</label
             >
-            <input
+            <ui-input
               type="text"
               .value=${this.manageName}
               @input=${(e: Event) =>
-                (this.manageName = (e.target as HTMLInputElement).value)}
+                (this.manageName = (
+                  e.target as HTMLElement & { value: string }
+                ).value)}
               maxlength="35"
-              class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10 text-sm"
-            />
+              style="--ui-input-radius: 12px"
+              label=${translateText("clan_modal.clan_name")}
+            ></ui-input>
           </div>
           <div>
             <label
               class="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2"
               >${translateText("clan_modal.description")}</label
             >
-            <textarea
+            <ui-textarea
               .value=${this.manageDescription}
               @input=${(e: Event) =>
                 (this.manageDescription = (
-                  e.target as HTMLTextAreaElement
+                  e.target as HTMLElement & { value: string }
                 ).value)}
               maxlength="200"
               rows="3"
-              class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10 text-sm resize-none"
-            ></textarea>
+              style="--ui-input-radius: 12px; --ui-textarea-min-height: 84px"
+              label=${translateText("clan_modal.description")}
+            ></ui-textarea>
           </div>
           <div class="flex items-center justify-between">
             <div>
@@ -367,23 +372,14 @@ export class ClanManageView extends LitElement {
                 ${translateText("clan_modal.open_clan_desc")}
               </div>
             </div>
-            <button
-              role="switch"
-              aria-checked="${this.manageIsOpen}"
-              aria-label="${translateText("clan_modal.open_clan")}"
-              @click=${() => (this.manageIsOpen = !this.manageIsOpen)}
-              class="relative w-12 h-7 rounded-full transition-all ${this
-                .manageIsOpen
-                ? "bg-malibu-blue"
-                : "bg-white/20"}"
-            >
-              <div
-                class="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${this
-                  .manageIsOpen
-                  ? "left-6"
-                  : "left-1"}"
-              ></div>
-            </button>
+            <ui-toggle
+              label=${translateText("clan_modal.open_clan")}
+              .checked=${this.manageIsOpen}
+              @change=${(e: Event) =>
+                (this.manageIsOpen = Boolean(
+                  (e.target as HTMLElement & { checked?: boolean }).checked,
+                ))}
+            ></ui-toggle>
           </div>
           <button
             @click=${() => this.handleSaveSettings()}

@@ -1,6 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { formatKeyForDisplay, translateText } from "../../../../client/Utils";
+import "../../ui";
 
 @customElement("setting-keybind")
 export class SettingKeybind extends LitElement {
@@ -56,21 +57,19 @@ export class SettingKeybind extends LitElement {
           </div>
 
           <div class="flex flex-col gap-1">
-            <button
-              class="text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-white/20 border border-white/10 px-3 py-1 rounded text-white/60 hover:text-white transition-colors ${canReset
-                ? ""
-                : "opacity-50 cursor-not-allowed pointer-events-none"}"
+            <ui-button
+              size="xs"
+              variant="ghost"
+              label=${translateText("user_setting.reset")}
               @click=${this.resetToDefault}
               ?disabled=${!canReset}
-            >
-              ${translateText("user_setting.reset")}
-            </button>
-            <button
-              class="text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 px-3 py-1 rounded text-white/60 hover:text-red-200 transition-colors"
+            ></ui-button>
+            <ui-button
+              size="xs"
+              variant="danger"
+              label=${translateText("user_setting.unbind")}
               @click=${this.unbindKey}
-            >
-              ${translateText("user_setting.unbind")}
-            </button>
+            ></ui-button>
           </div>
         </div>
       </div>

@@ -16,6 +16,7 @@ import {
 } from "../game/ResourceTrade";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
+import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 import { findClosestBy } from "../Util";
 
 export class TradeShipExecution implements Execution {
@@ -27,6 +28,7 @@ export class TradeShipExecution implements Execution {
   private tilesTraveled = 0;
   private motionPlanId = 1;
   private motionPlanDst: TileRef | null = null;
+  private mobileUnitSystem = new MobileUnitSystem();
 
   private static _staggerCounter = 0;
 
@@ -141,8 +143,7 @@ export class TradeShipExecution implements Execution {
             path.unshift(from);
           }
 
-          this.mg.recordMotionPlan({
-            kind: "grid",
+          this.mobileUnitSystem.recordGridMotionPlan(this.mg, {
             unitId: this.tradeShip.id(),
             planId: this.motionPlanId,
             startTick: ticks + 1,

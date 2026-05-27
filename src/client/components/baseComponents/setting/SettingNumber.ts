@@ -1,5 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../ui";
 
 @customElement("setting-number")
 export class SettingNumber extends LitElement {
@@ -15,8 +16,8 @@ export class SettingNumber extends LitElement {
   }
 
   private handleInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const newValue = Number(input.value);
+    const input = e.target as HTMLElement & { value?: string };
+    const newValue = Number(input.value ?? 0);
     this.value = newValue;
 
     this.dispatchEvent(
@@ -47,15 +48,17 @@ export class SettingNumber extends LitElement {
             ${this.description}
           </div>
         </div>
-        <input
+        <ui-input
           type="number"
           id="setting-number-input"
-          class="shrink-0 w-[100px] py-2 px-3 border border-white/20 rounded-lg bg-black/60 text-white font-mono text-center focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+          class="shrink-0 w-[100px]"
+          style="--ui-field-text-align: center"
+          label=${this.label}
           .value=${String(this.value ?? 0)}
-          min=${this.min}
-          max=${this.max}
+          .min=${String(this.min)}
+          .max=${String(this.max)}
           @input=${this.handleInput}
-        />
+        ></ui-input>
       </div>
     `;
   }

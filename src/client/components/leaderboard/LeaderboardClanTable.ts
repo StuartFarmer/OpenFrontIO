@@ -6,6 +6,7 @@ import {
 } from "../../../core/ClanApiSchemas";
 import { fetchClanLeaderboard } from "../../ClanApi";
 import { translateText } from "../../Utils";
+import "../ui";
 
 export type ClanSortColumn =
   | "rank"
@@ -104,16 +105,17 @@ export class LeaderboardClanTable extends LitElement {
 
   private renderLoading() {
     return html`
-      <div
-        class="flex flex-col items-center justify-center p-12 text-white h-full"
+      <ui-loading-state
+        class="h-full"
+        style="--ui-loading-padding: 48px"
+        label=${translateText("leaderboard_modal.loading")}
       >
-        <div
-          class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-6"
-        ></div>
-        <p class="text-blue-200/80 text-sm font-bold tracking-widest uppercase">
+        <span
+          class="text-blue-200/80 text-sm font-bold tracking-widest uppercase"
+        >
           ${translateText("leaderboard_modal.loading")}
-        </p>
-      </div>
+        </span>
+      </ui-loading-state>
     `;
   }
 
@@ -143,44 +145,23 @@ export class LeaderboardClanTable extends LitElement {
         <p class="mb-8 text-center text-red-100/80 font-medium">
           ${this.error ?? translateText("leaderboard_modal.error")}
         </p>
-        <button
-          class="px-8 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-sm font-bold uppercase transition-all active:scale-95"
-          @click=${() => this.loadClanLeaderboard()}
-        >
+        <ui-button variant="danger" @click=${() => this.loadClanLeaderboard()}>
           ${translateText("leaderboard_modal.try_again")}
-        </button>
+        </ui-button>
       </div>
     `;
   }
 
   private renderNoData() {
     return html`
-      <div
-        class="flex flex-col items-center justify-center p-12 text-white/40 h-full"
-      >
-        <div class="bg-white/5 p-6 rounded-full mb-6 border border-white/5">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-16 w-16 text-white/20"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1"
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-white/60 mb-2">
+      <ui-empty-state class="h-full" style="--ui-empty-padding: 48px">
+        <span slot="label">
           ${translateText("leaderboard_modal.no_data_yet")}
-        </h3>
-        <p class="text-white/30 text-sm">
+        </span>
+        <span class="text-white/30 text-sm">
           ${translateText("leaderboard_modal.no_stats")}
-        </p>
-      </div>
+        </span>
+      </ui-empty-state>
     `;
   }
 

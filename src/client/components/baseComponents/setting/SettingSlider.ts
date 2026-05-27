@@ -1,5 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../ui";
 
 @customElement("setting-slider")
 export class SettingSlider extends LitElement {
@@ -15,9 +16,8 @@ export class SettingSlider extends LitElement {
   }
 
   private handleInput(e: Event) {
-    const input = e.target as HTMLInputElement;
+    const input = e.target as HTMLElement & { value?: number | string };
     this.value = Number(input.value);
-    this.updateSliderStyle(input);
 
     this.dispatchEvent(
       new CustomEvent("change", {
@@ -28,17 +28,8 @@ export class SettingSlider extends LitElement {
     );
   }
 
-  private updateSliderStyle(slider: HTMLInputElement) {
-    const percent = ((this.value - this.min) / (this.max - this.min)) * 100;
-    const clamped = Math.max(0, Math.min(100, percent));
-    slider.style.setProperty("--fill", `${clamped}%`);
-  }
-
-  firstUpdated() {
-    const slider = this.renderRoot.querySelector(
-      "input[type=range]",
-    ) as HTMLInputElement;
-    if (slider) this.updateSliderStyle(slider);
+  private stopNestedChange(e: Event) {
+    e.stopPropagation();
   }
 
   render() {
@@ -67,19 +58,19 @@ export class SettingSlider extends LitElement {
               class="text-white font-bold text-sm shrink-0 text-right min-w-[3ch]"
               >${this.value}%</span
             >
-            <input
-              type="range"
-              class="flex-1 w-auto appearance-none h-2 bg-transparent rounded outline-none 
-              [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded [&::-webkit-slider-runnable-track]:bg-[image:linear-gradient(to_right,var(--color-malibu-blue)_0%,var(--color-malibu-blue)_var(--fill),rgba(255,255,255,0.1)_var(--fill),rgba(255,255,255,0.1)_100%)]
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-malibu-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:-mt-[6px] [&::-webkit-slider-thumb]:shadow-[var(--shadow-malibu-blue-ring-sm)] [&::-webkit-slider-thumb]:transition-all active:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:shadow-[var(--shadow-malibu-blue-ring-lg)]
-              [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded [&::-moz-range-track]:bg-white/10
-              [&::-moz-range-progress]:h-2 [&::-moz-range-progress]:rounded [&::-moz-range-progress]:bg-malibu-blue
-              [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-malibu-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-[var(--shadow-malibu-blue-ring-sm)] [&::-moz-range-thumb]:transition-all active:[&::-moz-range-thumb]:scale-110 active:[&::-moz-range-thumb]:shadow-[var(--shadow-malibu-blue-ring-lg)]"
-              min=${this.min}
-              max=${this.max}
-              .value=${String(this.value)}
+            <ui-range
+              class="flex-1"
+              style="--ui-range-color: var(--color-malibu-blue, #38bdf8)"
+              .min=${this.min}
+              .max=${this.max}
+              .value=${this.value}
+              label=${this.label}
               @input=${this.handleInput}
-            />
+              @change=${this.stopNestedChange}
+            >
+              <span slot="label"></span>
+              <span slot="value"></span>
+            </ui-range>
           </div>
         </div>
       </div>

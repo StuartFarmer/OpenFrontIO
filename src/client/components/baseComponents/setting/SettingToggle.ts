@@ -1,5 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../ui";
 
 @customElement("setting-toggle")
 export class SettingToggle extends LitElement {
@@ -14,8 +15,8 @@ export class SettingToggle extends LitElement {
   }
 
   private handleChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    this.checked = input.checked;
+    const input = e.target as HTMLElement & { checked?: boolean };
+    this.checked = Boolean(input.checked);
   }
 
   render() {
@@ -24,8 +25,8 @@ export class SettingToggle extends LitElement {
       : "";
 
     return html`
-      <label
-        class="flex flex-row items-center justify-between w-full p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all gap-4 cursor-pointer ${rainbowClass}"
+      <div
+        class="flex flex-row items-center justify-between w-full p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all gap-4 ${rainbowClass}"
       >
         <div class="flex flex-col flex-1 min-w-0 mr-4">
           <div class="text-white font-bold text-base block mb-1">
@@ -36,22 +37,14 @@ export class SettingToggle extends LitElement {
           </div>
         </div>
 
-        <div class="relative inline-block w-[52px] h-[28px] shrink-0">
-          <input
-            type="checkbox"
-            class="opacity-0 w-0 h-0 peer"
-            id=${this.id}
-            ?checked=${this.checked}
-            @change=${this.handleChange}
-          />
-          <span
-            class="absolute inset-0 bg-black/60 border border-white/10 transition-all duration-300 rounded-full
-            before:absolute before:content-[''] before:h-5 before:w-5 before:left-[3px] before:top-[3px]
-            before:bg-white/40 before:transition-all before:duration-300 before:rounded-full before:shadow-sm hover:before:bg-white/60
-            peer-checked:bg-blue-600 peer-checked:border-blue-500 peer-checked:before:translate-x-[24px] peer-checked:before:bg-white"
-          ></span>
-        </div>
-      </label>
+        <ui-toggle
+          id=${this.id}
+          class="shrink-0"
+          label=${this.label}
+          .checked=${this.checked}
+          @change=${this.handleChange}
+        ></ui-toggle>
+      </div>
     `;
   }
 }

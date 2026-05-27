@@ -10,13 +10,10 @@ import {
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { MotionPlanRecord } from "../game/MotionPlans";
 import { targetTransportTile } from "../game/TransportShipUtils";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
-import { AttackExecution } from "./AttackExecution";
-
-const malusForRetreat = 25;
+import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class TransportShipExecution implements Execution {
   private active = true;
@@ -37,6 +34,7 @@ export class TransportShipExecution implements Execution {
   private boat: Unit;
   private motionPlanId = 1;
   private motionPlanDst: TileRef | null = null;
+  private mobileUnitSystem = new MobileUnitSystem();
 
   private originalOwner: Player;
 
@@ -133,15 +131,13 @@ export class TransportShipExecution implements Execution {
       fullPath.unshift(this.src);
     }
 
-    const motionPlan: MotionPlanRecord = {
-      kind: "grid",
+    this.mobileUnitSystem.recordGridMotionPlan(this.mg, {
       unitId: this.boat.id(),
       planId: this.motionPlanId,
       startTick: ticks + this.ticksPerMove,
       ticksPerStep: this.ticksPerMove,
       path: fullPath,
-    };
-    this.mg.recordMotionPlan(motionPlan);
+    });
     this.motionPlanDst = this.dst;
 
     // Notify the target player about the incoming naval invasion
@@ -232,48 +228,24 @@ export class TransportShipExecution implements Execution {
     switch (result.status) {
       case PathStatus.COMPLETE:
         if (this.mg.owner(this.dst) === this.attacker) {
-          const deaths = this.boat.troops() * (malusForRetreat / 100);
-          const survivors = this.boat.troops() - deaths;
-          this.attacker.addTroops(survivors);
-          this.boat.delete(false);
+          this.mobileUnitSystem.completeTransportRetreat({
+            game: this.mg,
+            boat: this.boat,
+            attacker: this.attacker,
+            target: this.target,
+            destination: this.dst,
+          });
           this.active = false;
-
-          // Record stats
-          this.mg
-            .stats()
-            .boatArriveTroops(this.attacker, this.target, survivors);
-          if (deaths) {
-            this.mg.displayMessage(
-              "events_display.attack_cancelled_retreat",
-              MessageType.ATTACK_CANCELLED,
-              this.attacker.id(),
-              undefined,
-              { troops: renderTroops(deaths) },
-            );
-          }
           return;
         }
-        this.attacker.conquer(this.dst);
-        if (this.target.isPlayer() && this.attacker.isFriendly(this.target)) {
-          this.attacker.addTroops(this.boat.troops());
-        } else {
-          this.mg.addExecution(
-            new AttackExecution(
-              this.boat.troops(),
-              this.attacker,
-              this.target.id(),
-              this.dst,
-              false,
-            ),
-          );
-        }
-        this.boat.delete(false);
+        this.mobileUnitSystem.completeTransportLanding({
+          game: this.mg,
+          boat: this.boat,
+          attacker: this.attacker,
+          target: this.target,
+          destination: this.dst,
+        });
         this.active = false;
-
-        // Record stats
-        this.mg
-          .stats()
-          .boatArriveTroops(this.attacker, this.target, this.boat.troops());
         return;
       case PathStatus.NEXT:
         this.boat.move(result.node);
@@ -301,8 +273,7 @@ export class TransportShipExecution implements Execution {
         fullPath.unshift(this.boat.tile());
       }
 
-      this.mg.recordMotionPlan({
-        kind: "grid",
+      this.mobileUnitSystem.recordGridMotionPlan(this.mg, {
         unitId: this.boat.id(),
         planId: this.motionPlanId,
         startTick: ticks + this.ticksPerMove,

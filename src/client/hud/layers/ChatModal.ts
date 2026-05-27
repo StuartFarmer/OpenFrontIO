@@ -9,6 +9,7 @@ import { EventBus } from "../../../core/EventBus";
 import { CloseViewEvent } from "../../InputHandler";
 import { SendQuickChatEvent } from "../../Transport";
 import { translateText } from "../../Utils";
+import "../../components/ui";
 
 export type QuickChatPhrase = {
   key: string;
@@ -126,13 +127,13 @@ export class ChatModal extends LitElement {
                     ${translateText("chat.player")}
                   </div>
 
-                  <input
+                  <ui-input
                     class="player-search-input"
                     type="text"
                     placeholder="${translateText("chat.search")}"
                     .value=${this.playerSearchQuery}
                     @input=${this.onPlayerSearchInput}
-                  />
+                  ></ui-input>
 
                   <div class="player-scroll-area">
                     ${this.getSortedFilteredPlayers().map(
@@ -163,14 +164,15 @@ export class ChatModal extends LitElement {
             : translateText("chat.build")}
         </div>
         <div class="chat-send">
-          <button
+          <ui-button
             class="chat-send-button"
+            variant="primary"
             @click=${this.sendChatMessage}
             ?disabled=${!this.previewText ||
             (this.requiresPlayerSelection && !this.selectedPlayer)}
           >
             ${translateText("chat.send")}
-          </button>
+          </ui-button>
         </div>
       </o-modal>
     `;
@@ -249,7 +251,7 @@ export class ChatModal extends LitElement {
   }
 
   private onPlayerSearchInput(e: Event) {
-    const target = e.target as HTMLInputElement;
+    const target = e.target as HTMLElement & { value: string };
     this.playerSearchQuery = target.value.toLowerCase();
     this.requestUpdate();
   }

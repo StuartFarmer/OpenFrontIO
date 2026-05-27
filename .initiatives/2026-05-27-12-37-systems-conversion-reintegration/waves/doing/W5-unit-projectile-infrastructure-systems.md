@@ -1,6 +1,6 @@
 # W5: Unit, Projectile, And Infrastructure Systems
 
-**Status**: TODO
+**Status**: DOING
 **Entry**: W4 has native attack and territory behavior.
 **Exit**: Unit, projectile, transport, and infrastructure behavior run through
 systems with parity against legacy execution behavior.

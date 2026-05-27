@@ -4,6 +4,7 @@ import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import { PlayerType } from "../../../core/game/Game";
 import { PlayerView } from "../../../core/game/GameView";
+import "../../components/ui";
 import { actionButton } from "../../components/ui/ActionButton";
 import { SendKickPlayerIntentEvent } from "../../Transport";
 import { translateText } from "../../Utils";
@@ -108,60 +109,63 @@ export class PlayerModerationModal extends LitElement {
           tabindex="0"
           @keydown=${this.handleKeydown}
         >
-          <div
-            class="rounded-2xl bg-zinc-900 p-5 shadow-2xl ring-1 ring-zinc-800 max-h-[90vh] text-zinc-200"
+          <ui-surface
+            style="--ui-radius: 16px; --ui-surface-bg: rgb(24 24 27); --ui-surface-border: rgb(39 39 42)"
             @click=${(e: MouseEvent) => e.stopPropagation()}
           >
-            <div class="mb-3 flex items-center justify-between relative">
-              <div class="flex items-center gap-2">
-                <img
-                  src=${shieldIcon}
-                  alt=""
-                  aria-hidden="true"
-                  class="h-5 w-5"
-                />
-                <h2
-                  id="moderation-title"
-                  class="text-lg font-semibold tracking-tight text-zinc-100"
+            <ui-surface-body style="--ui-surface-body-padding: 20px">
+              <div class="mb-3 flex items-center justify-between relative">
+                <div class="flex items-center gap-2">
+                  <img
+                    src=${shieldIcon}
+                    alt=""
+                    aria-hidden="true"
+                    class="h-5 w-5"
+                  />
+                  <h2
+                    id="moderation-title"
+                    class="text-lg font-semibold tracking-tight text-zinc-100"
+                  >
+                    ${moderationTitle}
+                  </h2>
+                </div>
+
+                <ui-icon-button
+                  class="absolute -top-3 -right-3"
+                  variant="danger"
+                  @click=${() => this.closeModal()}
+                  aria-label=${translateText("common.close")}
+                  title=${translateText("common.close")}
                 >
-                  ${moderationTitle}
-                </h2>
+                  ✕
+                </ui-icon-button>
               </div>
 
-              <button
-                type="button"
-                @click=${() => this.closeModal()}
-                class="absolute -top-3 -right-3 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-white shadow-sm hover:bg-red-500 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus:outline-hidden"
-                aria-label=${translateText("common.close")}
-                title=${translateText("common.close")}
+              <ui-list-row
+                class="mb-4 rounded-xl border border-white/10 bg-white/5"
+                style="--ui-list-row-padding: 8px 12px"
               >
-                ✕
-              </button>
-            </div>
+                <div
+                  class="text-sm font-semibold text-zinc-100 truncate"
+                  title=${other.displayName()}
+                >
+                  ${other.displayName()}
+                </div>
+              </ui-list-row>
 
-            <div
-              class="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-            >
-              <div
-                class="text-sm font-semibold text-zinc-100 truncate"
-                title=${other.displayName()}
-              >
-                ${other.displayName()}
+              <div class="grid auto-cols-fr grid-flow-col gap-1">
+                ${actionButton({
+                  onClick: this.handleKickClick,
+                  icon: kickIcon,
+                  iconAlt: "Kick",
+                  title: kickTitle,
+                  label: kickTitle,
+                  type: "red",
+                  disabled: alreadyKicked || !canKick,
+                })}
               </div>
-            </div>
-
-            <div class="grid auto-cols-fr grid-flow-col gap-1">
-              ${actionButton({
-                onClick: this.handleKickClick,
-                icon: kickIcon,
-                iconAlt: "Kick",
-                title: kickTitle,
-                label: kickTitle,
-                type: "red",
-                disabled: alreadyKicked || !canKick,
-              })}
-            </div>
-          </div>
+            </ui-surface-body>
+          </ui-surface>
         </div>
       </div>
     `;

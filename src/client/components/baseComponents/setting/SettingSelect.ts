@@ -1,5 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../ui";
 
 type SelectOption = {
   value: number | string;
@@ -18,11 +19,12 @@ export class SettingSelect extends LitElement {
   }
 
   private handleChange(e: Event) {
-    const input = e.target as HTMLSelectElement;
+    e.stopPropagation();
+    const input = e.target as HTMLElement & { value?: string };
     const selected = this.options.find(
-      (option) => String(option.value) === input.value,
+      (option) => String(option.value) === String(input.value),
     );
-    const selectedValue = selected?.value ?? input.value;
+    const selectedValue = selected?.value ?? String(input.value ?? "");
     this.value = String(selectedValue);
 
     this.dispatchEvent(
@@ -49,41 +51,16 @@ export class SettingSelect extends LitElement {
             ${this.description}
           </div>
         </div>
-        <div class="relative w-full">
-          <select
-            id="setting-select-input"
-            class="w-full appearance-none py-2 pl-3 pr-9 border border-white/20 rounded-lg bg-black/40 text-white font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-            .value=${String(this.value)}
-            @change=${this.handleChange}
-          >
-            ${this.options.map(
-              (option) =>
-                html`<option
-                  value=${String(option.value)}
-                  ?selected=${String(option.value) === String(this.value)}
-                >
-                  ${option.label}
-                </option>`,
-            )}
-          </select>
-          <span
-            class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/60"
-            aria-hidden="true"
-          >
-            <svg
-              class="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </span>
-        </div>
+        <ui-select
+          id="setting-select-input"
+          label=${this.label}
+          .value=${String(this.value)}
+          .options=${this.options.map((option) => ({
+            label: option.label,
+            value: String(option.value),
+          }))}
+          @change=${this.handleChange}
+        ></ui-select>
       </div>
     `;
   }

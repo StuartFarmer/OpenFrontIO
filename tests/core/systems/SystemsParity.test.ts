@@ -48,6 +48,58 @@ describe("systems parity legacy fixtures", () => {
     );
   });
 
+  test("attack_parity_terra_nullius", async () => {
+    const expected = await buildTerraNulliusAttackGame();
+    const actual = await buildTerraNulliusAttackGame();
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 4, captureUpdates: true },
+      ),
+    );
+  });
+
+  test("attack_parity_retreat", async () => {
+    const expected = await buildRetreatGame();
+    const actual = await buildRetreatGame();
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 2, captureUpdates: true },
+      ),
+    );
+  });
+
+  test("attack_parity_bot_target", async () => {
+    const expected = await buildTypedTargetAttackGame(PlayerType.Bot);
+    const actual = await buildTypedTargetAttackGame(PlayerType.Bot);
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 4, captureUpdates: true },
+      ),
+    );
+  });
+
+  test("attack_parity_nation_target", async () => {
+    const expected = await buildTypedTargetAttackGame(PlayerType.Nation);
+    const actual = await buildTypedTargetAttackGame(PlayerType.Nation);
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 4, captureUpdates: true },
+      ),
+    );
+  });
+
   test("parity_legacy_conquest_fixture", async () => {
     const expected = await buildConquestGame();
     const actual = await buildConquestGame();
@@ -107,6 +159,51 @@ async function buildCounterattackGame() {
     new AttackExecution(1_000, attacker, defender.id()),
     new AttackExecution(600, defender, attacker.id()),
   );
+
+  return game;
+}
+
+async function buildTerraNulliusAttackGame() {
+  const game = await setup("big_plains", { instantBuild: true }, [
+    new PlayerInfo("attacker", PlayerType.Human, "client-a", "attacker"),
+  ]);
+  const attacker = game.player("attacker");
+
+  attacker.conquer(game.ref(50, 50));
+  attacker.setTroops(10_000);
+  game.addExecution(
+    new AttackExecution(1_000, attacker, game.terraNullius().id()),
+  );
+
+  return game;
+}
+
+async function buildRetreatGame() {
+  const game = await buildTwoPlayerFront();
+  const attacker = game.player("attacker");
+  const defender = game.player("defender");
+
+  game.addExecution(new AttackExecution(1_000, attacker, defender.id()));
+  game.executeNextTick();
+  attacker.outgoingAttacks()[0].orderRetreat();
+  attacker.outgoingAttacks()[0].executeRetreat();
+
+  return game;
+}
+
+async function buildTypedTargetAttackGame(targetType: PlayerType) {
+  const game = await setup("big_plains", { instantBuild: true }, [
+    new PlayerInfo("attacker", PlayerType.Human, "client-a", "attacker"),
+    new PlayerInfo("defender", targetType, "client-d", "defender"),
+  ]);
+  const attacker = game.player("attacker");
+  const defender = game.player("defender");
+
+  attacker.conquer(game.ref(50, 50));
+  defender.conquer(game.ref(51, 50));
+  attacker.setTroops(10_000);
+  defender.setTroops(8_000);
+  game.addExecution(new AttackExecution(1_000, attacker, defender.id()));
 
   return game;
 }

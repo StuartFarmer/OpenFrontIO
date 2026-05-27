@@ -589,10 +589,9 @@ export class UiFormRow extends UiScopedElement {
 
       label {
         display: grid;
-        grid-template-columns: var(
-            --ui-form-label-width,
-            minmax(9rem, 0.42fr)
-          ) minmax(0, 1fr);
+        grid-template-columns:
+          var(--ui-form-label-width, minmax(9rem, 0.42fr))
+          minmax(0, 1fr);
         gap: 10px;
         align-items: center;
       }
@@ -655,6 +654,7 @@ const fieldStyles = [
       color: #f8fafc;
       min-height: 36px;
       padding: 8px 10px;
+      text-align: var(--ui-field-text-align, left);
     }
 
     input::placeholder,
@@ -684,6 +684,10 @@ export class UiInput extends UiScopedElement {
   @property() value = "";
   @property() placeholder = "";
   @property() label = "";
+  @property() min = "";
+  @property() max = "";
+  @property() step = "";
+  @property() maxlength = "";
   @property({ type: Boolean, reflect: true }) disabled = false;
 
   private handleInput(event: Event) {
@@ -701,6 +705,10 @@ export class UiInput extends UiScopedElement {
       type=${this.type}
       .value=${this.value}
       placeholder=${this.placeholder}
+      min=${this.min || nothing}
+      max=${this.max || nothing}
+      step=${this.step || nothing}
+      maxlength=${this.maxlength || nothing}
       aria-label=${this.label || nothing}
       ?disabled=${this.disabled}
       @input=${this.handleInput}
@@ -716,6 +724,8 @@ export class UiTextarea extends UiScopedElement {
   @property() value = "";
   @property() placeholder = "";
   @property() label = "";
+  @property({ type: Number }) rows = 0;
+  @property() maxlength = "";
   @property({ type: Boolean, reflect: true }) disabled = false;
 
   private handleInput(event: Event) {
@@ -732,6 +742,8 @@ export class UiTextarea extends UiScopedElement {
       part="textarea"
       .value=${this.value}
       placeholder=${this.placeholder}
+      rows=${this.rows || nothing}
+      maxlength=${this.maxlength || nothing}
       aria-label=${this.label || nothing}
       ?disabled=${this.disabled}
       @input=${this.handleInput}
@@ -917,6 +929,29 @@ export class UiToggle extends UiScopedElement {
     this.checked = (event.target as HTMLInputElement).checked;
     this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("click", this.handleHostClick);
+    if (!this.hasAttribute("tabindex")) this.tabIndex = 0;
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("click", this.handleHostClick);
+    super.disconnectedCallback();
+  }
+
+  updated() {
+    this.setAttribute("role", "switch");
+    this.setAttribute("aria-checked", String(this.checked));
+    if (this.label) this.setAttribute("aria-label", this.label);
+  }
+
+  private handleHostClick = (event: MouseEvent) => {
+    if (this.disabled || event.composedPath()[0] !== this) return;
+    this.checked = !this.checked;
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  };
 
   render() {
     return html`<label part="toggle">

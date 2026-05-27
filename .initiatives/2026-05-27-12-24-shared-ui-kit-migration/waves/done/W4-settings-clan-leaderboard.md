@@ -26,3 +26,14 @@ Migrate dense app surfaces to shared form, table, stat, list, and modal primitiv
 - Clan and leaderboard views preserve data rendering and user actions.
 - Dense tables and settings forms remain responsive and keyboard usable.
 
+## Status
+
+Done.
+
+## Validation
+
+```bash
+npx vitest run tests/client/components/UiComponents.test.ts tests/client/clan/ClanShared.test.ts tests/client/clan/ClanModal.rendering.test.ts tests/client/clan/ClanModal.handlers.test.ts tests/client/LeaderboardModal.test.ts
+npx tsc --noEmit
+git diff --check
+```

@@ -998,6 +998,33 @@ export class PlayerImpl implements Player {
     return this._gold;
   }
 
+  private removeBuildCompatibilityGold(
+    unitType: UnitType,
+    resources: ResourceStockpile,
+  ): void {
+    if (!this.buildSpendsCompatibilityGold(unitType)) {
+      return;
+    }
+    const gold = resources.food + resources.energy + resources.materials;
+    if (gold <= 0n) {
+      return;
+    }
+    this._gold -= minInt(this._gold, gold);
+  }
+
+  private buildSpendsCompatibilityGold(unitType: UnitType): boolean {
+    switch (unitType) {
+      case UnitType.City:
+      case UnitType.Port:
+      case UnitType.Factory:
+      case UnitType.RailStation:
+      case UnitType.Silo:
+        return false;
+      default:
+        return true;
+    }
+  }
+
   resources(): ResourceStockpile {
     return cloneResources(this._resources);
   }
@@ -1160,7 +1187,8 @@ export class PlayerImpl implements Player {
     );
     this._units.push(b);
     this.recordUnitConstructed(type);
-    this.removeResources(cost, { updateGold: false });
+    const removedResources = this.removeResources(cost, { updateGold: false });
+    this.removeBuildCompatibilityGold(type, removedResources);
     this.removeTroops("troops" in params ? (params.troops ?? 0) : 0);
     this.mg.addUpdate(b.toUpdate());
     this.mg.addUnit(b);

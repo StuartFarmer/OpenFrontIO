@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { type ClanBan, fetchClanBans, unbanClanMember } from "../../ClanApi";
 import { translateText } from "../../Utils";
 import "../CopyButton";
+import "../ui";
 import {
   formatClanDate,
   renderLoadingSpinner,
@@ -113,13 +114,9 @@ export class ClanBansView extends LitElement {
           "clan_modal.search_members_placeholder",
         )}
         ${filtered.length === 0
-          ? html`<div
-              class="flex flex-col items-center justify-center p-12 text-center"
-            >
-              <p class="text-white/40 text-sm">
-                ${translateText("clan_modal.no_bans")}
-              </p>
-            </div>`
+          ? html`<ui-empty-state style="--ui-empty-padding: 48px">
+              <span slot="label">${translateText("clan_modal.no_bans")}</span>
+            </ui-empty-state>`
           : html`
               <div class="space-y-3">
                 ${filtered.map(

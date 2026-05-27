@@ -3,6 +3,7 @@ import { TileRef } from "../game/GameMap";
 import { PathFinding } from "../pathfinding/PathFinder";
 import { PathStatus, SteppingPathFinder } from "../pathfinding/types";
 import { PseudoRandom } from "../PseudoRandom";
+import { ProjectileSystem } from "../systems/gameplay/ProjectileSystem";
 
 export class ShellExecution implements Execution {
   private active = true;
@@ -11,6 +12,7 @@ export class ShellExecution implements Execution {
   private mg: Game;
   private destroyAtTick: number = -1;
   private random: PseudoRandom;
+  private projectileSystem = new ProjectileSystem();
 
   constructor(
     private spawn: TileRef,
@@ -26,7 +28,7 @@ export class ShellExecution implements Execution {
   }
 
   tick(ticks: number): void {
-    this.shell ??= this._owner.buildUnit(UnitType.Shell, this.spawn, {});
+    this.shell ??= this.projectileSystem.buildShell(this._owner, this.spawn);
     if (!this.shell.isActive()) {
       this.active = false;
       return;
@@ -52,9 +54,12 @@ export class ShellExecution implements Execution {
       );
       if (result.status === PathStatus.COMPLETE) {
         this.active = false;
-        this.target.modifyHealth(-this.effectOnTarget(), this._owner);
-        this.shell.setReachedTarget();
-        this.shell.delete(false);
+        this.projectileSystem.completeShellImpact(
+          this.shell,
+          this.target,
+          this._owner,
+          this.effectOnTarget(),
+        );
         return;
       } else if (result.status === PathStatus.NEXT) {
         this.shell.move(result.node);

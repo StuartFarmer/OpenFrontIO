@@ -13,6 +13,7 @@ import {
 import "./components/baseComponents/ranking/PlayerRow";
 import "./components/baseComponents/ranking/RankingControls";
 import "./components/baseComponents/ranking/RankingHeader";
+import "./components/ui";
 
 @customElement("game-info-modal")
 export class GameInfoModal extends LitElement {
@@ -64,9 +65,11 @@ export class GameInfoModal extends LitElement {
   private renderRanking() {
     if (this.rankedPlayers.length === 0) {
       return html`
-        <div class="flex flex-col items-center justify-center p-6 text-white">
-          <p class="mb-2">❌ ${translateText("game_info_modal.no_winner")}</p>
-        </div>
+        <ui-empty-state style="--ui-empty-padding: 24px">
+          <span slot="label"
+            >${translateText("game_info_modal.no_winner")}</span
+          >
+        </ui-empty-state>
       `;
     }
     return html`
@@ -80,14 +83,12 @@ export class GameInfoModal extends LitElement {
   }
 
   private renderLoadingAnimation() {
-    return html` <div
-      class="flex flex-col items-center justify-center p-6 text-white"
+    return html`<ui-loading-state
+      style="--ui-loading-padding: 24px"
+      label=${translateText("game_info_modal.loading_game_info")}
     >
-      <p class="mb-2">${translateText("game_info_modal.loading_game_info")}</p>
-      <div
-        class="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
-      ></div>
-    </div>`;
+      ${translateText("game_info_modal.loading_game_info")}
+    </ui-loading-state>`;
   }
 
   private sort(e: CustomEvent<RankType>) {
@@ -107,30 +108,33 @@ export class GameInfoModal extends LitElement {
       return html``;
     }
     return html`
-      <div
-        class="h-37.5 flex relative justify-between rounded-xl bg-black/20 items-center"
+      <ui-surface
+        class="h-37.5"
+        style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(0,0,0,0.2)"
       >
-        ${this.mapImage
-          ? html`<img
-              src="${this.mapImage}"
-              class="absolute place-self-start col-span-full row-span-full h-full rounded-xl mask-[linear-gradient(to_left,transparent,#fff)] object-cover object-center"
-            />`
-          : html`<div
-              class="place-self-start col-span-full row-span-full h-full rounded-xl bg-gray-300"
-            ></div>`}
-        <div class="text-right p-3 w-full">
-          <div class="font-normal pl-1 pr-1">
-            <span class="bg-white text-blue-800 font-normal pl-1 pr-1"
-              >${info.config.gameMode}</span
-            >
-            <span class="font-bold">${info.config.gameMap}</span>
-          </div>
-          <div>${renderDuration(info.duration)}</div>
-          <div>
-            ${info.players.length} ${translateText("game_info_modal.players")}
+        <div class="h-37.5 flex relative justify-between items-center">
+          ${this.mapImage
+            ? html`<img
+                src="${this.mapImage}"
+                class="absolute place-self-start col-span-full row-span-full h-full rounded-xl mask-[linear-gradient(to_left,transparent,#fff)] object-cover object-center"
+              />`
+            : html`<div
+                class="place-self-start col-span-full row-span-full h-full rounded-xl bg-gray-300"
+              ></div>`}
+          <div class="text-right p-3 w-full relative">
+            <div class="font-normal pl-1 pr-1">
+              <span class="bg-white text-blue-800 font-normal pl-1 pr-1"
+                >${info.config.gameMode}</span
+              >
+              <span class="font-bold">${info.config.gameMap}</span>
+            </div>
+            <div>${renderDuration(info.duration)}</div>
+            <div>
+              ${info.players.length} ${translateText("game_info_modal.players")}
+            </div>
           </div>
         </div>
-      </div>
+      </ui-surface>
     `;
   }
 

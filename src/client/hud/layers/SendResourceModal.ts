@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { EventBus } from "../../../core/EventBus";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { within } from "../../../core/Util";
+import "../../components/ui";
 import {
   SendDonateGoldIntentEvent,
   SendDonateTroopsIntentEvent,
@@ -251,16 +252,15 @@ export class SendResourceModal extends LitElement {
         >
           ${this.heading ?? this.i18n.title(name)}
         </h2>
-        <!-- Close button -->
-        <button
-          type="button"
+        <ui-icon-button
+          class="absolute -top-3 -right-3"
+          variant="danger"
           @click=${() => this.closeModal()}
-          class="absolute -top-3 -right-3 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-white shadow-sm hover:bg-red-500 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus:outline-hidden"
           aria-label=${this.i18n.closeLabel()}
           title=${this.i18n.closeLabel()}
         >
           ✕
-        </button>
+        </ui-icon-button>
       </div>
     `;
   }
@@ -271,14 +271,10 @@ export class SendResourceModal extends LitElement {
     return html`
       <div class="mb-4 pb-3 border-b border-zinc-800">
         <div class="flex items-center gap-2 text-[13px]">
-          <!-- Available -->
-          <span
-            class="inline-flex items-center gap-1 rounded-full bg-indigo-600/15 px-2 py-0.5 ring-1 ring-indigo-400/40 text-indigo-100"
-            title=${this.i18n.availableTooltip()}
-          >
+          <ui-pill tone="primary" title=${this.i18n.availableTooltip()}>
             <span class="opacity-90">${this.i18n.availableChip()}</span>
             <span class="font-mono tabular-nums">${this.format(total)}</span>
-          </span>
+          </ui-pill>
         </div>
       </div>
     `;
@@ -295,14 +291,11 @@ export class SendResourceModal extends LitElement {
           const active = (this.selectedPercent ?? percentNow) === pct;
           const label = pct === 100 ? this.i18n.max() : `${pct}%`;
           return html`
-            <button
+            <ui-button
+              size="sm"
+              variant=${active ? "primary" : "secondary"}
+              width="block"
               ?disabled=${dead}
-              class="rounded-lg px-3 py-2 text-sm ring-1 transition
-                ${dead
-                ? "bg-zinc-800/70 text-zinc-400 ring-zinc-700 cursor-not-allowed"
-                : active
-                  ? "bg-indigo-600 text-white ring-indigo-300/60"
-                  : "bg-zinc-800 text-zinc-200 ring-zinc-700 hover:bg-zinc-700 hover:text-zinc-50"}"
               @click=${() => {
                 if (dead) return;
                 this.selectedPercent = pct;
@@ -313,7 +306,7 @@ export class SendResourceModal extends LitElement {
               title="${pct}%"
             >
               ${label}
-            </button>
+            </ui-button>
           `;
         })}
       </div>
@@ -448,37 +441,31 @@ export class SendResourceModal extends LitElement {
     const disabled = total <= 0 || this.clampSend(this.sendAmount) <= 0 || dead;
     return html`
       <div class="mt-5 flex justify-end gap-2">
-        <button
-          class="h-10 min-w-24 rounded-lg px-3 text-sm font-semibold
-                 text-zinc-100 bg-zinc-800 ring-1 ring-zinc-700
-                 hover:bg-zinc-700 focus:outline-hidden
-                 focus-visible:ring-2 focus-visible:ring-white/20"
+        <ui-button
+          variant="secondary"
+          style="--ui-button-min-width: 6rem"
           @click=${() => this.closeModal()}
         >
           ${this.i18n.cancel()}
-        </button>
-        <button
-          class="h-10 min-w-24 rounded-lg px-3 text-sm font-semibold text-white
-                 bg-indigo-600 enabled:hover:bg-indigo-500
-                 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/50
-                 disabled:cursor-not-allowed disabled:opacity-50"
+        </ui-button>
+        <ui-button
+          variant="primary"
+          style="--ui-button-min-width: 6rem"
           ?disabled=${disabled}
           @click=${() => this.confirm()}
         >
           ${this.i18n.send()}
-        </button>
+        </ui-button>
       </div>
     `;
   }
 
   private renderDeadNote() {
     return html`
-      <div
-        class="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-200 text-sm"
-      >
+      <ui-alert tone="warning" class="mb-2">
         <div class="font-semibold">${this.i18n.targetDeadTitle()}</div>
         <div>${this.i18n.targetDeadNote()}</div>
-      </div>
+      </ui-alert>
     `;
   }
 
@@ -555,19 +542,23 @@ export class SendResourceModal extends LitElement {
           tabindex="0"
           @keydown=${this.handleKeydown}
         >
-          <div
-            class="rounded-2xl bg-zinc-900 p-5 shadow-2xl ring-1 ring-zinc-800 max-h-[90vh] text-zinc-200"
+          <ui-surface
+            style="--ui-radius: 16px; --ui-surface-bg: rgb(24 24 27); --ui-surface-border: rgb(39 39 42)"
             @click=${(e: MouseEvent) => e.stopPropagation()}
           >
-            ${this.renderHeader()} ${this.renderAvailable()}
-            ${!this.isTargetAlive() ? this.renderDeadNote() : html``}
-            ${this.renderPresets(percent)} ${this.renderSlider(percent)}
-            ${this.mode === "troops"
-              ? this.renderCapacityNote(allowed)
-              : html``}
-            ${this.renderSummary(allowed)} ${this.renderActions()}
-            ${this.renderSliderStyles()}
-          </div>
+            <ui-surface-body style="--ui-surface-body-padding: 20px">
+              <div class="max-h-[90vh] text-zinc-200">
+                ${this.renderHeader()} ${this.renderAvailable()}
+                ${!this.isTargetAlive() ? this.renderDeadNote() : html``}
+                ${this.renderPresets(percent)} ${this.renderSlider(percent)}
+                ${this.mode === "troops"
+                  ? this.renderCapacityNote(allowed)
+                  : html``}
+                ${this.renderSummary(allowed)} ${this.renderActions()}
+                ${this.renderSliderStyles()}
+              </div>
+            </ui-surface-body>
+          </ui-surface>
         </div>
       </div>
     `;

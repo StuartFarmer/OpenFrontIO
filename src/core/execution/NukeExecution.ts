@@ -15,6 +15,7 @@ import { ParabolaUniversalPathFinder } from "../pathfinding/PathFinder.Parabola"
 import { PathStatus } from "../pathfinding/types";
 import { PseudoRandom } from "../PseudoRandom";
 import { NukeType } from "../StatsSchemas";
+import { ProjectileSystem } from "../systems/gameplay/ProjectileSystem";
 import { listNukeBreakAlliance } from "./Util";
 
 const SPRITE_RADIUS = 16;
@@ -25,6 +26,7 @@ export class NukeExecution implements Execution {
   private nuke: Unit | null = null;
   private tilesToDestroyCache: Set<TileRef> | undefined;
   private pathFinder: ParabolaUniversalPathFinder;
+  private projectileSystem = new ProjectileSystem();
 
   constructor(
     private nukeType: NukeType,
@@ -184,10 +186,13 @@ export class NukeExecution implements Execution {
         return;
       }
       this.src = spawn;
-      this.nuke = this.player.buildUnit(this.nukeType, spawn, {
-        targetTile: this.dst,
-        trajectory: this.getTrajectory(this.dst),
-      });
+      this.nuke = this.projectileSystem.buildNuke(
+        this.player,
+        this.nukeType,
+        spawn,
+        this.dst,
+        this.getTrajectory(this.dst),
+      );
       if (this.nuke.type() !== UnitType.MIRVWarhead) {
         this.maybeBreakAlliances();
       }
@@ -218,12 +223,7 @@ export class NukeExecution implements Execution {
       }
 
       // after sending a nuke set the missilesilo on cooldown
-      const silo = this.player
-        .units(UnitType.MissileSilo)
-        .find((silo) => silo.tile() === spawn);
-      if (silo) {
-        silo.launch();
-      }
+      this.projectileSystem.markSiloCooldown(this.player, spawn);
       return;
     }
 

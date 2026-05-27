@@ -1,5 +1,6 @@
-import { Execution, Game, Player, UnitType } from "../game/Game";
+import { Execution, Game, Player } from "../game/Game";
 import { TileRef } from "../game/GameMap";
+import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class MoveWarshipExecution implements Execution {
   constructor(
@@ -8,31 +9,15 @@ export class MoveWarshipExecution implements Execution {
     private readonly position: TileRef,
   ) {}
 
+  private mobileUnitSystem = new MobileUnitSystem();
+
   init(mg: Game, _ticks: number): void {
-    if (!mg.isValidRef(this.position)) {
-      console.warn(`MoveWarshipExecution: position ${this.position} not valid`);
-      return;
-    }
-    // Cache warship list and build a lookup map — avoids repeated iteration
-    const warshipMap = new Map(
-      this.owner.units(UnitType.Warship).map((u) => [u.id(), u]),
+    this.mobileUnitSystem.moveWarships(
+      mg,
+      this.owner,
+      this.unitIds,
+      this.position,
     );
-    // Deduplicate ids so each warship is only moved once
-    for (const unitId of new Set(this.unitIds)) {
-      const warship = warshipMap.get(unitId);
-      if (!warship) {
-        console.warn(`MoveWarshipExecution: warship ${unitId} not found`);
-        continue;
-      }
-      if (!warship.isActive()) {
-        console.warn(`MoveWarshipExecution: warship ${unitId} is not active`);
-        continue;
-      }
-      warship.updateWarshipState({
-        patrolTile: this.position,
-      });
-      warship.setTargetTile(undefined);
-    }
   }
 
   tick(_ticks: number): void {}

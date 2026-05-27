@@ -1,19 +1,12 @@
 import { Execution, Game, Player, Tick, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { CityExecution } from "./CityExecution";
-import { DefensePostExecution } from "./DefensePostExecution";
-import { MirvExecution } from "./MIRVExecution";
-import { MissileSiloExecution } from "./MissileSiloExecution";
-import { NukeExecution } from "./NukeExecution";
-import { PortExecution } from "./PortExecution";
-import { RailStationExecution } from "./RailStationExecution";
-import { SAMLauncherExecution } from "./SAMLauncherExecution";
-import { WarshipExecution } from "./WarshipExecution";
+import { StructureSystem } from "../systems/gameplay/StructureSystem";
 
 export class ConstructionExecution implements Execution {
   private structure: Unit | null = null;
   private active: boolean = true;
   private mg: Game;
+  private structureSystem = new StructureSystem();
 
   private ticksUntilComplete: Tick;
 
@@ -27,16 +20,13 @@ export class ConstructionExecution implements Execution {
   init(mg: Game, ticks: number): void {
     this.mg = mg;
 
-    if (this.mg.config().isUnitDisabled(this.constructionType)) {
-      console.warn(
-        `cannot build construction ${this.constructionType} because it is disabled`,
-      );
-      this.active = false;
-      return;
-    }
-
-    if (!this.mg.isValidRef(this.tile)) {
-      console.warn(`cannot build construction invalid tile ${this.tile}`);
+    if (
+      !this.structureSystem.validateConstructionRequest(
+        this.mg,
+        this.constructionType,
+        this.tile,
+      )
+    ) {
       this.active = false;
       return;
     }
@@ -44,9 +34,10 @@ export class ConstructionExecution implements Execution {
 
   tick(ticks: number): void {
     if (this.structure === null) {
-      const info = this.mg.unitInfo(this.constructionType);
       // For non-structure units (nukes/warship), charge once and delegate to specialized executions.
-      const isStructure = this.isStructure(this.constructionType);
+      const isStructure = this.structureSystem.isStructure(
+        this.constructionType,
+      );
       if (!isStructure) {
         // Defer validation and gold deduction to the specific execution
         this.completeConstruction();
@@ -55,21 +46,19 @@ export class ConstructionExecution implements Execution {
       }
 
       // Structures: build real unit and mark under construction
-      const spawnTile = this.player.canBuild(this.constructionType, this.tile);
-      if (spawnTile === false) {
-        console.warn(`cannot build ${this.constructionType}`);
+      const construction = this.structureSystem.startStructureConstruction(
+        this.mg,
+        this.player,
+        this.constructionType,
+        this.tile,
+      );
+      if (!construction.active) {
         this.active = false;
         return;
       }
-      this.structure = this.player.buildUnit(
-        this.constructionType,
-        spawnTile,
-        {},
-      );
-      const duration = info.constructionDuration ?? 0;
-      if (duration > 0) {
-        this.structure.setUnderConstruction(true);
-        this.ticksUntilComplete = duration;
+      this.structure = construction.structure;
+      this.ticksUntilComplete = construction.ticksUntilComplete;
+      if (!construction.completed) {
         return;
       }
       // No construction time
@@ -97,79 +86,14 @@ export class ConstructionExecution implements Execution {
   }
 
   private completeConstruction() {
-    if (this.structure) {
-      this.structure.setUnderConstruction(false);
-    }
-    const player = this.player;
-    switch (this.constructionType) {
-      case UnitType.AtomBomb:
-      case UnitType.HydrogenBomb:
-        this.mg.addExecution(
-          new NukeExecution(
-            this.constructionType,
-            player,
-            this.tile,
-            null,
-            -1,
-            0,
-            this.rocketDirectionUp,
-          ),
-        );
-        break;
-      case UnitType.MIRV:
-        this.mg.addExecution(new MirvExecution(player, this.tile));
-        break;
-      case UnitType.Warship:
-        this.mg.addExecution(
-          new WarshipExecution({ owner: player, patrolTile: this.tile }),
-        );
-        break;
-      case UnitType.Port:
-        this.mg.addExecution(new PortExecution(this.structure!));
-        break;
-      case UnitType.MissileSilo:
-        this.mg.addExecution(new MissileSiloExecution(this.structure!));
-        break;
-      case UnitType.DefensePost:
-        this.mg.addExecution(new DefensePostExecution(this.structure!));
-        break;
-      case UnitType.SAMLauncher:
-        this.mg.addExecution(
-          new SAMLauncherExecution(player, null, this.structure!),
-        );
-        break;
-      case UnitType.City:
-        this.mg.addExecution(new CityExecution(this.structure!));
-        break;
-      case UnitType.RailStation:
-        this.mg.addExecution(new RailStationExecution(this.structure!));
-        break;
-      case UnitType.Silo:
-        break;
-      case UnitType.Factory:
-        break;
-      default:
-        console.warn(
-          `unit type ${this.constructionType} cannot be constructed`,
-        );
-        break;
-    }
-  }
-
-  private isStructure(type: UnitType): boolean {
-    switch (type) {
-      case UnitType.Port:
-      case UnitType.MissileSilo:
-      case UnitType.DefensePost:
-      case UnitType.SAMLauncher:
-      case UnitType.City:
-      case UnitType.RailStation:
-      case UnitType.Silo:
-      case UnitType.Factory:
-        return true;
-      default:
-        return false;
-    }
+    this.structureSystem.completeConstruction({
+      game: this.mg,
+      player: this.player,
+      constructionType: this.constructionType,
+      tile: this.tile,
+      structure: this.structure,
+      rocketDirectionUp: this.rocketDirectionUp,
+    });
   }
 
   isActive(): boolean {

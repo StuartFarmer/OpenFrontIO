@@ -1,5 +1,10 @@
 import { ResourceStockpile } from "../../game/Resources";
 
+// Sandbox-only tuning model. Canonical live-game combat is resolved by
+// BattleResolutionSystem and TerritoryConquestSystem against Game/Attack state.
+// Keep this model isolated from GameImpl tick execution unless it is first
+// reconciled against the canonical attack parity suite.
+
 export type BattleOutcome =
   | "idle"
   | "fighting"

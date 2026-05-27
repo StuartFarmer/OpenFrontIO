@@ -1,5 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../ui";
 
 @customElement("player-stats-grid")
 export class PlayerStatsGrid extends LitElement {
@@ -15,26 +16,20 @@ export class PlayerStatsGrid extends LitElement {
 
   render() {
     return html`
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+      <ui-stat-grid columns="4" style="--ui-stat-grid-gap: 16px" class="mb-2">
         ${Array(this.VISIBLE_STATS_COUNT)
           .fill(0)
           .map(
             (_, i) => html`
-              <div
-                class="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+              <ui-stat
+                style="--ui-stat-padding: 16px; --ui-stat-radius: 12px; --ui-stat-value-size: 24px"
               >
-                <div class="text-2xl font-bold text-white mb-1">
-                  ${this.values[i] ?? ""}
-                </div>
-                <div
-                  class="text-blue-200/60 text-xs font-bold uppercase tracking-widest"
-                >
-                  ${this.titles[i] ?? ""}
-                </div>
-              </div>
+                <span slot="label"> ${this.titles[i] ?? ""} </span>
+                ${this.values[i] ?? ""}
+              </ui-stat>
             `,
           )}
-      </div>
+      </ui-stat-grid>
     `;
   }
 }

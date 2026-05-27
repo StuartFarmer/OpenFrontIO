@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../../src/client/components/baseComponents/Button";
 import { OModal } from "../../../src/client/components/baseComponents/Modal";
+import "../../../src/client/components/baseComponents/setting/SettingNumber";
+import "../../../src/client/components/baseComponents/setting/SettingSelect";
+import "../../../src/client/components/baseComponents/setting/SettingSlider";
+import "../../../src/client/components/baseComponents/setting/SettingToggle";
 import "../../../src/client/components/ui";
 
 const sharedTags = [
@@ -155,5 +159,86 @@ describe("shared UI components", () => {
     expect(modal.isModalOpen).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(document.body.style.overflow).toBe("");
+  });
+
+  it("settings controls compose shared primitives without changing event contracts", async () => {
+    const slider = document.createElement("setting-slider") as HTMLElement & {
+      value: number;
+      updateComplete: Promise<boolean>;
+    };
+    const select = document.createElement("setting-select") as HTMLElement & {
+      options: Array<{ value: number | string; label: string }>;
+      value: string;
+      updateComplete: Promise<boolean>;
+    };
+    const number = document.createElement("setting-number") as HTMLElement & {
+      value: number;
+      updateComplete: Promise<boolean>;
+    };
+    const toggle = document.createElement("setting-toggle") as HTMLElement & {
+      checked: boolean;
+      updateComplete: Promise<boolean>;
+    };
+    slider.value = 25;
+    select.options = [
+      { value: 1, label: "1%" },
+      { value: 5, label: "5%" },
+    ];
+    select.value = "1";
+    number.value = 10;
+    toggle.checked = false;
+
+    const sliderChange = vi.fn();
+    const selectChange = vi.fn();
+    const numberChange = vi.fn();
+    const toggleChange = vi.fn();
+    slider.addEventListener("change", sliderChange);
+    select.addEventListener("change", selectChange);
+    number.addEventListener("change", numberChange);
+    toggle.addEventListener("change", toggleChange);
+
+    document.body.append(slider, select, number, toggle);
+    await Promise.all([
+      slider.updateComplete,
+      select.updateComplete,
+      number.updateComplete,
+      toggle.updateComplete,
+    ]);
+
+    const sharedSlider = slider.querySelector("ui-range") as HTMLElement & {
+      value: number;
+    };
+    sharedSlider.value = 55;
+    sharedSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(sliderChange).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: { value: 55 } }),
+    );
+
+    const sharedSelect = select.querySelector("ui-select") as HTMLElement & {
+      value: string;
+    };
+    sharedSelect.value = "5";
+    sharedSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(selectChange).toHaveBeenCalledTimes(1);
+    expect(selectChange).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: { value: 5 } }),
+    );
+
+    const sharedNumber = number.querySelector("ui-input") as HTMLElement & {
+      value: string;
+    };
+    sharedNumber.value = "42";
+    sharedNumber.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(numberChange).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: { value: 42 } }),
+    );
+
+    const sharedToggle = toggle.querySelector("ui-toggle") as HTMLElement & {
+      checked: boolean;
+    };
+    sharedToggle.checked = true;
+    sharedToggle.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(toggle.checked).toBe(true);
+    expect(toggleChange).toHaveBeenCalledTimes(1);
   });
 });

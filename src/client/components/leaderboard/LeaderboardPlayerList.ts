@@ -4,6 +4,7 @@ import { PlayerLeaderboardEntry } from "../../../core/ApiSchemas";
 import { RankedType } from "../../../core/game/Game";
 import { fetchPlayerLeaderboard, getUserMe } from "../../Api";
 import { translateText } from "../../Utils";
+import "../ui";
 
 @customElement("leaderboard-player-list")
 export class LeaderboardPlayerList extends LitElement {
@@ -294,12 +295,13 @@ export class LeaderboardPlayerList extends LitElement {
     if (this.loadMoreError) {
       return html`
         <div class="flex items-center justify-center py-4">
-          <button
-            class="px-6 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-xs font-bold uppercase transition-all active:scale-95"
+          <ui-button
+            size="sm"
+            variant="danger"
             @click=${() => this.loadPlayerLeaderboard()}
           >
             ${translateText("leaderboard_modal.try_again")}
-          </button>
+          </ui-button>
         </div>
       `;
     }
@@ -309,16 +311,17 @@ export class LeaderboardPlayerList extends LitElement {
 
   private renderLoading() {
     return html`
-      <div
-        class="flex flex-col items-center justify-center p-12 text-white h-full"
+      <ui-loading-state
+        class="h-full"
+        style="--ui-loading-padding: 48px"
+        label=${translateText("leaderboard_modal.loading")}
       >
-        <div
-          class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-6"
-        ></div>
-        <p class="text-blue-200/80 text-sm font-bold tracking-widest uppercase">
+        <span
+          class="text-blue-200/80 text-sm font-bold tracking-widest uppercase"
+        >
           ${translateText("leaderboard_modal.loading")}
-        </p>
-      </div>
+        </span>
+      </ui-loading-state>
     `;
   }
 
@@ -348,12 +351,12 @@ export class LeaderboardPlayerList extends LitElement {
         <p class="mb-8 text-center text-red-100/80 font-medium">
           ${this.error ?? translateText("leaderboard_modal.error")}
         </p>
-        <button
-          class="px-8 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-sm font-bold uppercase transition-all active:scale-95"
+        <ui-button
+          variant="danger"
           @click=${() => this.loadPlayerLeaderboard(true)}
         >
           ${translateText("leaderboard_modal.try_again")}
-        </button>
+        </ui-button>
       </div>
     `;
   }
