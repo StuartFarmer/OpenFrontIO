@@ -1,6 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { assetUrl } from "../../core/AssetUrls";
+import "./ui";
 
 @customElement("play-page")
 export class PlayPage extends LitElement {
@@ -40,15 +41,20 @@ export class PlayPage extends LitElement {
           ></div>
 
           <!-- Username -->
-          <div
-            class="px-2 py-2 bg-surface border-y border-white/10 overflow-visible lg:col-span-2 lg:mx-auto lg:flex lg:w-full lg:max-w-3xl lg:items-center lg:gap-x-2 lg:h-[60px] lg:p-3 lg:relative lg:z-20 lg:border-y-0 lg:rounded-xl"
+          <ui-surface
+            class="block overflow-visible lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-3xl lg:relative lg:z-20"
+            style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(15, 23, 42, 0.72); --ui-surface-border: rgba(255, 255, 255, 0.1);"
           >
-            <div class="flex items-center gap-2 min-w-0 w-full">
-              <username-input
-                class="flex-1 min-w-0 h-10 lg:h-[50px]"
-              ></username-input>
-            </div>
-          </div>
+            <ui-surface-body
+              style="--ui-surface-body-padding: 0.5rem; display: block;"
+            >
+              <div class="flex items-center gap-2 min-w-0 w-full lg:h-[50px]">
+                <username-input
+                  class="flex-1 min-w-0 h-10 lg:h-[50px]"
+                ></username-input>
+              </div>
+            </ui-surface-body>
+          </ui-surface>
         </div>
 
         <game-mode-selector class="block w-full"></game-mode-selector>

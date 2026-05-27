@@ -7,6 +7,7 @@ import {
   mapCategories,
 } from "../../../core/game/Game";
 import { translateText } from "../../Utils";
+import "../ui";
 import "./MapDisplay";
 const randomMap = assetUrl("images/RandomMap.webp");
 
@@ -113,36 +114,33 @@ export class MapPicker extends LitElement {
     return html`
       <div class="space-y-8">
         <div class="w-full">
-          <div
+          <ui-action-group
             role="tablist"
             aria-label="${translateText("map.map")}"
             class="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-black/20 p-1"
+            style="--ui-action-gap: 0.5rem;"
           >
-            <button
+            <ui-button
               type="button"
               role="tab"
               aria-selected=${!this.showAllMaps}
-              class="px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${this
-                .showAllMaps
-                ? "text-white/60 hover:text-white"
-                : "bg-malibu-blue/20 text-white shadow-[var(--shadow-malibu-blue-soft)]"}"
+              variant=${this.showAllMaps ? "ghost" : "primary"}
+              size="sm"
+              width="block"
+              label=${translateText("map.featured")}
               @click=${() => (this.showAllMaps = false)}
-            >
-              ${translateText("map.featured")}
-            </button>
-            <button
+            ></ui-button>
+            <ui-button
               type="button"
               role="tab"
               aria-selected=${this.showAllMaps}
-              class="px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${this
-                .showAllMaps
-                ? "bg-malibu-blue/20 text-white shadow-[var(--shadow-malibu-blue-soft)]"
-                : "text-white/60 hover:text-white"}"
+              variant=${this.showAllMaps ? "primary" : "ghost"}
+              size="sm"
+              width="block"
+              label=${translateText("map.all")}
               @click=${() => (this.showAllMaps = true)}
-            >
-              ${translateText("map.all")}
-            </button>
-          </div>
+            ></ui-button>
+          </ui-action-group>
         </div>
         ${this.showAllMaps ? this.renderAllMaps() : this.renderFeaturedMaps()}
         <div

@@ -5,6 +5,7 @@ import { assetUrl } from "../core/AssetUrls";
 import { UserSettings } from "../core/game/UserSettings";
 import { BaseModal } from "./components/BaseModal";
 import "./components/Difficulties";
+import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import { Platform } from "./Platform";
 import { TroubleshootingModal } from "./TroubleshootingModal";
@@ -155,18 +156,19 @@ export class HelpModal extends BaseModal {
               <p class="mb-6 text-white/70 text-sm">
                 ${translateText("help_modal.troubleshooting_desc")}
               </p>
-              <button
+              <ui-button
                 id="troubleshooting-button"
-                class="hover:bg-white/5 px-6 py-2 text-xs font-bold transition-all duration-200 rounded-lg uppercase tracking-widest bg-malibu-blue/20 text-aquarius border border-malibu-blue/30 shadow-[var(--shadow-malibu-blue)]"
+                variant="primary"
+                size="lg"
                 data-page="page-troubleshooting"
                 @click="${this.openTroubleshooting}"
-                data-i18n="main.go_to_troubleshooting"
+                label=${translateText("main.go_to_troubleshooting")}
               >
                 <span
                   class="relative z-10 text-2xl"
                   data-i18n="main.go_to_troubleshooting"
                 ></span>
-              </button>
+              </ui-button>
             </div>
           </section>
           <!-- Hotkeys Section -->

@@ -1,5 +1,6 @@
 import { LitElement, TemplateResult, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "./ui";
 
 @customElement("lobby-config-item")
 export class LobbyConfigItem extends LitElement {
@@ -12,10 +13,12 @@ export class LobbyConfigItem extends LitElement {
 
   render() {
     return html`
-      <div
-        class="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center gap-1 text-center min-w-[100px]"
+      <ui-stat
+        class="block min-w-[100px] text-center"
+        style="--ui-stat-padding: 0.75rem; --ui-stat-value-size: 0.875rem;"
       >
         <span
+          slot="label"
           class="text-white/40 text-[10px] font-bold uppercase tracking-wider"
           >${this.label}</span
         >
@@ -23,7 +26,7 @@ export class LobbyConfigItem extends LitElement {
           class="text-white font-bold text-sm w-full break-words hyphens-auto"
           >${this.value}</span
         >
-      </div>
+      </ui-stat>
     `;
   }
 }

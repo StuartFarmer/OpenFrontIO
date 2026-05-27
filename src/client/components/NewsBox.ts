@@ -4,6 +4,7 @@ import type { NewsItem } from "../../core/ApiSchemas";
 import { getNews } from "../Api";
 import { renderMarkdownInline } from "../NewsMarkdown";
 import { translateText } from "../Utils";
+import "./ui";
 
 export type { NewsItem };
 
@@ -32,11 +33,14 @@ const typeLabelKeys: Record<string, string> = {
   warning: "news_box.warning",
 };
 
-const typeLabelColors: Record<string, string> = {
-  tournament: "bg-amber-500/20 text-amber-300",
-  tutorial: "bg-sky-500/20 text-sky-300",
-  announcement: "bg-emerald-500/20 text-emerald-300",
-  warning: "bg-red-500/20 text-red-300",
+const typeLabelTones: Record<
+  string,
+  "gold" | "primary" | "success" | "danger"
+> = {
+  tournament: "gold",
+  tutorial: "primary",
+  announcement: "success",
+  warning: "danger",
 };
 
 @customElement("news-box")
@@ -114,77 +118,83 @@ export class NewsBox extends LitElement {
     const item = this.items[this.activeIndex];
 
     return html`
-      <div
-        class="px-2 py-2 bg-surface border-y border-white/10 lg:border-y-0 lg:rounded-xl lg:p-3"
+      <ui-surface
+        class="block"
+        style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(15, 23, 42, 0.72); --ui-surface-border: rgba(255, 255, 255, 0.1);"
       >
-        <div class="flex items-center gap-3">
-          <span
-            class="shrink-0 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded ${typeLabelColors[
-              item.type
-            ] ?? typeLabelColors["announcement"]}"
-            >${translateText(
-              typeLabelKeys[item.type] ?? typeLabelKeys["announcement"],
-            )}</span
-          >
-          <div class="flex-1 min-w-0">
-            ${item.url
-              ? html`<a
-                  href="${item.url}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-sm font-medium text-white hover:text-blue-300 transition-colors truncate block"
-                  >${item.title}</a
-                >`
-              : html`<span class="text-sm font-medium text-white truncate block"
-                  >${item.title}</span
-                >`}
-            <span
-              class="text-xs text-white/50 block [&_a]:text-blue-300 [&_a:hover]:text-blue-200"
-              >${renderMarkdownInline(
-                item.descriptionTranslationKey
-                  ? translateText(item.descriptionTranslationKey)
-                  : (item.description ?? ""),
-              )}</span
+        <ui-surface-body style="--ui-surface-body-padding: 0.5rem 0.75rem;">
+          <div class="flex items-center gap-3">
+            <ui-pill
+              class="shrink-0"
+              tone=${typeLabelTones[item.type] ??
+              typeLabelTones["announcement"]}
+              style="--ui-pill-font-size: 10px; --ui-pill-padding: 0.125rem 0.5rem;"
+              >${translateText(
+                typeLabelKeys[item.type] ?? typeLabelKeys["announcement"],
+              )}</ui-pill
             >
+            <div class="flex-1 min-w-0">
+              ${item.url
+                ? html`<a
+                    href="${item.url}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm font-medium text-white hover:text-blue-300 transition-colors truncate block"
+                    >${item.title}</a
+                  >`
+                : html`<span
+                    class="text-sm font-medium text-white truncate block"
+                    >${item.title}</span
+                  >`}
+              <span
+                class="text-xs text-white/50 block [&_a]:text-blue-300 [&_a:hover]:text-blue-200"
+                >${renderMarkdownInline(
+                  item.descriptionTranslationKey
+                    ? translateText(item.descriptionTranslationKey)
+                    : (item.description ?? ""),
+                )}</span
+              >
+            </div>
+            ${this.items.length > 1
+              ? html`
+                  <div class="flex gap-1 shrink-0">
+                    ${this.items.map(
+                      (_, i) => html`
+                        <button
+                          @click=${() => this.goTo(i)}
+                          class="w-1.5 h-1.5 rounded-full transition-colors ${i ===
+                          this.activeIndex
+                            ? "bg-white/60"
+                            : "bg-white/20 hover:bg-white/40"}"
+                          aria-label="${translateText("news_box.go_to_item", {
+                            num: i + 1,
+                          })}"
+                        ></button>
+                      `,
+                    )}
+                  </div>
+                `
+              : nothing}
+            <ui-icon-button
+              size="xs"
+              variant="ghost"
+              label=${translateText("news_box.dismiss")}
+              @click=${() => this.dismiss(item.id)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                class="w-3.5 h-3.5"
+              >
+                <path
+                  d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
+                />
+              </svg>
+            </ui-icon-button>
           </div>
-          ${this.items.length > 1
-            ? html`
-                <div class="flex gap-1 shrink-0">
-                  ${this.items.map(
-                    (_, i) => html`
-                      <button
-                        @click=${() => this.goTo(i)}
-                        class="w-1.5 h-1.5 rounded-full transition-colors ${i ===
-                        this.activeIndex
-                          ? "bg-white/60"
-                          : "bg-white/20 hover:bg-white/40"}"
-                        aria-label="${translateText("news_box.go_to_item", {
-                          num: i + 1,
-                        })}"
-                      ></button>
-                    `,
-                  )}
-                </div>
-              `
-            : nothing}
-          <button
-            @click=${() => this.dismiss(item.id)}
-            class="shrink-0 p-0.5 text-white/30 hover:text-white/70 transition-colors"
-            aria-label="${translateText("news_box.dismiss")}"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="w-3.5 h-3.5"
-            >
-              <path
-                d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
+        </ui-surface-body>
+      </ui-surface>
     `;
   }
 }

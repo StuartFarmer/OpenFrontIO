@@ -1,4 +1,5 @@
 import { html, TemplateResult } from "lit";
+import "./UiComponents";
 
 export type ButtonVariant =
   | "normal"
@@ -52,18 +53,28 @@ export const actionButton = (props: ActionButtonProps): TemplateResult => {
   } = props;
   const buttonStyles = getButtonStyles();
   const buttonClass = buttonStyles[type];
+  const variant =
+    type === "red" ? "danger" : type === "normal" ? "default" : "ghost";
 
   return html`
-    <button
+    <ui-button
       @click=${onClick}
+      stacked
+      variant=${variant}
+      width="block"
       class="${buttonClass}"
       title="${title}"
-      type="button"
-      aria-label="${title}"
+      label="${title}"
       ?disabled=${disabled}
     >
-      <img src=${icon} alt=${iconAlt} aria-hidden="true" class="${ICON_SIZE}" />
+      <img
+        slot="icon"
+        src=${icon}
+        alt=${iconAlt}
+        aria-hidden="true"
+        class="${ICON_SIZE}"
+      />
       <span class="${TEXT_SIZE}">${label}</span>
-    </button>
+    </ui-button>
   `;
 };

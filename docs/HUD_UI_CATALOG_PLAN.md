@@ -13,112 +13,132 @@
 
 The HUD already has the beginning of this shape in `src/client/hud/ui/HudComponents.ts` and the visual workbench at `hud-kit.html` / `src/client/hud/demo/HudPanelWorkbench.ts`.
 
+## Shared App UI Boundary
+
+The app-wide primitive layer now lives in `src/client/components/ui`.
+
+Use `ui-*` components for generic application UI:
+
+- surfaces: `ui-surface`, `ui-surface-header`, `ui-surface-body`, `ui-surface-footer`
+- modal structure: `ui-modal-shell`, `ui-modal-header`, `ui-modal-body`, `ui-modal-footer`
+- controls: `ui-button`, `ui-icon-button`, `ui-action-group`, `ui-input`, `ui-textarea`, `ui-select`, `ui-range`, `ui-toggle`, `ui-checkbox`
+- display: `ui-label`, `ui-pill`, `ui-alert`, `ui-stat-grid`, `ui-stat`, `ui-table`, `ui-table-row`, `ui-table-cell`, `ui-list-row`, `ui-empty-state`, `ui-loading-state`
+- layout and menus: `ui-row`, `ui-stack`, `ui-grid`, `ui-menu`, `ui-menu-item`
+
+Keep `hud-*` components for gameplay-HUD specific concerns:
+
+- fixed-density bottom/control panels
+- game event rows, attack rows, unit buttons, HUD meters, blend sliders, segmented controls, and other compact gameplay-specific compositions
+- pointer-event and safe-area behavior unique to in-game overlays
+
+The migration rule is simple: app screens and normal modals should not import from `src/client/hud/ui`; HUD composites should use `hud-*` when they need gameplay density or semantics, and `ui-*` when they only need a generic button, modal shell, form control, stat, or table.
+
 ## Existing HUD Catalog
 
 ### Foundations
 
-| Element | Source | Role |
-| --- | --- | --- |
-| `HudScopedElement`, `HudElement` | `src/client/hud/ui/HudComponents.ts` | Shared Lit base classes and scoped HUD styling. |
-| `HudColors.ts` | `src/client/hud/ui/HudColors.ts` | Shared semantic tone types for pills and resource bars. |
-| `formatHudQuantity` | `src/client/hud/ui/HudComponents.ts` | Compact HUD number formatting. |
-| `renderLucideIcon` | `src/client/hud/ui/LucideIcon.ts` | Lucide icon renderer used by catalog/demo controls. |
-| `UIElement`, `TextIndicator` | `src/client/hud/ui/UIElement.ts`, `TextIndicator.ts` | Canvas-era HUD primitive interface and text indicator. |
+| Element                          | Source                                               | Role                                                    |
+| -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------- |
+| `HudScopedElement`, `HudElement` | `src/client/hud/ui/HudComponents.ts`                 | Shared Lit base classes and scoped HUD styling.         |
+| `HudColors.ts`                   | `src/client/hud/ui/HudColors.ts`                     | Shared semantic tone types for pills and resource bars. |
+| `formatHudQuantity`              | `src/client/hud/ui/HudComponents.ts`                 | Compact HUD number formatting.                          |
+| `renderLucideIcon`               | `src/client/hud/ui/LucideIcon.ts`                    | Lucide icon renderer used by catalog/demo controls.     |
+| `UIElement`, `TextIndicator`     | `src/client/hud/ui/UIElement.ts`, `TextIndicator.ts` | Canvas-era HUD primitive interface and text indicator.  |
 
 ### Catalog And Demo Shell
 
-| Element | Role |
-| --- | --- |
-| `hud-kit.html` | Entry point for the HUD catalog page. |
-| `hud-panel-workbench` | Main Bootstrap-like catalog page, currently grouped into atoms, molecules, and complete components. |
-| `hud-live-demo.html` / `hud-live-components-demo` | Full live HUD scaffold with mocked game data. |
-| `hud-demo.html` / `hud-panels.html` | Additional HUD demo entry points. |
-| `hud-kit-page`, `hud-kit-topbar`, `hud-kit-catalog`, `hud-kit-heading`, `hud-kit-section`, `hud-kit-stage`, `hud-kit-row`, `hud-kit-caption`, `hud-kit-frame`, `hud-kit-icon-gallery`, `hud-kit-icon-sample` | Catalog-only layout primitives for documenting examples. |
+| Element                                                                                                                                                                                                      | Role                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `hud-kit.html`                                                                                                                                                                                               | Entry point for the HUD catalog page.                                                               |
+| `hud-panel-workbench`                                                                                                                                                                                        | Main Bootstrap-like catalog page, currently grouped into atoms, molecules, and complete components. |
+| `hud-live-demo.html` / `hud-live-components-demo`                                                                                                                                                            | Full live HUD scaffold with mocked game data.                                                       |
+| `hud-demo.html` / `hud-panels.html`                                                                                                                                                                          | Additional HUD demo entry points.                                                                   |
+| `hud-kit-page`, `hud-kit-topbar`, `hud-kit-catalog`, `hud-kit-heading`, `hud-kit-section`, `hud-kit-stage`, `hud-kit-row`, `hud-kit-caption`, `hud-kit-frame`, `hud-kit-icon-gallery`, `hud-kit-icon-sample` | Catalog-only layout primitives for documenting examples.                                            |
 
 ### Atoms
 
-| Element | Bootstrap Analogy | Current Use |
-| --- | --- | --- |
-| `hud-icon` | Glyphicons | Image icon with size and semantic tone. |
-| `hud-mask-icon` | Glyphicons / utility icon | Masked monochrome icon for recolorable asset icons. |
-| `hud-label` | Labels | Compact text label with semantic tone. |
-| `hud-number` | Label / badge text | Numeric text with optional compact formatting. |
-| `hud-color-swatch` | Utility sample | Tiny color/tone preview for catalog and settings-like surfaces. |
-| `hud-timer-label` | Navbar text / badge | Timer display used in the right toolbar. |
-| `relation-smiley` | Icon state | SVG relation face for player popovers. |
+| Element            | Bootstrap Analogy         | Current Use                                                     |
+| ------------------ | ------------------------- | --------------------------------------------------------------- |
+| `hud-icon`         | Glyphicons                | Image icon with size and semantic tone.                         |
+| `hud-mask-icon`    | Glyphicons / utility icon | Masked monochrome icon for recolorable asset icons.             |
+| `hud-label`        | Labels                    | Compact text label with semantic tone.                          |
+| `hud-number`       | Label / badge text        | Numeric text with optional compact formatting.                  |
+| `hud-color-swatch` | Utility sample            | Tiny color/tone preview for catalog and settings-like surfaces. |
+| `hud-timer-label`  | Navbar text / badge       | Timer display used in the right toolbar.                        |
+| `relation-smiley`  | Icon state                | SVG relation face for player popovers.                          |
 
 ### Controls
 
-| Element | Bootstrap Analogy | Current Use |
-| --- | --- | --- |
-| `hud-button` | Button | General compact text button. |
-| `hud-icon-button` | Button with icon | Toolbar and compact command buttons. |
-| `hud-action-group` | Button group / toolbar | Groups compact controls inside headers and rows. |
-| `hud-toolbar` | Button toolbar / navbar | Horizontal control strip, currently used by sidebars. |
-| `hud-input` | Input group input | Compact HUD text input. |
-| `hud-select` | Select / input group | Compact HUD select. |
-| `hud-range` | Input range | Single-value slider. |
-| `hud-dual-range` | Input group / range pair | Two-handle percentage range. |
-| `hud-blend-slider` | Stacked progress + input | Resource blend control with two handles and three segments. |
-| `hud-segmented-control` | Nav pills / justified button group | Metric selector in the control panel. |
+| Element                 | Bootstrap Analogy                  | Current Use                                                 |
+| ----------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| `hud-button`            | Button                             | General compact text button.                                |
+| `hud-icon-button`       | Button with icon                   | Toolbar and compact command buttons.                        |
+| `hud-action-group`      | Button group / toolbar             | Groups compact controls inside headers and rows.            |
+| `hud-toolbar`           | Button toolbar / navbar            | Horizontal control strip, currently used by sidebars.       |
+| `hud-input`             | Input group input                  | Compact HUD text input.                                     |
+| `hud-select`            | Select / input group               | Compact HUD select.                                         |
+| `hud-range`             | Input range                        | Single-value slider.                                        |
+| `hud-dual-range`        | Input group / range pair           | Two-handle percentage range.                                |
+| `hud-blend-slider`      | Stacked progress + input           | Resource blend control with two handles and three segments. |
+| `hud-segmented-control` | Nav pills / justified button group | Metric selector in the control panel.                       |
 
 ### Indicators And Data Display
 
-| Element | Bootstrap Analogy | Current Use |
-| --- | --- | --- |
-| `hud-pill` | Label / badge | Semantic chip for status, counts, rates, and resources. |
-| `hud-meter` | Progress bar | Single, stacked, and mini meters. |
-| `hud-range-readout` | Tooltip / label overlay | Readout overlay for range handles. |
-| `hud-table`, `hud-table-row`, `hud-table-cell` | Table / list group | Compact aligned rows for leaderboard and popovers. |
-| `hud-stat-grid`, `hud-stat` | List group / panel stats | Dense economy and metric summaries. |
-| `hud-tooltip` | Tooltip | Compact tooltip wrapper for unit/build controls. |
+| Element                                        | Bootstrap Analogy        | Current Use                                             |
+| ---------------------------------------------- | ------------------------ | ------------------------------------------------------- |
+| `hud-pill`                                     | Label / badge            | Semantic chip for status, counts, rates, and resources. |
+| `hud-meter`                                    | Progress bar             | Single, stacked, and mini meters.                       |
+| `hud-range-readout`                            | Tooltip / label overlay  | Readout overlay for range handles.                      |
+| `hud-table`, `hud-table-row`, `hud-table-cell` | Table / list group       | Compact aligned rows for leaderboard and popovers.      |
+| `hud-stat-grid`, `hud-stat`                    | List group / panel stats | Dense economy and metric summaries.                     |
+| `hud-tooltip`                                  | Tooltip                  | Compact tooltip wrapper for unit/build controls.        |
 
 ### Surfaces And Layout
 
-| Element | Bootstrap Analogy | Current Use |
-| --- | --- | --- |
-| `hud-surface` | Panel / well | Standard panel shell. |
-| `hud-surface-header` | Panel heading | Header slot for title/actions. |
-| `hud-surface-body` | Panel body | Padded body slot. |
-| `hud-control-panel` | Panel body wrapper | Control-panel-specific compact layout shell. |
-| `hud-unit-display` | Button toolbar / list group wrapper | Unit strip layout wrapper. |
+| Element              | Bootstrap Analogy                   | Current Use                                  |
+| -------------------- | ----------------------------------- | -------------------------------------------- |
+| `hud-surface`        | Panel / well                        | Standard panel shell.                        |
+| `hud-surface-header` | Panel heading                       | Header slot for title/actions.               |
+| `hud-surface-body`   | Panel body                          | Padded body slot.                            |
+| `hud-control-panel`  | Panel body wrapper                  | Control-panel-specific compact layout shell. |
+| `hud-unit-display`   | Button toolbar / list group wrapper | Unit strip layout wrapper.                   |
 
 ### Reusable Molecules
 
-| Element | Bootstrap Analogy | Current Use |
-| --- | --- | --- |
-| `hud-player-identity` | Media object | Player avatar/name/team identity block. |
-| `hud-form-row`, `hud-field-label` | Horizontal form / input group | Label + control rows. |
-| `hud-unit-button` | Button group item | Build/unit command button with icon, count, disabled state, and tooltip support. |
-| `hud-event-row` | Alert / media object | Event feed row with tone and actions slot. |
-| `hud-attack-row` | List group item / media object | Attack list row with icons, amount, target label, and action slot. |
+| Element                           | Bootstrap Analogy              | Current Use                                                                      |
+| --------------------------------- | ------------------------------ | -------------------------------------------------------------------------------- |
+| `hud-player-identity`             | Media object                   | Player avatar/name/team identity block.                                          |
+| `hud-form-row`, `hud-field-label` | Horizontal form / input group  | Label + control rows.                                                            |
+| `hud-unit-button`                 | Button group item              | Build/unit command button with icon, count, disabled state, and tooltip support. |
+| `hud-event-row`                   | Alert / media object           | Event feed row with tone and actions slot.                                       |
+| `hud-attack-row`                  | List group item / media object | Attack list row with icons, amount, target label, and action slot.               |
 
 ### Complete HUD Components
 
-| Element | Category | Notes |
-| --- | --- | --- |
-| `control-panel` | Bottom HUD panel | Uses many reusable atoms/molecules: segmented control, meters, pills, ranges, blend slider. |
-| `unit-display` | Bottom HUD command strip | Uses `hud-unit-display`, `hud-unit-button`, `hud-tooltip`. |
-| `attacks-display` | Bottom HUD list panel | Uses `hud-attack-row` and action controls. |
-| `events-display` | Event feed panel | Uses surface/header/body, icon buttons, event rows, pills, action groups. |
-| `leader-board` | Table panel | Uses HUD table components and economy view. |
-| `team-stats` | Team table panel | Similar table/list surface. |
-| `game-left-sidebar` | Toolbar + composite sidebar | Wraps leaderboard and team stats with toolbar buttons. |
-| `game-right-sidebar` | Toolbar | Settings, replay, exit, fullscreen, and timer controls. |
-| `replay-panel` | Floating control panel | Replay speed and transport controls. |
-| `player-info-overlay` | Popover / media object | Player facts, troop meter, relations, action/status pills. |
-| `spawn-timer`, `immunity-timer` | Progress/alert strips | Time-limited top HUD bars. |
-| `chat-display`, `chat-modal`, `emoji-table` | Chat surfaces | Mostly older styling; not yet normalized to HUD atoms. |
-| `build-menu`, `main-radial-menu`, `radial-menu` classes | Radial command UI | Specialized interaction surface, partly canvas/WebGL-backed. |
-| `player-panel`, `player-moderation-modal`, `send-resource-modal`, `settings-modal`, `multi-tab-modal`, `win-modal` | Modal/dialog surfaces | Mixed styling; good candidates for modal-shell primitives. |
-| `alert-frame`, `heads-up-message`, `in-game-promo`, `performance-overlay` | Feedback/overlay surfaces | Mostly standalone; should be classified and normalized. |
+| Element                                                                                                            | Category                    | Notes                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------- |
+| `control-panel`                                                                                                    | Bottom HUD panel            | Uses many reusable atoms/molecules: segmented control, meters, pills, ranges, blend slider. |
+| `unit-display`                                                                                                     | Bottom HUD command strip    | Uses `hud-unit-display`, `hud-unit-button`, `hud-tooltip`.                                  |
+| `attacks-display`                                                                                                  | Bottom HUD list panel       | Uses `hud-attack-row` and action controls.                                                  |
+| `events-display`                                                                                                   | Event feed panel            | Uses surface/header/body, icon buttons, event rows, pills, action groups.                   |
+| `leader-board`                                                                                                     | Table panel                 | Uses HUD table components and economy view.                                                 |
+| `team-stats`                                                                                                       | Team table panel            | Similar table/list surface.                                                                 |
+| `game-left-sidebar`                                                                                                | Toolbar + composite sidebar | Wraps leaderboard and team stats with toolbar buttons.                                      |
+| `game-right-sidebar`                                                                                               | Toolbar                     | Settings, replay, exit, fullscreen, and timer controls.                                     |
+| `replay-panel`                                                                                                     | Floating control panel      | Replay speed and transport controls.                                                        |
+| `player-info-overlay`                                                                                              | Popover / media object      | Player facts, troop meter, relations, action/status pills.                                  |
+| `spawn-timer`, `immunity-timer`                                                                                    | Progress/alert strips       | Time-limited top HUD bars.                                                                  |
+| `chat-display`, `chat-modal`, `emoji-table`                                                                        | Chat surfaces               | Mostly older styling; not yet normalized to HUD atoms.                                      |
+| `build-menu`, `main-radial-menu`, `radial-menu` classes                                                            | Radial command UI           | Specialized interaction surface, partly canvas/WebGL-backed.                                |
+| `player-panel`, `player-moderation-modal`, `send-resource-modal`, `settings-modal`, `multi-tab-modal`, `win-modal` | Modal/dialog surfaces       | Mixed styling; good candidates for modal-shell primitives.                                  |
+| `alert-frame`, `heads-up-message`, `in-game-promo`, `performance-overlay`                                          | Feedback/overlay surfaces   | Mostly standalone; should be classified and normalized.                                     |
 
 ## Gaps Compared With A Bootstrap-Style Catalog
 
 - The catalog page exists, but it is mostly visual. It does not yet define a stable API table for each component: attributes, properties, slots, events, CSS variables, states, and examples.
 - Current reusable HUD primitives cover panels, buttons, icons, labels, pills, meters, tables, sliders, segmented controls, unit buttons, event rows, and attack rows. Missing reusable primitives include modal shells, popovers, toast/alert variants, menu/dropdown, tabs, empty states, confirmation actions, and responsive layout helpers.
 - Several complete HUD components still carry local Tailwind-heavy markup that could be converted into shared atoms or molecules: `chat-display`, modal components, `alert-frame`, `heads-up-message`, and parts of `player-panel`.
-- There are two component families: the newer Lit HUD kit in `src/client/hud/ui/` and older layer-specific DOM/Tailwind patterns. The Bootstrap-like catalog should make the newer kit the documented path and treat older patterns as migration candidates.
+- There are now two intentional component families: generic `ui-*` primitives in `src/client/components/ui/` and gameplay-specific `hud-*` primitives in `src/client/hud/ui/`. Older layer-specific DOM/Tailwind patterns are migration candidates.
 - Icon assets are visible in the workbench, but there is not yet a named icon registry with intended usage, tone compatibility, or replacement guidance.
 
 ## Proposed Bootstrap-Style Catalog Structure
@@ -167,7 +187,7 @@ Use Bootstrap's component taxonomy as the documentation model, but name sections
 
 ### Phase 2: Normalize Missing Bootstrap Equivalents
 
-- Add `hud-modal-shell`, `hud-modal-header`, `hud-modal-body`, `hud-modal-footer` and migrate `settings-modal`, `send-resource-modal`, `player-moderation-modal`, and `win-modal` incrementally.
+- Use `ui-modal-shell`, `ui-modal-header`, `ui-modal-body`, and `ui-modal-footer` for generic app/modal structure. Keep `hud-modal-*` only where a modal requires HUD-specific density or gameplay overlay constraints.
 - Add `hud-popover` for `player-info-overlay` and future contextual overlays.
 - Add `hud-alert` / `hud-toast` for `alert-frame`, `heads-up-message`, capacity warnings, and feedback messages.
 - Add `hud-menu` / `hud-menu-item` for dropdown-like command lists where radial UI is not appropriate.

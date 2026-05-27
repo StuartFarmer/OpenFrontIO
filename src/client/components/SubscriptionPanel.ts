@@ -12,6 +12,7 @@ import { translateText } from "../Utils";
 import "./baseComponents/Button";
 import "./CapIcon";
 import "./PlutoniumIcon";
+import "./ui";
 
 @customElement("subscription-panel")
 export class SubscriptionPanel extends LitElement {
@@ -101,96 +102,100 @@ export class SubscriptionPanel extends LitElement {
   render() {
     const { sub, cosmetic } = this;
     return html`
-      <div class="bg-white/5 rounded-xl border border-white/10 p-6">
-        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <span class="text-amber-400">⭐</span>
-          ${translateText("account_modal.your_subscription")}
-        </h3>
-        <div
-          class="flex flex-wrap items-start justify-between gap-4 p-4 rounded-lg bg-white/5 border border-white/10"
-        >
-          <div class="flex flex-col gap-3 flex-1 min-w-0">
-            <div class="flex items-baseline gap-2 flex-wrap">
-              <div class="text-base font-bold text-white">
-                ${translateCosmetic(
-                  "subscriptions",
-                  cosmetic?.name ?? sub.tier,
-                )}
+      <ui-surface class="block">
+        <ui-surface-header>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <span class="text-amber-400">⭐</span>
+            ${translateText("account_modal.your_subscription")}
+          </h3>
+        </ui-surface-header>
+        <ui-surface-body>
+          <div
+            class="flex flex-wrap items-start justify-between gap-4 p-4 rounded-lg bg-white/5 border border-white/10"
+          >
+            <div class="flex flex-col gap-3 flex-1 min-w-0">
+              <div class="flex items-baseline gap-2 flex-wrap">
+                <div class="text-base font-bold text-white">
+                  ${translateCosmetic(
+                    "subscriptions",
+                    cosmetic?.name ?? sub.tier,
+                  )}
+                </div>
+                ${cosmetic?.product?.price
+                  ? html`<div class="text-xs text-white/60">
+                      ${translateText("account_modal.sub_price_monthly", {
+                        price: cosmetic.product.price,
+                      })}
+                    </div>`
+                  : ""}
               </div>
-              ${cosmetic?.product?.price
-                ? html`<div class="text-xs text-white/60">
-                    ${translateText("account_modal.sub_price_monthly", {
-                      price: cosmetic.product.price,
-                    })}
+              ${cosmetic?.description
+                ? html`<div class="text-sm text-white/70">
+                    ${cosmetic.description}
+                  </div>`
+                : ""}
+              ${cosmetic
+                ? html`<div class="flex flex-wrap gap-4 mt-1">
+                    <div class="flex items-center gap-1.5">
+                      <plutonium-icon .size=${20}></plutonium-icon>
+                      <span class="text-sm font-bold text-green-400"
+                        >${cosmetic.dailyHardCurrency.toLocaleString()}</span
+                      >
+                      <span class="text-[10px] text-white/50 uppercase"
+                        >${translateText("cosmetics.per_day")}</span
+                      >
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <cap-icon .size=${20}></cap-icon>
+                      <span class="text-sm font-bold text-amber-700"
+                        >${cosmetic.dailySoftCurrency.toLocaleString()}</span
+                      >
+                      <span class="text-[10px] text-white/50 uppercase"
+                        >${translateText("cosmetics.per_day")}</span
+                      >
+                    </div>
                   </div>`
                 : ""}
             </div>
-            ${cosmetic?.description
-              ? html`<div class="text-sm text-white/70">
-                  ${cosmetic.description}
-                </div>`
-              : ""}
-            ${cosmetic
-              ? html`<div class="flex flex-wrap gap-4 mt-1">
-                  <div class="flex items-center gap-1.5">
-                    <plutonium-icon .size=${20}></plutonium-icon>
-                    <span class="text-sm font-bold text-green-400"
-                      >${cosmetic.dailyHardCurrency.toLocaleString()}</span
-                    >
-                    <span class="text-[10px] text-white/50 uppercase"
-                      >${translateText("cosmetics.per_day")}</span
-                    >
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <cap-icon .size=${20}></cap-icon>
-                    <span class="text-sm font-bold text-amber-700"
-                      >${cosmetic.dailySoftCurrency.toLocaleString()}</span
-                    >
-                    <span class="text-[10px] text-white/50 uppercase"
-                      >${translateText("cosmetics.per_day")}</span
-                    >
-                  </div>
-                </div>`
-              : ""}
-          </div>
-          <div class="flex flex-col items-end gap-2">
-            ${this.renderStatus()}
-            <div class="flex flex-wrap justify-end gap-2">
-              ${sub.cancelAtPeriodEnd
-                ? html`<o-button
-                    variant="secondary"
-                    size="xs"
-                    translationKey="account_modal.reactivate_subscription"
-                    @click=${this.handleManage}
-                  ></o-button>`
-                : html`
-                    <o-button
+            <div class="flex flex-col items-end gap-2">
+              ${this.renderStatus()}
+              <div class="flex flex-wrap justify-end gap-2">
+                ${sub.cancelAtPeriodEnd
+                  ? html`<o-button
                       variant="secondary"
                       size="xs"
-                      translationKey="account_modal.manage_subscription"
+                      translationKey="account_modal.reactivate_subscription"
                       @click=${this.handleManage}
-                    ></o-button>
+                    ></o-button>`
+                  : html`
+                      <o-button
+                        variant="secondary"
+                        size="xs"
+                        translationKey="account_modal.manage_subscription"
+                        @click=${this.handleManage}
+                      ></o-button>
+                      <o-button
+                        variant="secondary"
+                        size="xs"
+                        translationKey="account_modal.change_tier"
+                        @click=${this.handleChangeTier}
+                      ></o-button>
+                    `}
+              </div>
+              ${sub.cancelAtPeriodEnd
+                ? ""
+                : html`<div class="flex justify-center w-full">
                     <o-button
-                      variant="secondary"
+                      variant="danger"
                       size="xs"
-                      translationKey="account_modal.change_tier"
-                      @click=${this.handleChangeTier}
+                      translationKey="account_modal.cancel_subscription"
+                      @click=${this.handleCancel}
                     ></o-button>
-                  `}
+                  </div>`}
             </div>
-            ${sub.cancelAtPeriodEnd
-              ? ""
-              : html`<div class="flex justify-center w-full">
-                  <o-button
-                    variant="danger"
-                    size="xs"
-                    translationKey="account_modal.cancel_subscription"
-                    @click=${this.handleCancel}
-                  ></o-button>
-                </div>`}
           </div>
-        </div>
-      </div>
+        </ui-surface-body>
+      </ui-surface>
     `;
   }
 }

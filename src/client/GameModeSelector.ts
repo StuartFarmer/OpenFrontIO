@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
+import "./components/ui";
 import { HostLobbyModal } from "./HostLobbyModal";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import { SinglePlayerModal } from "./SinglePlayerModal";
@@ -43,18 +44,14 @@ export class GameModeSelector extends LitElement {
     onClick: () => void,
     variant: "primary" | "secondary" = "secondary",
   ) {
-    const classes =
-      variant === "primary"
-        ? "bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80"
-        : "bg-surface hover:brightness-[1.08] active:brightness-[0.95]";
-
     return html`
-      <button
+      <ui-button
         @click=${onClick}
-        class="flex h-16 w-full items-center justify-center rounded-lg ${classes} px-4 text-center text-sm font-semibold uppercase tracking-wider text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] sm:h-20 sm:text-base"
-      >
-        ${title}
-      </button>
+        variant=${variant}
+        width="block"
+        label=${title}
+        style="--ui-button-min-height: 4rem; --ui-button-radius: 8px; --ui-button-width: 100%;"
+      ></ui-button>
     `;
   }
 

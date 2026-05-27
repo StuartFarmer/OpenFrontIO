@@ -19,6 +19,7 @@ import "./components/CopyButton";
 import "./components/CurrencyDisplay";
 import "./components/Difficulties";
 import "./components/SubscriptionPanel";
+import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import { fetchCosmetics } from "./Cosmetics";
 import { translateText } from "./Utils";
@@ -242,103 +243,103 @@ export class AccountModal extends BaseModal {
   private renderLoginOptions() {
     return html`
       <div class="flex items-center justify-center p-6 min-h-full">
-        <div
-          class="w-full max-w-md bg-white/5 rounded-2xl border border-white/10 p-8"
-        >
-          <div class="text-center mb-8">
-            <div
-              class="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-inner"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-8 h-8 text-blue-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+        <ui-surface class="block w-full max-w-md">
+          <ui-surface-body style="--ui-surface-body-padding: 2rem;">
+            <div class="text-center mb-8">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-inner"
               >
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                <polyline points="10 17 15 12 10 7"></polyline>
-                <line x1="15" y1="12" x2="3" y2="12"></line>
-              </svg>
-            </div>
-            <p class="text-white/50 text-sm font-medium">
-              ${translateText("account_modal.sign_in_desc")}
-            </p>
-            ${this.renderCurrency()}
-          </div>
-
-          <div class="space-y-6">
-            <!-- Discord Login Button -->
-            <button
-              @click="${this.handleDiscordLogin}"
-              class="w-full px-6 py-4 text-white bg-[#5865F2] hover:bg-[#4752C4] border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5865F2] transition-colors duration-200 flex items-center justify-center gap-3 group relative overflow-hidden shadow-lg hover:shadow-[#5865F2]/20"
-            >
-              <img
-                src=${assetUrl("images/DiscordLogo.svg")}
-                alt="Discord"
-                class="w-6 h-6 relative z-10"
-              />
-              <span class="font-bold relative z-10 tracking-wide"
-                >${translateText("main.login_discord") ||
-                translateText("account_modal.link_discord")}</span
-              >
-            </button>
-
-            <!-- Divider -->
-            <div class="flex items-center gap-4 py-2">
-              <div class="h-px bg-white/10 flex-1"></div>
-              <span
-                class="text-[10px] uppercase tracking-widest text-white/30 font-bold"
-              >
-                ${translateText("account_modal.or")}
-              </span>
-              <div class="h-px bg-white/10 flex-1"></div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="w-8 h-8 text-blue-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                  <polyline points="10 17 15 12 10 7"></polyline>
+                  <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+              </div>
+              <p class="text-white/50 text-sm font-medium">
+                ${translateText("account_modal.sign_in_desc")}
+              </p>
+              ${this.renderCurrency()}
             </div>
 
-            <!-- Email Recovery -->
-            <div class="space-y-3">
-              <div class="relative group">
-                <input
+            <div class="space-y-6">
+              <!-- Discord Login Button -->
+              <ui-button
+                @click="${this.handleDiscordLogin}"
+                width="block"
+                variant="primary"
+                size="lg"
+                label=${translateText("main.login_discord") ||
+                translateText("account_modal.link_discord")}
+              >
+                <img
+                  slot="icon"
+                  src=${assetUrl("images/DiscordLogo.svg")}
+                  alt="Discord"
+                  class="w-6 h-6 relative z-10"
+                />
+                <span class="font-bold relative z-10 tracking-wide"
+                  >${translateText("main.login_discord") ||
+                  translateText("account_modal.link_discord")}</span
+                >
+              </ui-button>
+
+              <!-- Divider -->
+              <div class="flex items-center gap-4 py-2">
+                <div class="h-px bg-white/10 flex-1"></div>
+                <span
+                  class="text-[10px] uppercase tracking-widest text-white/30 font-bold"
+                >
+                  ${translateText("account_modal.or")}
+                </span>
+                <div class="h-px bg-white/10 flex-1"></div>
+              </div>
+
+              <!-- Email Recovery -->
+              <div class="space-y-3">
+                <ui-input
                   type="email"
-                  id="email"
-                  name="email"
+                  label=${translateText("account_modal.email_placeholder")}
                   .value="${this.email}"
                   @input="${this.handleEmailInput}"
-                  class="w-full pl-4 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-malibu-blue/50 focus:border-malibu-blue/50 transition-all font-medium hover:bg-white/10"
                   placeholder="${translateText(
                     "account_modal.email_placeholder",
                   )}"
-                  required
-                />
+                ></ui-input>
+                <o-button
+                  variant="primary"
+                  width="block"
+                  size="md"
+                  translationKey="account_modal.get_magic_link"
+                  @click=${this.handleSubmit}
+                ></o-button>
               </div>
-              <o-button
-                variant="primary"
-                width="block"
-                size="md"
-                translationKey="account_modal.get_magic_link"
-                @click=${this.handleSubmit}
-              ></o-button>
             </div>
-          </div>
 
-          <div class="mt-8 text-center border-t border-white/10 pt-6">
-            <button
-              @click="${this.handleLogout}"
-              class="text-[10px] font-bold text-white/20 hover:text-red-400 transition-colors uppercase tracking-widest pb-0.5"
-            >
-              ${translateText("account_modal.clear_session")}
-            </button>
-          </div>
-        </div>
+            <div class="mt-8 text-center border-t border-white/10 pt-6">
+              <ui-button
+                @click="${this.handleLogout}"
+                variant="ghost"
+                size="xs"
+                label=${translateText("account_modal.clear_session")}
+              ></ui-button>
+            </div>
+          </ui-surface-body>
+        </ui-surface>
       </div>
     `;
   }
 
   private handleEmailInput(e: Event) {
-    const target = e.target as HTMLInputElement;
+    const target = e.target as HTMLInputElement & { value: string };
     this.email = target.value;
   }
 

@@ -15,6 +15,7 @@ import { translateText } from "./Utils";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticButton";
 import "./components/NotLoggedInWarning";
+import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 
 function countryFlag(name: string, code: string): Flag {
@@ -137,16 +138,15 @@ export class FlagInputModal extends BaseModal {
         })}
 
         <div class="md:flex items-center gap-2 justify-center mt-4">
-          <input
-            class="h-12 w-full max-w-md border border-white/10 bg-black/60
-              rounded-xl shadow-inner text-xl text-center focus:outline-none
-              focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-white placeholder-white/30 transition-all"
+          <ui-input
+            class="block w-full max-w-md"
             type="text"
+            label=${translateText("flag_input.search_flag")}
             placeholder=${translateText("flag_input.search_flag")}
             .value=${this.search}
+            @input=${this.handleSearch}
             @change=${this.handleSearch}
-            @keyup=${this.handleSearch}
-          />
+          ></ui-input>
         </div>
       </div>
     `;
@@ -178,7 +178,7 @@ export class FlagInputModal extends BaseModal {
   }
 
   private handleSearch(event: Event) {
-    this.search = (event.target as HTMLInputElement).value;
+    this.search = (event.target as HTMLInputElement & { value: string }).value;
   }
 
   private setFlag(flag: string) {

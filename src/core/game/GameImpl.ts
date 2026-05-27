@@ -5,6 +5,9 @@ import { AbstractGraph } from "../pathfinding/algorithms/AbstractGraph";
 import { PathFinder } from "../pathfinding/types";
 import { AllPlayersStats, ClientID, Winner } from "../Schemas";
 import { ATTACK_INDEX_SENT } from "../StatsSchemas";
+import { GameSystemScheduler } from "../systems/GameSystem";
+import { createGameSystemContext } from "../systems/GameSystemContext";
+import { LegacyExecutionSystem } from "../systems/LegacyExecutionSystem";
 import { simpleHash } from "../Util";
 import { AllianceImpl } from "./AllianceImpl";
 import { AllianceRequestImpl } from "./AllianceRequestImpl";
@@ -45,8 +48,8 @@ import { MotionPlanRecord, packMotionPlans } from "./MotionPlans";
 import { PlayerImpl } from "./PlayerImpl";
 import { RailNetwork } from "./RailNetwork";
 import { createRailNetwork } from "./RailNetworkImpl";
-import { clampResourceDeltaToCapacity, createZeroResources } from "./Resources";
 import { renderResourceCapture } from "./ResourceFormatting";
+import { clampResourceDeltaToCapacity, createZeroResources } from "./Resources";
 import { Stats } from "./Stats";
 import { StatsImpl } from "./StatsImpl";
 import { assignTeams } from "./TeamAssignment";
@@ -80,12 +83,14 @@ export class GameImpl implements Game {
   private _ticks = 0;
   private startTick: number | null = null;
 
-  private unInitExecs: Execution[] = [];
+  private readonly legacyExecutionSystem = new LegacyExecutionSystem();
+  private readonly systemScheduler = new GameSystemScheduler([
+    this.legacyExecutionSystem,
+  ]);
 
   _players: Map<PlayerID, PlayerImpl> = new Map<PlayerID, PlayerImpl>();
   _playersBySmallID: Player[] = [];
 
-  private execs: Execution[] = [];
   private _width: number;
   private _height: number;
   _terraNullius: TerraNulliusImpl;
@@ -433,29 +438,7 @@ export class GameImpl implements Game {
   executeNextTick(): GameUpdates {
     this.updates = createGameUpdatesMap();
     this.tileUpdatePairs.length = 0;
-    this.execs.forEach((e) => {
-      if (
-        (!this.inSpawnPhase() || e.activeDuringSpawnPhase()) &&
-        e.isActive()
-      ) {
-        e.tick(this._ticks);
-      }
-    });
-    const inited: Execution[] = [];
-    const unInited: Execution[] = [];
-    this.unInitExecs.forEach((e) => {
-      if (!this.inSpawnPhase() || e.activeDuringSpawnPhase()) {
-        e.init(this, this._ticks);
-        inited.push(e);
-      } else {
-        unInited.push(e);
-      }
-    });
-
-    this.removeInactiveExecutions();
-
-    this.execs.push(...inited);
-    this.unInitExecs = unInited;
+    this.systemScheduler.tick(createGameSystemContext(this));
     for (const player of this._players.values()) {
       const update = player.toUpdate();
       if (update !== null) this.addUpdate(update);
@@ -548,23 +531,7 @@ export class GameImpl implements Game {
   }
 
   removeInactiveExecutions(): void {
-    const activeExecs: Execution[] = [];
-    for (const exec of this.execs) {
-      if (this.inSpawnPhase()) {
-        if (exec.activeDuringSpawnPhase()) {
-          if (exec.isActive()) {
-            activeExecs.push(exec);
-          }
-        } else {
-          activeExecs.push(exec);
-        }
-      } else {
-        if (exec.isActive()) {
-          activeExecs.push(exec);
-        }
-      }
-    }
-    this.execs = activeExecs;
+    this.legacyExecutionSystem.removeInactiveForSpawnPhase(this.inSpawnPhase());
   }
 
   players(): Player[] {
@@ -576,18 +543,15 @@ export class GameImpl implements Game {
   }
 
   executions(): Execution[] {
-    return [...this.execs, ...this.unInitExecs];
+    return this.legacyExecutionSystem.executions();
   }
 
   addExecution(...exec: Execution[]) {
-    this.unInitExecs.push(...exec);
+    this.legacyExecutionSystem.addExecution(...exec);
   }
 
   removeExecution(exec: Execution) {
-    this.execs = this.execs.filter((execution) => execution !== exec);
-    this.unInitExecs = this.unInitExecs.filter(
-      (execution) => execution !== exec,
-    );
+    this.legacyExecutionSystem.removeExecution(exec);
   }
 
   playerView(id: PlayerID): Player {

@@ -36,6 +36,7 @@ import { BaseModal } from "./components/BaseModal";
 import "./components/CopyButton";
 import "./components/LobbyConfigItem";
 import "./components/LobbyPlayerView";
+import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import { nationsConfigToSlider } from "./utilities/GameConfigHelpers";
 
@@ -167,12 +168,13 @@ export class JoinLobbyModal extends BaseModal {
               <div
                 class="p-6 lg:p-6 border-t border-white/10 bg-black/20 shrink-0"
               >
-                <button
-                  class="w-full py-4 text-sm font-bold text-white uppercase tracking-widest bg-malibu-blue hover:bg-aquarius disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-lg shadow-sky-900/20 hover:shadow-sky-900/40 hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none"
+                <ui-button
+                  width="block"
+                  variant="primary"
+                  size="lg"
+                  label=${translateText("private_lobby.joined_waiting")}
                   disabled
-                >
-                  ${translateText("private_lobby.joined_waiting")}
-                </button>
+                ></ui-button>
               </div>
             `
           : html`

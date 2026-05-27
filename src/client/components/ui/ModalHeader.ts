@@ -1,4 +1,5 @@
 import { html, TemplateResult } from "lit";
+import "./UiComponents";
 
 export interface ModalHeaderProps {
   title?: string | TemplateResult;
@@ -51,10 +52,11 @@ export const modalHeader = ({
   return html`
     <div class="${wrapperClass}">
       <div class="${leftClass}">
-        <button
+        <ui-icon-button
           @click=${onBack}
           class="${buttonClass}"
-          aria-label="${ariaLabel}"
+          label="${ariaLabel}"
+          variant="ghost"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -70,7 +72,7 @@ export const modalHeader = ({
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-        </button>
+        </ui-icon-button>
         ${titleContent ??
         html`<span class="${resolvedTitleClass}">${title}</span>`}
       </div>
