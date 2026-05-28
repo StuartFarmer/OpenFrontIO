@@ -25,7 +25,25 @@ The reusable UI layer is split across three directories.
 - `Modal.ts`: `<o-modal>`
 - ranking, settings, and stats components with their own raw styling
 
-The result is an inverted ownership model: the most complete primitives live under `hud`, while the application-wide component namespace has only partial helpers and older primitives.
+The migration corrected the most important ownership issue: generic primitives now live in `src/client/components/ui`, while HUD-specific controls remain under `src/client/hud/ui`.
+
+## Completed Migration Status
+
+The shared app UI kit now covers the reusable shapes needed by homepage, lobby, settings, clan, leaderboard, modal, sandbox, and generic HUD overlay work:
+
+- surfaces and modal shells
+- buttons, icon buttons, action groups, inputs, textareas, selects, ranges, toggles, and checkboxes
+- labels, pills, alerts, stat grids, stats, tables, list rows, loading states, empty states, menus, rows, stacks, and grids
+- compatibility wrappers for `<o-button>`, `<o-modal>`, `actionButton`, `modalHeader`, and `ui-divider`
+
+The app-facing migration touched:
+
+- homepage and lobby surfaces: `PlayPage`, `GameModeSelector`, `SinglePlayerModal`, `JoinLobbyModal`, `GameStartingModal`, `LobbyConfigItem`, `MapPicker`, `NewsBox`
+- root modals: account/help/flag/pattern/token/subscription flows
+- settings/clan/leaderboard/stats surfaces and rows
+- HUD overlays that are generic dialog/feed shells: send resources, moderation, chat/settings modal shells, emoji table, win/multitab modals, chat display, build menu surface wrapper, profiler controls
+
+Remaining legacy UI is intentionally bounded rather than silently ignored. `tests/client/components/UiMigrationGuard.test.ts` blocks new ad hoc component files from introducing raw controls or obvious custom panel styling unless they are added to the documented legacy allowlist.
 
 ## Intended Boundary
 
@@ -76,13 +94,73 @@ HUD-specific pieces should remain under `src/client/hud/ui`:
 - `hud-attack-row`
 - any fixed-density or gameplay-only composites
 
-The HUD kit can either wrap shared primitives or re-export HUD-themed aliases. The app should not need to import from `src/client/hud/ui` to render a normal modal, button, slider, table, stat, or card.
+The app should not import from `src/client/hud/ui` to render a normal modal, button, slider, table, stat, or card. HUD layer files can import `ui-*` for generic dialogs and controls, but should keep `hud-*` for gameplay-dense panels, meters, event rows, attack rows, unit buttons, and resource-specific controls.
 
-Compatibility wrappers remain during migration:
+## Composition Examples
+
+Shared modal shell:
+
+```ts
+html`
+  <ui-modal-shell open>
+    <ui-modal-header title="Settings" close-label="Close"></ui-modal-header>
+    <ui-modal-body>
+      <ui-alert tone="warning">Changes apply after restart.</ui-alert>
+    </ui-modal-body>
+    <ui-modal-footer>
+      <ui-button variant="secondary">Cancel</ui-button>
+      <ui-button variant="primary">Save</ui-button>
+    </ui-modal-footer>
+  </ui-modal-shell>
+`;
+```
+
+Form row:
+
+```ts
+html`
+  <ui-form-row label="Population growth">
+    <ui-range min="0" max="1" step="0.01" value="0.3"></ui-range>
+  </ui-form-row>
+`;
+```
+
+Action group:
+
+```ts
+html`
+  <ui-action-group align="right">
+    <ui-button variant="secondary">Reset</ui-button>
+    <ui-button variant="primary">Start</ui-button>
+  </ui-action-group>
+`;
+```
+
+Stats and list composition:
+
+```ts
+html`
+  <ui-stat-grid columns="3">
+    <ui-stat label="Food" value="2.4K" tone="success"></ui-stat>
+    <ui-stat label="Population" value="44K"></ui-stat>
+    <ui-stat label="Shortage" value="12%" tone="warning"></ui-stat>
+  </ui-stat-grid>
+
+  <ui-list-row>
+    <span slot="leading">#1</span>
+    <span>Player name</span>
+    <ui-pill slot="meta" tone="gold">12K</ui-pill>
+  </ui-list-row>
+`;
+```
+
+Compatibility wrappers remain after this migration:
 
 - `<o-button>` composes through `ui-button` / `ui-icon-button` while preserving its public attributes.
-- `<o-modal>` keeps its existing open/close/body-scroll lifecycle and can migrate internals incrementally.
-- `actionButton`, `modalHeader`, and `ui-divider` remain callable by existing files while later tickets move call sites to direct primitive composition.
+- `<o-modal>` keeps its existing open/close/body-scroll lifecycle and composes shared icon-button behavior.
+- `actionButton`, `modalHeader`, and `ui-divider` remain callable by existing files with comments explaining why they remain.
+
+These wrappers should not be expanded with new styling variants unless the same variant is also considered for the canonical `ui-*` primitive.
 
 ## Conversion Principle
 
@@ -132,8 +210,23 @@ Files already using `components/ui`:
 - `src/client/TroubleshootingModal.ts`
 - `src/client/UserSettingModal.ts`
 - `src/client/components/RankedModal.ts`
+- `src/client/components/baseComponents/Button.ts`
+- `src/client/components/baseComponents/Modal.ts`
+- `src/client/components/baseComponents/setting/*`
+- `src/client/components/baseComponents/stats/*`
+- `src/client/components/clan/*`
+- `src/client/components/leaderboard/*`
+- `src/client/hud/layers/BuildMenu.ts`
+- `src/client/hud/layers/ChatDisplay.ts`
+- `src/client/hud/layers/ChatModal.ts`
+- `src/client/hud/layers/EmojiTable.ts`
+- `src/client/hud/layers/MultiTabModal.ts`
+- `src/client/hud/layers/PerformanceOverlay.ts`
 - `src/client/hud/layers/PlayerPanel.ts`
 - `src/client/hud/layers/PlayerModerationModal.ts`
+- `src/client/hud/layers/SendResourceModal.ts`
+- `src/client/hud/layers/SettingsModal.ts`
+- `src/client/hud/layers/WinModal.ts`
 
 Files already using the richer HUD kit:
 

@@ -19,9 +19,9 @@ import "./components/CopyButton";
 import "./components/CurrencyDisplay";
 import "./components/Difficulties";
 import "./components/SubscriptionPanel";
-import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import { fetchCosmetics } from "./Cosmetics";
+import "./hud/ui";
 import { translateText } from "./Utils";
 
 @customElement("account-modal")
@@ -243,8 +243,8 @@ export class AccountModal extends BaseModal {
   private renderLoginOptions() {
     return html`
       <div class="flex items-center justify-center p-6 min-h-full">
-        <ui-surface class="block w-full max-w-md">
-          <ui-surface-body style="--ui-surface-body-padding: 2rem;">
+        <hud-surface class="block w-full max-w-md">
+          <hud-surface-body style="--hud-surface-body-padding: 2rem;">
             <div class="text-center mb-8">
               <div
                 class="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-inner"
@@ -272,25 +272,26 @@ export class AccountModal extends BaseModal {
 
             <div class="space-y-6">
               <!-- Discord Login Button -->
-              <ui-button
+              <hud-button
                 @click="${this.handleDiscordLogin}"
                 width="block"
-                variant="primary"
+                variant="active"
                 size="lg"
                 label=${translateText("main.login_discord") ||
                 translateText("account_modal.link_discord")}
               >
-                <img
+                <hud-icon
                   slot="icon"
-                  src=${assetUrl("images/DiscordLogo.svg")}
-                  alt="Discord"
-                  class="w-6 h-6 relative z-10"
-                />
+                  .src=${assetUrl("images/DiscordLogo.svg")}
+                  label="Discord"
+                  size="md"
+                  tone="inherit"
+                ></hud-icon>
                 <span class="font-bold relative z-10 tracking-wide"
                   >${translateText("main.login_discord") ||
                   translateText("account_modal.link_discord")}</span
                 >
-              </ui-button>
+              </hud-button>
 
               <!-- Divider -->
               <div class="flex items-center gap-4 py-2">
@@ -305,7 +306,7 @@ export class AccountModal extends BaseModal {
 
               <!-- Email Recovery -->
               <div class="space-y-3">
-                <ui-input
+                <hud-input
                   type="email"
                   label=${translateText("account_modal.email_placeholder")}
                   .value="${this.email}"
@@ -313,9 +314,9 @@ export class AccountModal extends BaseModal {
                   placeholder="${translateText(
                     "account_modal.email_placeholder",
                   )}"
-                ></ui-input>
+                ></hud-input>
                 <o-button
-                  variant="primary"
+                  variant="active"
                   width="block"
                   size="md"
                   translationKey="account_modal.get_magic_link"
@@ -325,15 +326,15 @@ export class AccountModal extends BaseModal {
             </div>
 
             <div class="mt-8 text-center border-t border-white/10 pt-6">
-              <ui-button
+              <hud-button
                 @click="${this.handleLogout}"
-                variant="ghost"
+                variant="default"
                 size="xs"
                 label=${translateText("account_modal.clear_session")}
-              ></ui-button>
+              ></hud-button>
             </div>
-          </ui-surface-body>
-        </ui-surface>
+          </hud-surface-body>
+        </hud-surface>
       </div>
     `;
   }

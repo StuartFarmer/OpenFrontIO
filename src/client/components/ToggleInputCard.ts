@@ -1,19 +1,10 @@
 import { LitElement, PropertyValues, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../hud/ui";
 import { translateText } from "../Utils";
 
-const ACTIVE_CARD =
-  "bg-malibu-blue/20 border-malibu-blue/50 shadow-[var(--shadow-malibu-blue)]";
-const INACTIVE_CARD =
-  "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20";
-const INPUT_CLASS =
-  "w-full text-center rounded bg-black/60 text-white text-sm font-bold border border-white/20 focus:outline-none focus:border-malibu-blue p-1 my-1";
 const CARD_LABEL_CLASS =
   "text-xs uppercase font-bold tracking-wider leading-tight break-words hyphens-auto";
-
-function cardClass(active: boolean, extra = ""): string {
-  return `w-full h-full rounded-xl border cursor-pointer transition-all duration-200 active:scale-95 ${extra} ${active ? ACTIVE_CARD : INACTIVE_CARD}`;
-}
 
 @customElement("toggle-input-card")
 export class ToggleInputCard extends LitElement {
@@ -45,10 +36,13 @@ export class ToggleInputCard extends LitElement {
     if (!changedProperties.has("checked")) return;
     const previousChecked = changedProperties.get("checked");
     if (previousChecked === false && this.checked) {
-      const input = this.querySelector("input");
+      const input = this.querySelector("hud-input") as
+        | (HTMLElement & { shadowRoot: ShadowRoot | null })
+        | null;
       if (input) {
-        input.focus();
-        input.select();
+        const nativeInput = input.shadowRoot?.querySelector("input");
+        nativeInput?.focus();
+        nativeInput?.select();
       }
     }
   }
@@ -103,34 +97,23 @@ export class ToggleInputCard extends LitElement {
 
   render() {
     return html`
-      <div class="${cardClass(this.checked, "relative overflow-hidden")}">
-        <button
-          type="button"
-          aria-pressed=${this.checked}
-          @click=${this.handleCardClick}
-          class="w-full h-full p-3 flex flex-col items-center justify-between gap-2 focus:outline-none"
+      <hud-list-row
+        interactive
+        ?selected=${this.checked}
+        class="relative overflow-hidden"
+        style="height: 100%; --hud-list-row-padding: 10px; grid-template-columns: minmax(0, 1fr); align-items: stretch;"
+        role="button"
+        aria-pressed=${this.checked}
+        @click=${this.handleCardClick}
+      >
+        <div
+          class="w-full h-full flex flex-col items-center justify-between gap-2"
         >
-          <div
-            class="w-5 h-5 rounded border flex items-center justify-center transition-colors mt-1 ${this
-              .checked
-              ? "bg-blue-500 border-blue-500"
-              : "border-white/20 bg-white/5"}"
-          >
-            ${this.checked
-              ? html`<svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-3 w-3 text-white"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clip-rule="evenodd"
-                  />
-                </svg>`
-              : ""}
-          </div>
+          <hud-checkbox
+            .checked=${this.checked}
+            @click=${(event: Event) => event.stopPropagation()}
+            @change=${() => this.emitToggle()}
+          ></hud-checkbox>
 
           ${this.checked
             ? html`<div class="h-[30px] my-1"></div>`
@@ -143,31 +126,32 @@ export class ToggleInputCard extends LitElement {
           >
             ${translateText(this.labelKey)}
           </span>
-        </button>
+        </div>
 
         ${this.checked
           ? html`
               <div
                 class="absolute left-3 right-3 top-1/2 -translate-y-1/2 z-10"
+                @click=${(event: Event) => event.stopPropagation()}
               >
-                <input
+                <hud-input
                   type=${this.inputType}
                   id=${this.inputId ?? nothing}
                   min=${this.inputMin ?? nothing}
                   max=${this.inputMax ?? nothing}
                   step=${this.inputStep ?? nothing}
                   .value=${String(this.inputValue ?? "")}
-                  class=${INPUT_CLASS}
-                  aria-label=${this.inputAriaLabel ?? nothing}
+                  label=${this.inputAriaLabel ?? ""}
                   placeholder=${this.inputPlaceholder ?? nothing}
                   @input=${this.onInput}
                   @change=${this.onChange}
                   @keydown=${this.onKeyDown}
-                />
+                  style="--hud-input-radius: 4px; --hud-input-padding: 4px 6px;"
+                ></hud-input>
               </div>
             `
           : nothing}
-      </div>
+      </hud-list-row>
     `;
   }
 }

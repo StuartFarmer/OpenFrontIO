@@ -5,6 +5,7 @@ import { translateText } from "../client/Utils";
 import { assetUrl } from "../core/AssetUrls";
 import { BaseModal } from "./components/BaseModal";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 import { normalizeNewsMarkdown, renderMarkdown } from "./NewsMarkdown";
 
 @customElement("news-modal")
@@ -79,8 +80,10 @@ export class NewsButton extends LitElement {
 
   render() {
     return html`
-      <button
+      <hud-icon-button
         class="border p-[4px] rounded-lg flex cursor-pointer border-black/30 dark:border-gray-300/60 bg-white/70 dark:bg-[rgba(55,65,81,0.7)] hidden"
+        label=${translateText("news.title")}
+        style="--hud-icon-button-size: 56px;"
         @click=${this.open}
       >
         <img
@@ -88,7 +91,7 @@ export class NewsButton extends LitElement {
           src="${assetUrl("images/Megaphone.svg")}"
           alt=${translateText("news.title")}
         />
-      </button>
+      </hud-icon-button>
       <news-modal></news-modal>
     `;
   }

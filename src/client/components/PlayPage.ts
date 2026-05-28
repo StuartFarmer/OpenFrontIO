@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { assetUrl } from "../../core/AssetUrls";
-import "./ui";
+import "../hud/ui";
 
 @customElement("play-page")
 export class PlayPage extends LitElement {
@@ -41,20 +41,20 @@ export class PlayPage extends LitElement {
           ></div>
 
           <!-- Username -->
-          <ui-surface
+          <hud-surface
             class="block overflow-visible lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-3xl lg:relative lg:z-20"
-            style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(15, 23, 42, 0.72); --ui-surface-border: rgba(255, 255, 255, 0.1);"
+            style="--hud-radius: 12px; --hud-surface-shadow: none; --hud-surface-bg: rgba(15, 23, 42, 0.72); --hud-surface-border: rgba(255, 255, 255, 0.1);"
           >
-            <ui-surface-body
-              style="--ui-surface-body-padding: 0.5rem; display: block;"
+            <hud-surface-body
+              style="--hud-surface-body-padding: 0.5rem; display: block;"
             >
               <div class="flex items-center gap-2 min-w-0 w-full lg:h-[50px]">
                 <username-input
                   class="flex-1 min-w-0 h-10 lg:h-[50px]"
                 ></username-input>
               </div>
-            </ui-surface-body>
-          </ui-surface>
+            </hud-surface-body>
+          </hud-surface>
         </div>
 
         <game-mode-selector class="block w-full"></game-mode-selector>

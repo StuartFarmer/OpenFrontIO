@@ -11,6 +11,7 @@ import {
 import { GameView } from "../../../core/game/GameView";
 import { onlyImages } from "../../../core/Util";
 import { Controller } from "../../Controller";
+import "../ui";
 
 interface ChatEvent {
   description: string;
@@ -124,28 +125,37 @@ export class ChatDisplay extends LitElement implements Controller {
       return html``;
     }
     return html`
-      <div
+      <hud-surface
         class="pointer-events-auto ${this._hidden
-          ? "w-fit px-2.5 py-1.25"
-          : ""} rounded-md bg-black/60 relative max-h-[30vh] flex flex-col-reverse overflow-y-auto w-full lg:bottom-2.5 lg:right-2.5 z-50 lg:max-w-[30vw] lg:w-full lg:w-auto"
+          ? "w-fit"
+          : ""} relative max-h-[30vh] flex flex-col-reverse overflow-y-auto w-full lg:bottom-2.5 lg:right-2.5 z-50 lg:max-w-[30vw] lg:w-full lg:w-auto"
+        style="--hud-radius: 6px; --hud-surface-bg: rgba(0,0,0,0.60); --hud-surface-body-padding: ${this
+          ._hidden
+          ? "5px 10px"
+          : "0"};"
       >
-        <div>
+        <hud-surface-body
+          style="--hud-surface-body-padding: ${this._hidden
+            ? "5px 10px"
+            : "0"};"
+        >
           <div class="w-full bg-black/80 sticky top-0 px-2.5">
-            <button
-              class="text-white cursor-pointer pointer-events-auto ${this
-                ._hidden
-                ? "hidden"
-                : ""}"
+            <hud-button
+              variant="default"
+              size="xs"
+              class="${this._hidden ? "hidden" : ""}"
+              label="Hide"
               @click=${this.toggleHidden}
             >
               Hide
-            </button>
+            </hud-button>
           </div>
 
-          <button
-            class="text-white cursor-pointer pointer-events-auto ${this._hidden
-              ? ""
-              : "hidden"}"
+          <hud-button
+            variant="default"
+            size="xs"
+            class="${this._hidden ? "" : "hidden"}"
+            label="Chat"
             @click=${this.toggleHidden}
           >
             Chat
@@ -155,28 +165,26 @@ export class ChatDisplay extends LitElement implements Controller {
                 : "hidden"} inline-block px-2 bg-red-500 rounded-xs"
               >${this.newEvents}</span
             >
-          </button>
+          </hud-button>
 
-          <table
-            class="w-full border-collapse text-white shadow-lg lg:text-xl text-xs pointer-events-none ${this
+          <div
+            class="w-full text-white shadow-lg lg:text-xl text-xs pointer-events-none ${this
               ._hidden
               ? "hidden"
               : ""}"
           >
-            <tbody>
-              ${this.chatEvents.map(
-                (chat) => html`
-                  <tr class="border-b border-gray-200/0">
-                    <td class="lg:p-3 p-1 text-left">
-                      ${this.getChatContent(chat)}
-                    </td>
-                  </tr>
-                `,
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            ${this.chatEvents.map(
+              (chat) => html`
+                <hud-list-row
+                  style="--hud-list-row-padding: 4px 8px; grid-template-columns: minmax(0, 1fr);"
+                >
+                  ${this.getChatContent(chat)}
+                </hud-list-row>
+              `,
+            )}
+          </div>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 

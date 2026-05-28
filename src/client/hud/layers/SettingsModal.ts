@@ -7,12 +7,12 @@ import { EventBus } from "../../../core/EventBus";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { Controller } from "../../Controller";
 import { AlternateViewEvent, RefreshGraphicsEvent } from "../../InputHandler";
-import { translateText } from "../../Utils";
-import "../../components/ui";
 import {
   SetBackgroundMusicVolumeEvent,
   SetSoundEffectsVolumeEvent,
 } from "../../sound/Sounds";
+import { translateText } from "../../Utils";
+import "../ui";
 const structureIcon = assetUrl("images/CityIconWhite.svg");
 const cursorPriceIcon = assetUrl("images/CursorPriceIconWhite.svg");
 const darkModeIcon = assetUrl("images/DarkModeIconWhite.svg");
@@ -194,356 +194,234 @@ export class SettingsModal extends LitElement implements Controller {
     this.requestUpdate();
   }
 
+  private renderIcon(src: string, label: string, tone = "muted") {
+    return html`<hud-icon
+      slot="leading"
+      .src=${src}
+      .label=${label}
+      size="md"
+      tone=${tone}
+    ></hud-icon>`;
+  }
+
+  private renderSettingAction(options: {
+    icon: string;
+    iconLabel: string;
+    title: string;
+    description: string;
+    value?: string;
+    onClick: () => void;
+    tone?: "default" | "danger";
+  }) {
+    return html`
+      <hud-list-row
+        interactive
+        tone=${options.tone ?? "default"}
+        style="--hud-list-row-padding: 10px 12px; grid-template-columns: auto minmax(0, 1fr) auto;"
+        @click=${options.onClick}
+      >
+        ${this.renderIcon(
+          options.icon,
+          options.iconLabel,
+          options.tone === "danger" ? "danger" : "muted",
+        )}
+        <span>
+          <span class="block text-[13px] font-semibold text-white">
+            ${options.title}
+          </span>
+          <span class="block text-[11px] text-slate-400">
+            ${options.description}
+          </span>
+        </span>
+        ${options.value
+          ? html`<hud-label slot="meta" tone="muted">
+              ${options.value}
+            </hud-label>`
+          : html``}
+      </hud-list-row>
+    `;
+  }
+
+  private renderVolumeSetting(options: {
+    icon: string;
+    iconLabel: string;
+    title: string;
+    value: number;
+    onInput: (event: Event) => void;
+  }) {
+    const percent = Math.round(options.value * 100);
+    return html`
+      <hud-list-row
+        style="--hud-list-row-padding: 10px 12px; grid-template-columns: auto minmax(0, 1fr) auto;"
+      >
+        ${this.renderIcon(options.icon, options.iconLabel)}
+        <span>
+          <span class="block text-[13px] font-semibold text-white">
+            ${options.title}
+          </span>
+          <hud-range
+            min="0"
+            max="100"
+            .value=${percent}
+            @input=${options.onInput}
+          ></hud-range>
+        </span>
+        <hud-label slot="meta" tone="muted">${percent}%</hud-label>
+      </hud-list-row>
+    `;
+  }
+
+  private onOff(value: boolean) {
+    return value
+      ? translateText("user_setting.on")
+      : translateText("user_setting.off");
+  }
+
   render() {
     if (!this.isVisible) {
       return null;
     }
 
     return html`
-      <div
-        class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-xs z-2000 flex items-center justify-center p-4"
+      <hud-modal-shell
+        .open=${true}
+        maxWidth="28rem"
+        label=${translateText("user_setting.tab_basic")}
+        @dismiss=${() => this.closeModal()}
         @contextmenu=${(e: Event) => e.preventDefault()}
       >
-        <ui-surface
-          class="max-w-md w-full max-h-[80vh] overflow-y-auto"
-          style="--ui-radius: 8px; --ui-surface-bg: rgb(30 41 59); --ui-surface-border: rgb(71 85 105)"
-        >
-          <ui-surface-header style="--ui-surface-header-padding: 16px">
-            <div class="flex items-center gap-2">
-              <img
-                src=${settingsIcon}
-                alt="settings"
-                width="24"
-                height="24"
-                class="align-middle"
-              />
-              <h2 class="text-xl font-semibold text-white">
-                ${translateText("user_setting.tab_basic")}
-              </h2>
-            </div>
-            <ui-icon-button variant="ghost" @click=${this.closeModal}>
-              ×
-            </ui-icon-button>
-          </ui-surface-header>
-
-          <ui-surface-body style="--ui-surface-body-padding: 16px">
-            <div class="flex flex-col gap-3">
-              <div
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              >
-                <img src=${musicIcon} alt="musicIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.background_music_volume")}
-                  </div>
-                  <ui-range
-                    min="0"
-                    max="100"
-                    .value=${this.userSettings.backgroundMusicVolume() * 100}
-                    @input=${this.onVolumeChange}
-                  ></ui-range>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${Math.round(
-                    this.userSettings.backgroundMusicVolume() * 100,
-                  )}%
-                </div>
-              </div>
-
-              <div
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-              >
-                <img
-                  src=${musicIcon}
-                  alt="soundEffectsIcon"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.sound_effects_volume")}
-                  </div>
-                  <ui-range
-                    min="0"
-                    max="100"
-                    .value=${this.userSettings.soundEffectsVolume() * 100}
-                    @input=${this.onSoundEffectsVolumeChange}
-                  ></ui-range>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${Math.round(this.userSettings.soundEffectsVolume() * 100)}%
-                </div>
-              </div>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onTerrainButtonClick}"
-              >
-                <img src=${treeIcon} alt="treeIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.toggle_terrain")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.toggle_view_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.alternateView
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleEmojisButtonClick}"
-              >
-                <img src=${emojiIcon} alt="emojiIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.emojis_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.emojis_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.emojis()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleDarkModeButtonClick}"
-              >
-                <img
-                  src=${darkModeIcon}
-                  alt="darkModeIcon"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.dark_mode_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.dark_mode_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.darkMode()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleSpecialEffectsButtonClick}"
-              >
-                <img
-                  src=${explosionIcon}
-                  alt="specialEffects"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.special_effects_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.special_effects_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.fxLayer()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleAlertFrameButtonClick}"
-              >
-                <img src=${sirenIcon} alt="alertFrame" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.alert_frame_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.alert_frame_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.alertFrame()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleStructureSpritesButtonClick}"
-              >
-                <img
-                  src=${structureIcon}
-                  alt="structureSprites"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.structure_sprites_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.structure_sprites_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.structureSprites()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleAttackingTroopsOverlayButtonClick}"
-              >
-                <img src=${swordIcon} alt="swordIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText(
-                      "user_setting.attacking_troops_overlay_label",
-                    )}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText(
-                      "user_setting.attacking_troops_overlay_desc",
-                    )}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.attackingTroopsOverlay()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleCursorCostLabelButtonClick}"
-              >
-                <img
-                  src=${cursorPriceIcon}
-                  alt="cursorCostLabel"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.cursor_cost_label_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.cursor_cost_label_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.cursorCostLabel()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleRandomNameModeButtonClick}"
-              >
-                <img src=${ninjaIcon} alt="ninjaIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.anonymous_names_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.anonymous_names_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.anonymousNames()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onToggleLeftClickOpensMenu}"
-              >
-                <img src=${mouseIcon} alt="mouseIcon" width="20" height="20" />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.left_click_menu")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.left_click_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.leftClickOpensMenu()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <button
-                class="flex gap-3 items-center w-full text-left p-3 hover:bg-slate-700 rounded-sm text-white transition-colors"
-                @click="${this.onTogglePerformanceOverlayButtonClick}"
-              >
-                <img
-                  src=${settingsIcon}
-                  alt="performanceIcon"
-                  width="20"
-                  height="20"
-                />
-                <div class="flex-1">
-                  <div class="font-medium">
-                    ${translateText("user_setting.performance_overlay_label")}
-                  </div>
-                  <div class="text-sm text-slate-400">
-                    ${translateText("user_setting.performance_overlay_desc")}
-                  </div>
-                </div>
-                <div class="text-sm text-slate-400">
-                  ${this.userSettings.performanceOverlay()
-                    ? translateText("user_setting.on")
-                    : translateText("user_setting.off")}
-                </div>
-              </button>
-
-              <div class="border-t border-slate-600 pt-3 mt-4">
-                <button
-                  class="flex gap-3 items-center w-full text-left p-3 hover:bg-red-600/20 rounded-sm text-red-400 transition-colors"
-                  @click="${this.onExitButtonClick}"
-                >
-                  <img src=${exitIcon} alt="exitIcon" width="20" height="20" />
-                  <div class="flex-1">
-                    <div class="font-medium">
-                      ${translateText("user_setting.exit_game_label")}
-                    </div>
-                    <div class="text-sm text-slate-400">
-                      ${translateText("user_setting.exit_game_info")}
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </ui-surface-body>
-        </ui-surface>
-      </div>
+        <hud-modal-header>
+          <span class="flex items-center gap-2">
+            <hud-icon
+              .src=${settingsIcon}
+              label="Settings"
+              size="lg"
+            ></hud-icon>
+            ${translateText("user_setting.tab_basic")}
+          </span>
+        </hud-modal-header>
+        <hud-modal-body style="--hud-surface-body-padding: 10px">
+          <hud-scroll-area style="--hud-scroll-area-max-height: 68vh">
+            ${this.renderVolumeSetting({
+              icon: musicIcon,
+              iconLabel: "Music",
+              title: translateText("user_setting.background_music_volume"),
+              value: this.userSettings.backgroundMusicVolume(),
+              onInput: (event) => this.onVolumeChange(event),
+            })}
+            ${this.renderVolumeSetting({
+              icon: musicIcon,
+              iconLabel: "Sound effects",
+              title: translateText("user_setting.sound_effects_volume"),
+              value: this.userSettings.soundEffectsVolume(),
+              onInput: (event) => this.onSoundEffectsVolumeChange(event),
+            })}
+            ${this.renderSettingAction({
+              icon: treeIcon,
+              iconLabel: "Terrain",
+              title: translateText("user_setting.toggle_terrain"),
+              description: translateText("user_setting.toggle_view_desc"),
+              value: this.onOff(this.alternateView),
+              onClick: () => this.onTerrainButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: emojiIcon,
+              iconLabel: "Emojis",
+              title: translateText("user_setting.emojis_label"),
+              description: translateText("user_setting.emojis_desc"),
+              value: this.onOff(this.userSettings.emojis()),
+              onClick: () => this.onToggleEmojisButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: darkModeIcon,
+              iconLabel: "Dark mode",
+              title: translateText("user_setting.dark_mode_label"),
+              description: translateText("user_setting.dark_mode_desc"),
+              value: this.onOff(this.userSettings.darkMode()),
+              onClick: () => this.onToggleDarkModeButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: explosionIcon,
+              iconLabel: "Special effects",
+              title: translateText("user_setting.special_effects_label"),
+              description: translateText("user_setting.special_effects_desc"),
+              value: this.onOff(this.userSettings.fxLayer()),
+              onClick: () => this.onToggleSpecialEffectsButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: sirenIcon,
+              iconLabel: "Alert frame",
+              title: translateText("user_setting.alert_frame_label"),
+              description: translateText("user_setting.alert_frame_desc"),
+              value: this.onOff(this.userSettings.alertFrame()),
+              onClick: () => this.onToggleAlertFrameButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: structureIcon,
+              iconLabel: "Structure sprites",
+              title: translateText("user_setting.structure_sprites_label"),
+              description: translateText("user_setting.structure_sprites_desc"),
+              value: this.onOff(this.userSettings.structureSprites()),
+              onClick: () => this.onToggleStructureSpritesButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: swordIcon,
+              iconLabel: "Attack overlay",
+              title: translateText(
+                "user_setting.attacking_troops_overlay_label",
+              ),
+              description: translateText(
+                "user_setting.attacking_troops_overlay_desc",
+              ),
+              value: this.onOff(this.userSettings.attackingTroopsOverlay()),
+              onClick: () => this.onToggleAttackingTroopsOverlayButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: cursorPriceIcon,
+              iconLabel: "Cursor cost",
+              title: translateText("user_setting.cursor_cost_label_label"),
+              description: translateText("user_setting.cursor_cost_label_desc"),
+              value: this.onOff(this.userSettings.cursorCostLabel()),
+              onClick: () => this.onToggleCursorCostLabelButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: ninjaIcon,
+              iconLabel: "Anonymous names",
+              title: translateText("user_setting.anonymous_names_label"),
+              description: translateText("user_setting.anonymous_names_desc"),
+              value: this.onOff(this.userSettings.anonymousNames()),
+              onClick: () => this.onToggleRandomNameModeButtonClick(),
+            })}
+            ${this.renderSettingAction({
+              icon: mouseIcon,
+              iconLabel: "Left click menu",
+              title: translateText("user_setting.left_click_menu"),
+              description: translateText("user_setting.left_click_desc"),
+              value: this.onOff(this.userSettings.leftClickOpensMenu()),
+              onClick: () => this.onToggleLeftClickOpensMenu(),
+            })}
+            ${this.renderSettingAction({
+              icon: settingsIcon,
+              iconLabel: "Performance overlay",
+              title: translateText("user_setting.performance_overlay_label"),
+              description: translateText(
+                "user_setting.performance_overlay_desc",
+              ),
+              value: this.onOff(this.userSettings.performanceOverlay()),
+              onClick: () => this.onTogglePerformanceOverlayButtonClick(),
+            })}
+            <hud-divider></hud-divider>
+            ${this.renderSettingAction({
+              icon: exitIcon,
+              iconLabel: "Exit",
+              title: translateText("user_setting.exit_game_label"),
+              description: translateText("user_setting.exit_game_info"),
+              onClick: () => this.onExitButtonClick(),
+              tone: "danger",
+            })}
+          </hud-scroll-area>
+        </hud-modal-body>
+      </hud-modal-shell>
     `;
   }
 }

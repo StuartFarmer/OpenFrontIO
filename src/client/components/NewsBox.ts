@@ -4,7 +4,7 @@ import type { NewsItem } from "../../core/ApiSchemas";
 import { getNews } from "../Api";
 import { renderMarkdownInline } from "../NewsMarkdown";
 import { translateText } from "../Utils";
-import "./ui";
+import "../hud/ui";
 
 export type { NewsItem };
 
@@ -118,20 +118,20 @@ export class NewsBox extends LitElement {
     const item = this.items[this.activeIndex];
 
     return html`
-      <ui-surface
+      <hud-surface
         class="block"
-        style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(15, 23, 42, 0.72); --ui-surface-border: rgba(255, 255, 255, 0.1);"
+        style="--hud-radius: 12px; --hud-surface-shadow: none; --hud-surface-bg: rgba(15, 23, 42, 0.72); --hud-surface-border: rgba(255, 255, 255, 0.1);"
       >
-        <ui-surface-body style="--ui-surface-body-padding: 0.5rem 0.75rem;">
+        <hud-surface-body style="--hud-surface-body-padding: 0.5rem 0.75rem;">
           <div class="flex items-center gap-3">
-            <ui-pill
+            <hud-pill
               class="shrink-0"
               tone=${typeLabelTones[item.type] ??
               typeLabelTones["announcement"]}
-              style="--ui-pill-font-size: 10px; --ui-pill-padding: 0.125rem 0.5rem;"
+              style="--hud-pill-font-size: 10px; --hud-pill-padding: 0.125rem 0.5rem;"
               >${translateText(
                 typeLabelKeys[item.type] ?? typeLabelKeys["announcement"],
-              )}</ui-pill
+              )}</hud-pill
             >
             <div class="flex-1 min-w-0">
               ${item.url
@@ -160,24 +160,28 @@ export class NewsBox extends LitElement {
                   <div class="flex gap-1 shrink-0">
                     ${this.items.map(
                       (_, i) => html`
-                        <button
+                        <hud-icon-button
                           @click=${() => this.goTo(i)}
-                          class="w-1.5 h-1.5 rounded-full transition-colors ${i ===
-                          this.activeIndex
-                            ? "bg-white/60"
-                            : "bg-white/20 hover:bg-white/40"}"
-                          aria-label="${translateText("news_box.go_to_item", {
+                          style="--hud-icon-button-size: 12px; --hud-button-border-color: transparent; --hud-button-background: transparent; --hud-button-hover-background: transparent;"
+                          label="${translateText("news_box.go_to_item", {
                             num: i + 1,
                           })}"
-                        ></button>
+                        >
+                          <span
+                            class="block w-1.5 h-1.5 rounded-full transition-colors ${i ===
+                            this.activeIndex
+                              ? "bg-white/60"
+                              : "bg-white/20 hover:bg-white/40"}"
+                          ></span>
+                        </hud-icon-button>
                       `,
                     )}
                   </div>
                 `
               : nothing}
-            <ui-icon-button
+            <hud-icon-button
               size="xs"
-              variant="ghost"
+              variant="default"
               label=${translateText("news_box.dismiss")}
               @click=${() => this.dismiss(item.id)}
             >
@@ -191,10 +195,10 @@ export class NewsBox extends LitElement {
                   d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
                 />
               </svg>
-            </ui-icon-button>
+            </hud-icon-button>
           </div>
-        </ui-surface-body>
-      </ui-surface>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 }

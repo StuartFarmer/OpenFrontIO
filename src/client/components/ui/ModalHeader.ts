@@ -1,5 +1,5 @@
 import { html, TemplateResult } from "lit";
-import "./UiComponents";
+import "../../hud/ui";
 
 export interface ModalHeaderProps {
   title?: string | TemplateResult;
@@ -28,6 +28,8 @@ const DEFAULT_TITLE_CLASS =
 const withClasses = (...classes: Array<string | undefined>) =>
   classes.filter(Boolean).join(" ");
 
+// Function helper retained for legacy modal bodies that render their own
+// section layout. New modal shells should use <hud-modal-header> directly.
 export const modalHeader = ({
   title,
   titleContent,
@@ -52,11 +54,11 @@ export const modalHeader = ({
   return html`
     <div class="${wrapperClass}">
       <div class="${leftClass}">
-        <ui-icon-button
+        <hud-icon-button
           @click=${onBack}
           class="${buttonClass}"
           label="${ariaLabel}"
-          variant="ghost"
+          variant="default"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -72,7 +74,7 @@ export const modalHeader = ({
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-        </ui-icon-button>
+        </hud-icon-button>
         ${titleContent ??
         html`<span class="${resolvedTitleClass}">${title}</span>`}
       </div>

@@ -14,9 +14,8 @@ import { TileRef } from "../../game/GameMap";
 import type { ResourceStockpile } from "../../game/Resources";
 import { Cluster } from "../../game/TrainStation";
 import { PseudoRandom } from "../../PseudoRandom";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever } from "../../Util";
-import { ConstructionExecution } from "../ConstructionExecution";
-import { UpgradeStructureExecution } from "../UpgradeStructureExecution";
 import { closestTile, closestTwoTiles } from "../Util";
 import { randTerritoryTileArray } from "./NationUtils";
 
@@ -138,12 +137,15 @@ export class NationStructureBehavior {
   private _hasHighStartingGold: boolean | null = null;
   private _postSaveUpStartTick: number | null = null;
   private lowResourcePressureChecks = 0;
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
     private game: Game,
     private player: Player,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   handleStructures(): boolean {
     // Defense posts are handled outside the normal pacing/counter system:
@@ -222,9 +224,7 @@ export class NationStructureBehavior {
     );
     for (const tile of tiles) {
       if (!player.canBuild(UnitType.DefensePost, tile)) continue;
-      this.game.addExecution(
-        new ConstructionExecution(player, UnitType.DefensePost, tile),
-      );
+      this.commandSurface.buildUnit(player, UnitType.DefensePost, tile);
       return true;
     }
     return false;
@@ -714,7 +714,7 @@ export class NationStructureBehavior {
     if (canBuild === false) {
       return false;
     }
-    game.addExecution(new ConstructionExecution(this.player, type, tile));
+    this.commandSurface.buildUnit(this.player, type, tile);
     return true;
   }
 
@@ -771,8 +771,9 @@ export class NationStructureBehavior {
     const structureToUpgrade = this.findBestStructureToUpgrade(structures);
     if (structureToUpgrade !== null) {
       //canUpgradeUnit already checked in findBestStructureToUpgrade and again in UpgradeStructureExecution
-      this.game.addExecution(
-        new UpgradeStructureExecution(this.player, structureToUpgrade.id()),
+      this.commandSurface.upgradeStructure(
+        this.player,
+        structureToUpgrade.id(),
       );
       return true;
     }

@@ -12,10 +12,10 @@ import "./components/baseComponents/Modal";
 import { BaseModal } from "./components/BaseModal";
 import "./components/GameConfigSettings";
 import "./components/ToggleInputCard";
-import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import { getPlayerCosmetics } from "./Cosmetics";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
+import "./hud/ui";
 import { JoinLobbyEvent } from "./Main";
 import { UsernameInput } from "./UsernameInput";
 import {
@@ -127,16 +127,16 @@ export class SinglePlayerModal extends BaseModal {
     if (crazyGamesSDK.isOnCrazyGames()) {
       return html``;
     }
-    return html`<ui-button
-      variant="ghost"
+    return html`<hud-button
+      variant="default"
       size="sm"
       label=${translateText("single_modal.sign_in_for_achievements")}
-      style="--ui-button-min-height: 2rem;"
+      style="--hud-button-min-height: 2rem;"
       @click=${() => {
         this.close();
         window.showPage?.("page-account");
       }}
-    ></ui-button>`;
+    ></hud-button>`;
   }
 
   private applyAchievements(userMe: UserMeResponse | false) {
@@ -173,24 +173,24 @@ export class SinglePlayerModal extends BaseModal {
       onBack: () => this.close(),
       ariaLabel: translateText("common.back"),
       rightContent: hasLinkedAccount(this.userMeResponse)
-        ? html`<ui-button
+        ? html`<hud-button
             @click=${this.toggleAchievements}
-            variant="ghost"
+            variant="default"
             size="sm"
             label=${translateText("single_modal.toggle_achievements")}
-            style="--ui-button-min-height: 2.25rem;"
+            style="--hud-button-min-height: 2.25rem;"
           >
-            <img
+            <hud-icon
               slot="icon"
-              src=${assetUrl("images/MedalIconWhite.svg")}
-              class="w-4 h-4 opacity-80 shrink-0"
-              style="${this.showAchievements ? "" : "filter: grayscale(1);"}"
-            />
+              .src=${assetUrl("images/MedalIconWhite.svg")}
+              size="sm"
+              tone=${this.showAchievements ? "default" : "muted"}
+            ></hud-icon>
             <span
               class="text-xs font-bold uppercase tracking-wider whitespace-nowrap"
               >${translateText("single_modal.toggle_achievements")}</span
             >
-          </ui-button>`
+          </hud-button>`
         : this.renderNotLoggedInBanner(),
     });
   }
@@ -338,15 +338,15 @@ export class SinglePlayerModal extends BaseModal {
         <div class="p-6 border-t border-white/10 bg-black/20">
           ${
             hasLinkedAccount(this.userMeResponse) && this.hasOptionsChanged()
-              ? html`<ui-alert tone="warning" class="block mb-4">
+              ? html`<hud-alert tone="orange" class="block mb-4">
                   ${translateText(
                     "single_modal.options_changed_no_achievements",
                   )}
-                </ui-alert>`
+                </hud-alert>`
               : null
           }
           <o-button
-            variant="primary"
+            variant="active"
             width="block"
             size="lg"
             translationKey="single_modal.start"

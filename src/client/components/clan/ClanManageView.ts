@@ -14,10 +14,10 @@ import {
   promoteMember,
   updateClan,
 } from "../../ClanApi";
+import "../../hud/ui";
 import { translateText } from "../../Utils";
 import "../ConfirmDialog";
 import "../CopyButton";
-import "../ui";
 import {
   type ClanRole,
   defaultOrderForSort,
@@ -334,7 +334,7 @@ export class ClanManageView extends LitElement {
               class="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2"
               >${translateText("clan_modal.clan_name")}</label
             >
-            <ui-input
+            <hud-input
               type="text"
               .value=${this.manageName}
               @input=${(e: Event) =>
@@ -342,16 +342,16 @@ export class ClanManageView extends LitElement {
                   e.target as HTMLElement & { value: string }
                 ).value)}
               maxlength="35"
-              style="--ui-input-radius: 12px"
+              style="--hud-input-radius: 12px"
               label=${translateText("clan_modal.clan_name")}
-            ></ui-input>
+            ></hud-input>
           </div>
           <div>
             <label
               class="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2"
               >${translateText("clan_modal.description")}</label
             >
-            <ui-textarea
+            <hud-textarea
               .value=${this.manageDescription}
               @input=${(e: Event) =>
                 (this.manageDescription = (
@@ -359,9 +359,9 @@ export class ClanManageView extends LitElement {
                 ).value)}
               maxlength="200"
               rows="3"
-              style="--ui-input-radius: 12px; --ui-textarea-min-height: 84px"
+              style="--hud-input-radius: 12px; --hud-textarea-min-height: 84px"
               label=${translateText("clan_modal.description")}
-            ></ui-textarea>
+            ></hud-textarea>
           </div>
           <div class="flex items-center justify-between">
             <div>
@@ -372,24 +372,25 @@ export class ClanManageView extends LitElement {
                 ${translateText("clan_modal.open_clan_desc")}
               </div>
             </div>
-            <ui-toggle
+            <hud-toggle
               label=${translateText("clan_modal.open_clan")}
               .checked=${this.manageIsOpen}
               @change=${(e: Event) =>
                 (this.manageIsOpen = Boolean(
                   (e.target as HTMLElement & { checked?: boolean }).checked,
                 ))}
-            ></ui-toggle>
+            ></hud-toggle>
           </div>
-          <button
+          <hud-button
             @click=${() => this.handleSaveSettings()}
             ?disabled=${this.saving}
-            class="w-full px-6 py-3 text-sm font-bold text-white uppercase tracking-wider bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80 rounded-xl transition-all disabled:opacity-50"
+            variant="primary"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px;"
           >
             ${this.saving
               ? translateText("clan_modal.saving")
               : translateText("clan_modal.save_changes")}
-          </button>
+          </hud-button>
         </div>
 
         <!-- Member Management -->
@@ -441,7 +442,7 @@ export class ClanManageView extends LitElement {
           >
             ${translateText("clan_modal.danger_zone")}
           </h3>
-          <button
+          <hud-button
             @click=${() =>
               this.dispatchEvent(
                 new CustomEvent("navigate-bans", {
@@ -449,13 +450,14 @@ export class ClanManageView extends LitElement {
                   composed: true,
                 }),
               )}
-            class="w-full px-6 py-3 text-sm font-bold text-red-400 uppercase tracking-wider bg-red-600/20 hover:bg-red-600/30 rounded-xl transition-all border border-red-500/30"
+            variant="danger"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: rgba(220,38,38,0.2); --hud-button-hover-background: rgba(220,38,38,0.3); --hud-button-border-color: rgba(239,68,68,0.3);"
           >
             ${translateText("clan_modal.banned_players")}
-          </button>
+          </hud-button>
           ${this.myRole === "leader"
             ? html`
-                <button
+                <hud-button
                   @click=${() =>
                     this.dispatchEvent(
                       new CustomEvent("navigate-transfer", {
@@ -463,20 +465,22 @@ export class ClanManageView extends LitElement {
                         composed: true,
                       }),
                     )}
-                  class="w-full px-6 py-3 text-sm font-bold text-amber-400 uppercase tracking-wider bg-amber-600/20 hover:bg-amber-600/30 rounded-xl transition-all border border-amber-500/30"
+                  variant="active"
+                  style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: rgba(217,119,6,0.2); --hud-button-hover-background: rgba(217,119,6,0.3); --hud-button-border-color: rgba(245,158,11,0.3); --hud-button-color: #fbbf24;"
                 >
                   ${translateText("clan_modal.transfer_leadership")}
-                </button>
-                <button
+                </hud-button>
+                <hud-button
                   @click=${() => {
                     this.confirmAction = "disband";
                     this.confirmTargetId = null;
                   }}
                   ?disabled=${this.confirmAction === "disband"}
-                  class="w-full px-6 py-3 text-sm font-bold text-red-400 uppercase tracking-wider bg-red-600/20 hover:bg-red-600/30 rounded-xl transition-all border border-red-500/30 disabled:opacity-50 disabled:pointer-events-none"
+                  variant="danger"
+                  style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: rgba(220,38,38,0.2); --hud-button-hover-background: rgba(220,38,38,0.3); --hud-button-border-color: rgba(239,68,68,0.3);"
                 >
                   ${translateText("clan_modal.disband_clan")}
-                </button>
+                </hud-button>
               `
             : ""}
         </div>
@@ -527,47 +531,50 @@ export class ClanManageView extends LitElement {
           </span>
           <div class="flex items-center gap-1.5 ml-auto flex-wrap justify-end">
             ${canPromote
-              ? html`<button
+              ? html`<hud-button
                   @click=${() => this.handlePromote(member.publicId)}
                   ?disabled=${this.memberActionPending}
-                  class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400/70 border border-purple-500/20 hover:bg-purple-500/20 hover:text-purple-400 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                  variant="active"
+                  style="--hud-button-padding: 2px 8px; --hud-button-radius: 9999px; --hud-button-background: rgba(168,85,247,0.1); --hud-button-hover-background: rgba(168,85,247,0.2); --hud-button-border-color: rgba(168,85,247,0.2); --hud-button-color: rgba(192,132,252,0.85);"
                 >
                   ${translateText("clan_modal.promote")}
-                </button>`
+                </hud-button>`
               : ""}
             ${canDemote
-              ? html`<button
+              ? html`<hud-button
                   @click=${() => this.handleDemote(member.publicId)}
                   ?disabled=${this.memberActionPending}
-                  class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                  style="--hud-button-padding: 2px 8px; --hud-button-radius: 9999px; --hud-button-background: rgba(255,255,255,0.05); --hud-button-hover-background: rgba(255,255,255,0.1); --hud-button-border-color: rgba(255,255,255,0.1); --hud-button-color: rgba(255,255,255,0.55);"
                 >
                   ${translateText("clan_modal.demote")}
-                </button>`
+                </hud-button>`
               : ""}
             ${canModerate
               ? html`
-                  <button
+                  <hud-button
                     @click=${() => {
                       this.confirmAction = "kick";
                       this.confirmTargetId = member.publicId;
                     }}
                     ?disabled=${this.memberActionPending ||
                     this.confirmAction !== null}
-                    class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-400/70 border border-red-500/20 hover:bg-red-500/20 hover:text-red-400 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                    variant="danger"
+                    style="--hud-button-padding: 2px 8px; --hud-button-radius: 9999px; --hud-button-background: rgba(239,68,68,0.1); --hud-button-hover-background: rgba(239,68,68,0.2); --hud-button-border-color: rgba(239,68,68,0.2); --hud-button-color: rgba(248,113,113,0.85);"
                   >
                     ${translateText("clan_modal.kick")}
-                  </button>
-                  <button
+                  </hud-button>
+                  <hud-button
                     @click=${() => {
                       this.confirmAction = "ban";
                       this.confirmTargetId = member.publicId;
                     }}
                     ?disabled=${this.memberActionPending ||
                     this.confirmAction !== null}
-                    class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-400/70 border border-red-500/20 hover:bg-red-500/20 hover:text-red-400 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                    variant="danger"
+                    style="--hud-button-padding: 2px 8px; --hud-button-radius: 9999px; --hud-button-background: rgba(239,68,68,0.1); --hud-button-hover-background: rgba(239,68,68,0.2); --hud-button-border-color: rgba(239,68,68,0.2); --hud-button-color: rgba(248,113,113,0.85);"
                   >
                     ${translateText("clan_modal.ban")}
-                  </button>
+                  </hud-button>
                 `
               : ""}
           </div>

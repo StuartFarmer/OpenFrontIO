@@ -1,6 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { assetUrl } from "../core/AssetUrls";
+import "./hud/ui";
 import "./LanguageModal";
 import { LanguageModal } from "./LanguageModal";
 import { formatDebugTranslation } from "./Utils";
@@ -353,11 +354,12 @@ export class LangSelector extends LitElement {
           });
 
     return html`
-      <button
+      <hud-icon-button
         id="lang-selector"
-        title="Change Language"
+        label="Change Language"
         @click=${this.openModal}
-        class="border-none bg-none cursor-pointer p-0 flex items-center justify-center transition-transform duration-200 hover:scale-[1.1] active:scale-[0.9] opacity-60 hover:opacity-100 w-[40px] h-[40px] lg:w-[56px] lg:h-[56px]"
+        class="transition-transform duration-200 hover:scale-[1.1] active:scale-[0.9] opacity-60 hover:opacity-100"
+        style="--hud-icon-button-size: 40px; --hud-button-border-color: transparent; --hud-button-background: transparent; --hud-button-hover-background: transparent;"
       >
         <img
           id="lang-flag"
@@ -366,7 +368,7 @@ export class LangSelector extends LitElement {
           alt="flag"
           draggable="false"
         />
-      </button>
+      </hud-icon-button>
     `;
   }
 }

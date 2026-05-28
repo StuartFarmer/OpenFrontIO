@@ -1,12 +1,13 @@
 import { LitElement, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { FlagName } from "../core/Schemas";
 import {
   FLAG_KEY,
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
 } from "../core/game/UserSettings";
+import { FlagName } from "../core/Schemas";
 import { resolveFlagUrl } from "./Cosmetics";
+import "./hud/ui";
 import { translateText } from "./Utils";
 
 @customElement("flag-input")
@@ -71,9 +72,10 @@ export class FlagInput extends LitElement {
       : translateText("flag_input.button_title");
 
     return html`
-      <button
+      <hud-button
         id="flag-input"
-        class="flag-btn p-0 m-0 border-0 w-full h-full flex cursor-pointer justify-center items-center focus:outline-none focus:ring-0 transition-all duration-200 hover:scale-105 bg-surface hover:brightness-[1.08] active:brightness-[0.95] hover:shadow-[var(--shadow-action-card-hover)] rounded-lg overflow-hidden"
+        class="flag-btn m-0 w-full h-full transition-all duration-200 hover:scale-105 active:brightness-[0.95] overflow-hidden"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 100%; --hud-button-min-height: 100%; --hud-button-padding: 0; --hud-button-radius: 8px; --hud-button-border-color: transparent; --hud-button-background: var(--surface-color, rgba(15,23,42,0.72)); --hud-button-hover-background: rgba(30,41,59,0.9);"
         title=${buttonTitle}
         @click=${this.onInputClick}
       >
@@ -88,7 +90,7 @@ export class FlagInput extends LitElement {
               ${translateText("flag_input.title")}
             </span>`
           : null}
-      </button>
+      </hud-button>
     `;
   }
 

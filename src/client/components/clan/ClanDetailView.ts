@@ -13,6 +13,7 @@ import {
   joinClan,
   leaveClan,
 } from "../../ClanApi";
+import "../../hud/ui";
 import { translateText } from "../../Utils";
 import "../ConfirmDialog";
 import "../CopyButton";
@@ -346,7 +347,7 @@ export class ClanDetailView extends LitElement {
 
   private renderRequestsButton() {
     return html`
-      <button
+      <hud-button
         @click=${() =>
           this.dispatchEvent(
             new CustomEvent("navigate-requests", {
@@ -355,6 +356,7 @@ export class ClanDetailView extends LitElement {
             }),
           )}
         class="w-full flex items-center justify-between bg-amber-500/10 hover:bg-amber-500/15 rounded-xl border border-amber-500/20 p-4 transition-all cursor-pointer group"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 16px; --hud-button-radius: 12px; --hud-button-background: rgba(245,158,11,0.1); --hud-button-hover-background: rgba(245,158,11,0.15); --hud-button-border-color: rgba(245,158,11,0.2); --hud-button-justify-content: space-between; --hud-button-text-align: left;"
       >
         <div class="flex items-center gap-3">
           <div
@@ -407,7 +409,7 @@ export class ClanDetailView extends LitElement {
             />
           </svg>
         </div>
-      </button>
+      </hud-button>
     `;
   }
 
@@ -432,15 +434,15 @@ export class ClanDetailView extends LitElement {
           <h3 class="text-sm font-bold text-white/60 uppercase tracking-wider">
             ${translateText("clan_modal.members")}
           </h3>
-          <button
-            type="button"
+          <hud-button
             @click=${() => this.toggleAllStats()}
-            class="text-[10px] font-bold text-white/50 hover:text-white uppercase tracking-wider px-2 py-1 rounded-md border border-white/10 hover:border-white/20 hover:bg-white/5 transition-colors"
+            class="text-[10px] font-bold uppercase tracking-wider"
+            style="--hud-button-padding: 4px 8px;"
             title=${toggleLabel}
             aria-pressed=${this.allStatsExpanded}
           >
             ${toggleLabel}
-          </button>
+          </hud-button>
         </div>
         ${renderMemberSearchInput(
           (e: Event) => this.onSearchInput(e),
@@ -479,48 +481,55 @@ export class ClanDetailView extends LitElement {
     const buttons: ReturnType<typeof html>[] = [];
     if (!isMember && hasPendingRequest) {
       buttons.push(html`
-        <button
+        <hud-button
           disabled
-          class="flex-1 px-6 py-3 text-sm font-bold text-white/40 uppercase tracking-wider bg-white/5 rounded-xl border border-white/10 cursor-not-allowed"
+          class="flex-1"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px;"
         >
           ${translateText("clan_modal.request_pending")}
-        </button>
+        </hud-button>
       `);
     } else if (!isMember && clan.isOpen) {
       buttons.push(html`
-        <button
+        <hud-button
           @click=${() => this.handleJoin()}
           ?disabled=${this.actionPending}
-          class="flex-1 px-6 py-3 text-sm font-bold text-white uppercase tracking-wider bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80 rounded-xl transition-all disabled:opacity-50 disabled:pointer-events-none"
+          class="flex-1"
+          variant="primary"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px;"
         >
           ${translateText("clan_modal.join_clan")}
-        </button>
+        </hud-button>
       `);
     } else if (!isMember && !clan.isOpen) {
       buttons.push(html`
-        <button
+        <hud-button
           @click=${() => this.handleJoin()}
           ?disabled=${this.actionPending}
-          class="flex-1 px-6 py-3 text-sm font-bold text-white uppercase tracking-wider bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 rounded-xl transition-all shadow-lg hover:shadow-amber-900/40 border border-white/5 disabled:opacity-50 disabled:pointer-events-none"
+          class="flex-1"
+          variant="active"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: linear-gradient(90deg, rgb(217,119,6), rgb(180,83,9)); --hud-button-hover-background: linear-gradient(90deg, rgb(245,158,11), rgb(217,119,6)); --hud-button-border-color: rgba(255,255,255,0.08);"
         >
           ${translateText("clan_modal.request_invite")}
-        </button>
+        </hud-button>
       `);
     }
     if (isMember && !isLeader) {
       buttons.push(html`
-        <button
+        <hud-button
           @click=${() => this.handleLeave()}
           ?disabled=${this.actionPending}
-          class="flex-1 px-6 py-3 text-sm font-bold text-white/70 uppercase tracking-wider bg-red-600/30 hover:bg-red-600/50 rounded-xl transition-all border border-red-500/30 disabled:opacity-50 disabled:pointer-events-none"
+          class="flex-1"
+          variant="danger"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: rgba(220,38,38,0.3); --hud-button-hover-background: rgba(220,38,38,0.5); --hud-button-border-color: rgba(239,68,68,0.3);"
         >
           ${translateText("clan_modal.leave_clan")}
-        </button>
+        </hud-button>
       `);
     }
     if (isLeader || isOfficer) {
       buttons.push(html`
-        <button
+        <hud-button
           @click=${() =>
             this.dispatchEvent(
               new CustomEvent("navigate-manage", {
@@ -528,10 +537,11 @@ export class ClanDetailView extends LitElement {
                 composed: true,
               }),
             )}
-          class="flex-1 px-6 py-3 text-sm font-bold text-white uppercase tracking-wider bg-white/10 hover:bg-white/15 rounded-xl transition-all border border-white/10"
+          class="flex-1"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px;"
         >
           ${translateText("clan_modal.manage_clan")}
-        </button>
+        </hud-button>
       `);
     }
     return buttons;

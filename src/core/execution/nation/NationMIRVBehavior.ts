@@ -11,8 +11,8 @@ import {
 } from "../../game/Game";
 import { TileRef } from "../../game/GameMap";
 import { PseudoRandom } from "../../PseudoRandom";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever } from "../../Util";
-import { MirvExecution } from "../MIRVExecution";
 import { calculateTerritoryCenter } from "../Util";
 import {
   EMOJI_NUKE,
@@ -28,13 +28,16 @@ export class NationMIRVBehavior {
   // Tracks the last tick a MIRV was sent at each player, so multiple nations don't pile-on the same target.
   // Especially important for games with very high starting gold settings.
   private static recentMirvTargets = new Map<PlayerID, Tick>();
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
     private game: Game,
     private player: Player,
     private emojiBehavior: NationEmojiBehavior,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   private get hesitationOdds(): number {
     const { difficulty } = this.game.config().gameConfig();
@@ -284,7 +287,7 @@ export class NationMIRVBehavior {
 
     const centerTile = this.calculateTerritoryCenter(enemy);
     if (centerTile && this.player.canBuild(UnitType.MIRV, centerTile)) {
-      this.game.addExecution(new MirvExecution(this.player, centerTile));
+      this.commandSurface.sendMirv(this.player, centerTile);
       this.recordMirvHit(enemy);
       this.emojiBehavior.sendEmoji(AllPlayers, EMOJI_NUKE);
       respondToMIRV(this.game, this.random, enemy);

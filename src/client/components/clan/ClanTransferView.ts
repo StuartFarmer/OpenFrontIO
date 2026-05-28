@@ -7,6 +7,7 @@ import {
   fetchClanMembers,
   transferLeadership,
 } from "../../ClanApi";
+import "../../hud/ui";
 import { translateText } from "../../Utils";
 import "../ConfirmDialog";
 import "../CopyButton";
@@ -155,15 +156,21 @@ export class ClanTransferView extends LitElement {
         <div class="space-y-2">
           ${filterMembersBySearch(nonLeaders, this.memberSearch).map(
             (m) => html`
-              <button
+              <hud-list-row
+                interactive
+                ?selected=${this.transferTarget === m.publicId}
                 @click=${() => (this.transferTarget = m.publicId)}
-                class="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl border cursor-pointer transition-all text-left focus:outline-none focus:ring-2 focus:ring-amber-500/50
-                      ${this.transferTarget === m.publicId
-                  ? "bg-amber-500/10 border-amber-500/20"
-                  : "bg-white/5 border-white/10 hover:bg-white/10"}"
                 aria-selected=${this.transferTarget === m.publicId}
+                style="grid-template-columns: auto minmax(0, 1fr) auto auto; min-height: 44px; border-radius: 12px; border: 1px solid ${this
+                  .transferTarget === m.publicId
+                  ? "rgba(245,158,11,0.2)"
+                  : "rgba(255,255,255,0.1)"}; background: ${this
+                  .transferTarget === m.publicId
+                  ? "rgba(245,158,11,0.1)"
+                  : "rgba(255,255,255,0.05)"};"
               >
                 <div
+                  slot="leading"
                   class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/50 text-xs font-bold shrink-0"
                 >
                   ${renderRoleIcon(m.role)}
@@ -187,6 +194,7 @@ export class ClanTransferView extends LitElement {
                 </span>
                 ${this.transferTarget === m.publicId
                   ? html`<svg
+                      slot="actions"
                       xmlns="http://www.w3.org/2000/svg"
                       class="w-5 h-5 text-amber-400 shrink-0"
                       fill="none"
@@ -201,7 +209,7 @@ export class ClanTransferView extends LitElement {
                       />
                     </svg>`
                   : ""}
-              </button>
+              </hud-list-row>
             `,
           )}
         </div>
@@ -212,12 +220,24 @@ export class ClanTransferView extends LitElement {
             )
           : ""}
 
-        <button
+        <hud-button
           @click=${() => (this.confirmAction = "transfer")}
-          class="w-full px-6 py-3 text-sm font-bold text-white uppercase tracking-wider rounded-xl transition-all border disabled:opacity-50 disabled:pointer-events-none
-                ${this.transferTarget && !this.actionPending
-            ? "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 shadow-lg hover:shadow-amber-900/40 border-white/5"
-            : "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"}"
+          variant=${this.transferTarget && !this.actionPending
+            ? "active"
+            : "default"}
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 12px 24px; --hud-button-radius: 12px; --hud-button-background: ${this
+            .transferTarget && !this.actionPending
+            ? "linear-gradient(90deg, rgb(217,119,6), rgb(180,83,9))"
+            : "rgba(255,255,255,0.05)"}; --hud-button-hover-background: ${this
+            .transferTarget && !this.actionPending
+            ? "linear-gradient(90deg, rgb(245,158,11), rgb(217,119,6))"
+            : "rgba(255,255,255,0.05)"}; --hud-button-border-color: ${this
+            .transferTarget && !this.actionPending
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(255,255,255,0.1)"}; --hud-button-color: ${this
+            .transferTarget && !this.actionPending
+            ? "#fff"
+            : "rgba(255,255,255,0.3)"};"
           ?disabled=${!this.transferTarget || this.actionPending}
         >
           ${this.transferTarget
@@ -225,7 +245,7 @@ export class ClanTransferView extends LitElement {
                 name: this.transferTarget,
               })
             : translateText("clan_modal.select_new_leader")}
-        </button>
+        </hud-button>
       </div>
     `;
   }

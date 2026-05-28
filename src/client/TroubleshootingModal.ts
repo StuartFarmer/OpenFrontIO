@@ -46,7 +46,7 @@ export class TroubleshootingModal extends BaseModal {
           / ${translateText("troubleshooting.title")}
         </span>
         <o-button
-          variant="primary"
+          variant="active"
           size="sm"
           translationKey="common.copy"
           @click=${this.copyDiagnostics}

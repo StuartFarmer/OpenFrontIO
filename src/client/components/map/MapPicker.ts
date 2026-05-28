@@ -7,7 +7,7 @@ import {
   mapCategories,
 } from "../../../core/game/Game";
 import { translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 import "./MapDisplay";
 const randomMap = assetUrl("images/RandomMap.webp");
 
@@ -58,9 +58,10 @@ export class MapPicker extends LitElement {
       ([_, value]) => value === mapValue,
     )?.[0];
     return html`
-      <div
+      <hud-button
         @click=${() => this.handleMapSelection(mapValue)}
-        class="cursor-pointer"
+        aria-pressed=${!this.useRandomMap && this.selectedMap === mapValue}
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 100%; --hud-button-padding: 0; --hud-button-radius: 12px; --hud-button-border-color: transparent; --hud-button-background: transparent; --hud-button-hover-background: transparent;"
       >
         <map-display
           .mapKey=${mapKey}
@@ -69,7 +70,7 @@ export class MapPicker extends LitElement {
           .wins=${this.getWins(mapValue)}
           .translation=${translateText(`map.${mapKey?.toLowerCase()}`)}
         ></map-display>
-      </div>
+      </hud-button>
     `;
   }
 
@@ -114,33 +115,31 @@ export class MapPicker extends LitElement {
     return html`
       <div class="space-y-8">
         <div class="w-full">
-          <ui-action-group
+          <hud-action-group
             role="tablist"
             aria-label="${translateText("map.map")}"
             class="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-black/20 p-1"
-            style="--ui-action-gap: 0.5rem;"
+            style="--hud-action-gap: 0.5rem;"
           >
-            <ui-button
-              type="button"
+            <hud-button
               role="tab"
               aria-selected=${!this.showAllMaps}
               variant=${this.showAllMaps ? "ghost" : "primary"}
-              size="sm"
-              width="block"
-              label=${translateText("map.featured")}
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
               @click=${() => (this.showAllMaps = false)}
-            ></ui-button>
-            <ui-button
-              type="button"
+            >
+              ${translateText("map.featured")}
+            </hud-button>
+            <hud-button
               role="tab"
               aria-selected=${this.showAllMaps}
               variant=${this.showAllMaps ? "primary" : "ghost"}
-              size="sm"
-              width="block"
-              label=${translateText("map.all")}
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
               @click=${() => (this.showAllMaps = true)}
-            ></ui-button>
-          </ui-action-group>
+            >
+              ${translateText("map.all")}
+            </hud-button>
+          </hud-action-group>
         </div>
         ${this.showAllMaps ? this.renderAllMaps() : this.renderFeaturedMaps()}
         <div
@@ -154,12 +153,19 @@ export class MapPicker extends LitElement {
             ${translateText("map_categories.special")}
           </h4>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <button
-              type="button"
+            <hud-button
               class="w-full h-full p-3 flex flex-col items-center justify-between rounded-xl border cursor-pointer transition-all duration-200 active:scale-95 gap-3 group ${this
                 .useRandomMap
                 ? "bg-malibu-blue/20 border-malibu-blue/50 shadow-[var(--shadow-malibu-blue-strong)]"
                 : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:-translate-y-1"}"
+              variant=${this.useRandomMap ? "active" : "default"}
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 100%; --hud-button-padding: 12px; --hud-button-radius: 12px; --hud-button-direction: column; --hud-button-gap: 12px; --hud-button-background: ${this
+                .useRandomMap
+                ? "rgba(14,165,233,0.2)"
+                : "rgba(255,255,255,0.05)"}; --hud-button-hover-background: rgba(255,255,255,0.1); --hud-button-border-color: ${this
+                .useRandomMap
+                ? "rgba(125,211,252,0.5)"
+                : "rgba(255,255,255,0.1)"};"
               @click=${this.handleSelectRandomMap}
             >
               <div
@@ -180,7 +186,7 @@ export class MapPicker extends LitElement {
               >
                 ${translateText("map.random")}
               </div>
-            </button>
+            </hud-button>
           </div>
         </div>
       </div>

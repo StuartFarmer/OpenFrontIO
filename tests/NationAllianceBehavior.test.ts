@@ -2,10 +2,12 @@ import { NationAllianceBehavior } from "../src/core/execution/nation/NationAllia
 import { NationEmojiBehavior } from "../src/core/execution/nation/NationEmojiBehavior";
 import {
   AllianceRequest,
+  Difficulty,
   Game,
   Player,
   PlayerInfo,
   PlayerType,
+  Relation,
   Tick,
 } from "../src/core/game/Game";
 import { PseudoRandom } from "../src/core/PseudoRandom";
@@ -19,6 +21,7 @@ let allianceBehavior: NationAllianceBehavior;
 describe("AllianceBehavior.handleAllianceRequests", () => {
   beforeEach(async () => {
     game = await setup("big_plains", {
+      difficulty: Difficulty.Impossible,
       infiniteGold: true,
       instantBuild: true,
     });
@@ -78,7 +81,7 @@ describe("AllianceBehavior.handleAllianceRequests", () => {
       }
     });
 
-    vi.spyOn(player, "alliances").mockReturnValue(new Array(alliancesCount));
+    vi.spyOn(requestor, "alliances").mockReturnValue(new Array(alliancesCount));
 
     const mockRequest = {
       requestor: () => requestor,
@@ -122,7 +125,14 @@ describe("AllianceBehavior.handleAllianceRequests", () => {
   });
 
   test("should reject alliance if relation is hostile", () => {
-    const request = setupAllianceRequest({ relationDelta: -2 });
+    const request = setupAllianceRequest({
+      relationDelta: -60,
+      numTilesPlayer: 100,
+      numTilesRequestor: 1,
+    });
+    player.setTroops(10_000);
+    requestor.setTroops(0);
+    vi.spyOn(player, "relation").mockReturnValue(Relation.Hostile);
 
     allianceBehavior.handleAllianceRequests();
 
@@ -141,7 +151,7 @@ describe("AllianceBehavior.handleAllianceRequests", () => {
     expect(request.reject).not.toHaveBeenCalled();
   });
 
-  test("should reject alliance if player has too many alliances", () => {
+  test("should reject alliance if requestor has too many alliances", () => {
     const request = setupAllianceRequest({ alliancesCount: 10 });
 
     allianceBehavior.handleAllianceRequests();

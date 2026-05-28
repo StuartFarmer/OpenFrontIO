@@ -14,6 +14,7 @@ import {
 import { TileRef } from "../game/GameMap";
 import { PseudoRandom } from "../PseudoRandom";
 import { GameID } from "../Schemas";
+import { AiCommandSurface } from "../systems/commands/AiCommandSurface";
 import { assertNever, simpleHash } from "../Util";
 import { NationAllianceBehavior } from "./nation/NationAllianceBehavior";
 import { NationEmojiBehavior } from "./nation/NationEmojiBehavior";
@@ -21,7 +22,6 @@ import { NationMIRVBehavior } from "./nation/NationMIRVBehavior";
 import { NationNukeBehavior } from "./nation/NationNukeBehavior";
 import { NationStructureBehavior } from "./nation/NationStructureBehavior";
 import { NationWarshipBehavior } from "./nation/NationWarshipBehavior";
-import { SpawnExecution } from "./SpawnExecution";
 import { AiAttackBehavior } from "./utils/AiAttackBehavior";
 
 export class NationExecution implements Execution {
@@ -38,6 +38,7 @@ export class NationExecution implements Execution {
   private structureBehavior!: NationStructureBehavior;
   private mg: Game;
   private player: Player | null = null;
+  private commandSurface!: AiCommandSurface;
 
   private attackRate: number;
   private attackTick: number;
@@ -61,6 +62,7 @@ export class NationExecution implements Execution {
 
   init(mg: Game) {
     this.mg = mg;
+    this.commandSurface = new AiCommandSurface(mg);
     this.attackRate = this.getAttackRate();
     this.attackTick = this.random.nextInt(0, this.attackRate);
 
@@ -117,9 +119,7 @@ export class NationExecution implements Execution {
       }
       // Place nations without a spawn cell (Dynamically created for HumansVsNations) randomly by SpawnExecution
       if (this.nation.spawnCell === undefined) {
-        this.mg.addExecution(
-          new SpawnExecution(this.gameID, this.nation.playerInfo),
-        );
+        this.commandSurface.spawnPlayer(this.gameID, this.nation.playerInfo);
         this.spawnExecAdded = true;
         return;
       }
@@ -137,9 +137,7 @@ export class NationExecution implements Execution {
             cell.y >= area.y &&
             cell.y < area.y + area.height;
           if (!inArea) {
-            this.mg.addExecution(
-              new SpawnExecution(this.gameID, this.nation.playerInfo),
-            );
+            this.commandSurface.spawnPlayer(this.gameID, this.nation.playerInfo);
             this.spawnExecAdded = true;
             return;
           }
@@ -154,9 +152,7 @@ export class NationExecution implements Execution {
         return;
       }
 
-      this.mg.addExecution(
-        new SpawnExecution(this.gameID, this.nation.playerInfo, rl),
-      );
+      this.commandSurface.spawnPlayer(this.gameID, this.nation.playerInfo, rl);
       this.spawnExecAdded = true;
       return;
     }

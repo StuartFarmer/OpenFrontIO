@@ -14,6 +14,7 @@ import {
 import type { LangSelector } from "../../LangSelector";
 import { translateText } from "../../Utils";
 import { FrameProfiler } from "../FrameProfiler";
+import "../ui";
 
 @customElement("performance-overlay")
 export class PerformanceOverlay extends LitElement implements Controller {
@@ -1178,17 +1179,36 @@ export class PerformanceOverlay extends LitElement implements Controller {
           class="drag-handle"
           @pointerdown=${this.handleDragPointerDown}
         ></div>
-        <button class="reset-button" @click="${this.handleReset}">
+        <hud-button
+          class="reset-button"
+          size="xs"
+          variant="default"
+          label=${this.uiText.reset}
+          style="--hud-button-min-height: 20px; --hud-button-radius: 4px;"
+          @click=${this.handleReset}
+        >
           ${this.uiText.reset}
-        </button>
-        <button
+        </hud-button>
+        <hud-button
           class="copy-json-button"
-          @click="${this.handleCopyJson}"
+          size="xs"
+          variant="default"
+          label=${copyLabel}
+          @click=${this.handleCopyJson}
           title="${this.uiText.copyJsonTitle}"
+          style="--hud-button-min-height: 20px; --hud-button-radius: 4px;"
         >
           ${copyLabel}
-        </button>
-        <button class="close-button" @click="${this.handleClose}">×</button>
+        </hud-button>
+        <hud-icon-button
+          class="close-button"
+          size="xs"
+          variant="default"
+          label="Close"
+          style="--hud-icon-button-size: 20px; --hud-icon-button-radius: 4px;"
+          @click=${this.handleClose}
+          >×</hud-icon-button
+        >
         <div
           class="resize-handle"
           @pointerdown=${this.handleResizePointerDown}
@@ -1234,15 +1254,19 @@ export class PerformanceOverlay extends LitElement implements Controller {
             ? html`<div class="layers-section">
                 <div class="performance-line section-header">
                   <span>${this.uiText.layersHeader}</span>
-                  <button
+                  <hud-icon-button
                     class="collapse-button"
                     @click=${this.toggleRenderLayersExpanded}
+                    label=${this.renderLayersExpanded
+                      ? this.uiText.collapse
+                      : this.uiText.expand}
                     title=${this.renderLayersExpanded
                       ? this.uiText.collapse
                       : this.uiText.expand}
+                    style="--hud-icon-button-size: 22px; --hud-icon-button-radius: 4px;"
                   >
                     ${this.renderLayersExpanded ? "▾" : "▸"}
-                  </button>
+                  </hud-icon-button>
                 </div>
                 <div class="performance-line">
                   ${translateText("performance_overlay.render_layers_summary", {
@@ -1292,15 +1316,19 @@ export class PerformanceOverlay extends LitElement implements Controller {
             ? html`<div class="layers-section">
                 <div class="performance-line section-header">
                   <span>${this.uiText.tickLayersHeader}</span>
-                  <button
+                  <hud-icon-button
                     class="collapse-button"
                     @click=${this.toggleTickLayersExpanded}
+                    label=${this.tickLayersExpanded
+                      ? this.uiText.collapse
+                      : this.uiText.expand}
                     title=${this.tickLayersExpanded
                       ? this.uiText.collapse
                       : this.uiText.expand}
+                    style="--hud-icon-button-size: 22px; --hud-icon-button-radius: 4px;"
                   >
                     ${this.tickLayersExpanded ? "▾" : "▸"}
-                  </button>
+                  </hud-icon-button>
                 </div>
                 <div class="performance-line">
                   ${translateText("performance_overlay.tick_layers_summary", {

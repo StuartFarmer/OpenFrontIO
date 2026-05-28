@@ -10,6 +10,7 @@ import {
   GameStartInfo,
   PublicGameInfo,
 } from "../core/Schemas";
+import { generateID } from "../core/Util";
 import { GameEnv } from "../core/configuration/Config";
 import { GameType } from "../core/game/Game";
 import {
@@ -46,6 +47,7 @@ import "./UsernameInput";
 import { genAnonUsername, UsernameInput } from "./UsernameInput";
 import { incrementGamesPlayed, translateText } from "./Utils";
 import { installSafariPinchZoomBlocker } from "./utilities/DisableSafariPinchZoom";
+import { createQuickGameStartInfo } from "./utilities/QuickGame";
 
 import "./components/DesktopNavBar";
 import "./components/Footer";
@@ -155,6 +157,7 @@ class Client {
   private gameModeSelector: GameModeSelector | null = null;
   private userSettings: UserSettings = new UserSettings();
   private mostRecentJoinEvent: number;
+  private quickGameLaunchInProgress = false;
 
   private turnstileTokenPromise: Promise<{
     token: string;
@@ -436,6 +439,10 @@ class Client {
       console.log(`joining lobby ${lobbyId}`);
       return;
     }
+    if (this.isQuickGameRoute(decodedHash)) {
+      this.startQuickGame();
+      return;
+    }
     if (modalRouter.routeFromHash()) {
       return;
     }
@@ -445,12 +452,50 @@ class Client {
     }
   }
 
+  private isQuickGameRoute(decodedHash: string): boolean {
+    return (
+      window.location.pathname === "/quick-game" ||
+      decodedHash === "#quick-game"
+    );
+  }
+
+  private startQuickGame() {
+    if (this.quickGameLaunchInProgress || this.lobbyHandle !== null) {
+      return;
+    }
+    this.quickGameLaunchInProgress = true;
+
+    const clientID = generateID();
+    const gameID = generateID();
+    const username = this.usernameInput?.getUsername() || genAnonUsername();
+    const clanTag = this.usernameInput?.getClanTag() ?? null;
+
+    document.dispatchEvent(
+      new CustomEvent("join-lobby", {
+        detail: {
+          gameID,
+          gameStartInfo: createQuickGameStartInfo({
+            gameID,
+            clientID,
+            username,
+            clanTag,
+          }),
+          source: "singleplayer",
+        } satisfies JoinLobbyEvent,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   private async handleJoinLobby(event: CustomEvent<JoinLobbyEvent>) {
     const lobby = event.detail;
     this.mostRecentJoinEvent = event.timeStamp;
     const isSandbox =
       lobby.source === "sandbox" ||
       lobby.gameStartInfo?.config.isSandbox === true;
+    const isSinglePlayer =
+      lobby.gameStartInfo?.config.gameType === GameType.Singleplayer;
     if (this.usernameInput && !this.usernameInput.validateOrShowError()) {
       return;
     }
@@ -471,7 +516,7 @@ class Client {
       });
     }
     // Only update URL immediately for private lobbies, not public ones
-    if (lobby.source !== "public" && !isSandbox) {
+    if (lobby.source !== "public" && !isSandbox && !isSinglePlayer) {
       this.updateJoinUrlForShare(lobby.gameID);
     }
     const auth = isSandbox ? false : await userAuth();
@@ -571,7 +616,7 @@ class Client {
       }
       document.body.classList.add("in-game");
 
-      if (!isSandbox) {
+      if (!isSandbox && !isSinglePlayer) {
         // Ensure there's a homepage entry in history before adding the lobby entry
         if (window.location.hash === "" || window.location.hash === "#") {
           history.replaceState(null, "", window.location.origin + "#refresh");
@@ -610,6 +655,7 @@ class Client {
     console.log("leaving lobby, cancelling game");
     this.lobbyHandle.stop(true);
     this.lobbyHandle = null;
+    this.quickGameLaunchInProgress = false;
     this.eventBus = new EventBus();
     this.currentUrl = null;
 
@@ -724,6 +770,11 @@ const isHudKitRoute = () =>
   window.location.pathname === "/hud-kit.html" ||
   window.location.search.includes("hud-kit");
 
+const isUiKitRoute = () =>
+  window.location.pathname === "/ui-kit" ||
+  window.location.pathname === "/ui-kit.html" ||
+  window.location.search.includes("ui-kit");
+
 const isHudLiveDemoRoute = () =>
   window.location.pathname === "/hud-live-demo" ||
   window.location.pathname === "/hud-live-demo.html" ||
@@ -757,12 +808,22 @@ const isWarBattleSystemsSandboxRoute = () =>
   window.location.pathname === "/war-battle-sandbox" ||
   window.location.search.includes("war-battle-sandbox");
 
+const isQuickGameTuningSandboxRoute = () =>
+  window.location.pathname === "/sandbox/quick-game" ||
+  window.location.pathname === "/quick-game-tuning" ||
+  window.location.search.includes("quick-game-tuning");
+
 const renderHudDemo = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
 
 const renderHudKit = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
+};
+
+const renderUiKit = async () => {
+  await import("./components/ui/UiKitPage");
+  document.body.innerHTML = "<hud-ui-review-page></hud-ui-review-page>";
 };
 
 const renderHudLiveDemo = () => {
@@ -774,11 +835,10 @@ const renderHudPanels = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
 
-const renderSandbox = async () => {
-  await import("./sandbox/SandboxBalancer");
+const renderSandboxShell = (sandboxTag: string) => {
   removeExistingGameSurfaces();
   document.body.innerHTML = `
-    <sandbox-balancer></sandbox-balancer>
+    <${sandboxTag}></${sandboxTag}>
     <lang-selector style="display: none"></lang-selector>
     <div id="app"></div>
     <div
@@ -827,6 +887,16 @@ const renderSandbox = async () => {
   `;
 };
 
+const renderSandbox = async () => {
+  await import("./sandbox/SandboxBalancer");
+  renderSandboxShell("sandbox-balancer");
+};
+
+const renderQuickGameTuningSandbox = async () => {
+  await import("./sandbox/QuickGameTuningSandbox");
+  renderSandboxShell("quick-game-tuning-sandbox");
+};
+
 const renderFoodSystemsSandbox = async () => {
   await import("./sandbox/FoodSystemsSandbox");
   removeExistingGameSurfaces();
@@ -849,6 +919,13 @@ const renderWarBattleSystemsSandbox = async () => {
 
 // Initialize the client when the DOM is loaded
 const bootstrap = async () => {
+  if (isQuickGameTuningSandboxRoute()) {
+    await renderQuickGameTuningSandbox();
+    installSafariPinchZoomBlocker();
+    new Client().initializeSandbox();
+    return;
+  }
+
   if (isWarBattleSystemsSandboxRoute()) {
     await renderWarBattleSystemsSandbox();
     return;
@@ -873,6 +950,11 @@ const bootstrap = async () => {
 
   if (isHudKitRoute()) {
     renderHudKit();
+    return;
+  }
+
+  if (isUiKitRoute()) {
+    await renderUiKit();
     return;
   }
 

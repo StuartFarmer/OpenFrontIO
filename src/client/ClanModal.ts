@@ -16,6 +16,7 @@ import "./components/clan/ClanTransferView";
 import "./components/ConfirmDialog";
 import "./components/CopyButton";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 import { translateText } from "./Utils";
 
 type View =
@@ -397,12 +398,13 @@ export class ClanModal extends BaseModal {
           <p class="text-white/40 text-sm mb-4">
             ${translateText("clan_modal.no_clans")}
           </p>
-          <button
+          <hud-button
             @click=${() => (this.activeTab = "browse")}
-            class="px-6 py-2 text-sm font-bold text-white uppercase tracking-wider bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80 rounded-lg transition-all"
+            variant="primary"
+            style="--hud-button-padding: 8px 24px; --hud-button-radius: 8px;"
           >
             ${translateText("clan_modal.browse")}
-          </button>
+          </hud-button>
         </div>
       `;
     }
@@ -427,9 +429,10 @@ export class ClanModal extends BaseModal {
   private renderPendingRequestsButton() {
     const count = this.myPendingRequests.length;
     return html`
-      <button
+      <hud-button
         @click=${() => (this.view = "my-requests")}
         class="w-full flex items-center justify-between bg-amber-500/10 hover:bg-amber-500/15 rounded-xl border border-amber-500/20 p-4 transition-all cursor-pointer group"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 16px; --hud-button-radius: 12px; --hud-button-background: rgba(245,158,11,0.1); --hud-button-hover-background: rgba(245,158,11,0.15); --hud-button-border-color: rgba(245,158,11,0.2); --hud-button-justify-content: space-between; --hud-button-text-align: left;"
       >
         <div class="flex items-center gap-3">
           <div
@@ -482,7 +485,7 @@ export class ClanModal extends BaseModal {
             />
           </svg>
         </div>
-      </button>
+      </hud-button>
     `;
   }
 }

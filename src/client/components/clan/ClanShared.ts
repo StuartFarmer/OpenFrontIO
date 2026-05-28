@@ -8,7 +8,7 @@ import type {
   ClanStats,
 } from "../../ClanApi";
 import { showToast, translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 import "./ClanStatsBreakdown";
 export { renderLoadingSpinner } from "../BaseModal";
 export { showToast };
@@ -71,28 +71,30 @@ export function renderRoleIcon(role: string): TemplateResult {
 }
 
 export function renderStat(label: string, value: string): TemplateResult {
-  return html`<ui-stat style="--ui-stat-padding: 16px; --ui-stat-radius: 12px">
+  return html`<hud-stat
+    style="--hud-stat-padding: 16px; --hud-stat-radius: 12px"
+  >
     <span slot="label">${label}</span>
     ${value}
-  </ui-stat>`;
+  </hud-stat>`;
 }
 
 export function renderClanWL(stats: ClanStats): TemplateResult | string {
   if (stats.games === 0) return "";
   return html`
-    <ui-surface
+    <hud-surface
       tone="muted"
-      style="--ui-radius: 12px; --ui-surface-shadow: none"
+      style="--hud-radius: 12px; --hud-surface-shadow: none"
     >
-      <ui-surface-body style="--ui-surface-body-padding: 20px">
+      <hud-surface-body style="--hud-surface-body-padding: 20px">
         <div class="space-y-3">
           <h3 class="text-sm font-bold text-white/60 uppercase tracking-wider">
             ${translateText("clan_modal.statistics")}
           </h3>
           <clan-stats-breakdown .stats=${stats.stats}></clan-stats-breakdown>
         </div>
-      </ui-surface-body>
-    </ui-surface>
+      </hud-surface-body>
+    </hud-surface>
   `;
 }
 
@@ -103,41 +105,41 @@ function renderPaginationButtons(
 ): TemplateResult {
   return html`
     <div class="flex items-center gap-1">
-      <ui-button
+      <hud-button
         size="xs"
-        variant="ghost"
+        variant="default"
         @click=${() => onPageChange(1)}
         ?disabled=${currentPage <= 1}
       >
         &lt;&lt;
-      </ui-button>
-      <ui-button
+      </hud-button>
+      <hud-button
         size="xs"
-        variant="ghost"
+        variant="default"
         @click=${() => onPageChange(Math.max(1, currentPage - 1))}
         ?disabled=${currentPage <= 1}
       >
         &lt;
-      </ui-button>
+      </hud-button>
       <span class="text-xs text-white/50 font-medium px-1">
         ${currentPage} / ${totalPages}
       </span>
-      <ui-button
+      <hud-button
         size="xs"
-        variant="ghost"
+        variant="default"
         @click=${() => onPageChange(Math.min(totalPages, currentPage + 1))}
         ?disabled=${currentPage >= totalPages}
       >
         &gt;
-      </ui-button>
-      <ui-button
+      </hud-button>
+      <hud-button
         size="xs"
-        variant="ghost"
+        variant="default"
         @click=${() => onPageChange(totalPages)}
         ?disabled=${currentPage >= totalPages}
       >
         &gt;&gt;
-      </ui-button>
+      </hud-button>
     </div>
   `;
 }
@@ -163,13 +165,13 @@ export function renderMemberSearchInput(
 ): TemplateResult {
   const input = html`
     <div class="relative w-full sm:flex-1 sm:min-w-0">
-      <ui-input
+      <hud-input
         type="text"
         class="w-full"
-        style="--ui-input-radius: 12px"
+        style="--hud-input-radius: 12px"
         @input=${onInput}
         placeholder=${translateText(placeholderKey)}
-      ></ui-input>
+      ></hud-input>
     </div>
   `;
   if (!trailing) {
@@ -232,9 +234,9 @@ export function renderMemberSortControl(
       >
         ${translateText("clan_modal.sort_by")}
       </label>
-      <ui-select
+      <hud-select
         class="flex-1 sm:flex-none"
-        style="min-width: 12rem; --ui-input-radius: 12px"
+        style="min-width: 12rem; --hud-input-radius: 12px"
         label=${translateText("clan_modal.sort_by")}
         .value=${sort}
         .options=${sortOptions.map((opt) => ({
@@ -246,17 +248,17 @@ export function renderMemberSortControl(
             (e.target as HTMLElement & { value: string })
               .value as ClanMemberSort,
           )}
-      ></ui-select>
-      <ui-button
+      ></hud-select>
+      <hud-button
         size="sm"
-        variant="ghost"
+        variant="default"
         type="button"
         @click=${onOrderToggle}
         title=${orderLabel}
         aria-label=${orderLabel}
       >
         ${renderOrderIcon(order)}
-      </ui-button>
+      </hud-button>
     </div>
   `;
 }
@@ -285,13 +287,13 @@ export function renderMemberPagination(
         </span>
         ${perPageOptions.map(
           (opt) => html`
-            <ui-button
+            <hud-button
               size="xs"
               variant=${membersPerPage === opt ? "primary" : "ghost"}
               @click=${() => onPerPageChange(opt)}
             >
               ${opt}
-            </ui-button>
+            </hud-button>
           `,
         )}
       </div>
@@ -375,12 +377,12 @@ export function renderMemberRow(
 ): TemplateResult {
   const isMe = member.publicId === myPublicId;
   return html`
-    <ui-list-row
+    <hud-list-row
       class="flex flex-col rounded-xl border
         ${isMe
         ? "bg-malibu-blue/10 border-malibu-blue/20"
         : "bg-white/5 border-white/10"}"
-      style="--ui-list-row-padding: 10px 12px; flex-direction: column; align-items: stretch"
+      style="--hud-list-row-padding: 10px 12px; flex-direction: column; align-items: stretch"
     >
       <div class="flex items-center gap-3">
         <div
@@ -412,7 +414,7 @@ export function renderMemberRow(
         </div>
       </div>
       ${renderMemberStats(member.stats)}
-    </ui-list-row>
+    </hud-list-row>
   `;
 }
 

@@ -4,6 +4,7 @@ import { translateText } from "../client/Utils";
 import { assetUrl } from "../core/AssetUrls";
 import { BaseModal } from "./components/BaseModal";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 
 interface LanguageOption {
   code: string;
@@ -48,22 +49,27 @@ export class LanguageModal extends BaseModal {
             const isActive = this.currentLang === lang.code;
             const isDebug = lang.code === "debug";
 
-            let buttonClasses =
-              "relative group rounded-xl border transition-all duration-200 flex items-center p-3 gap-3 w-full cursor-pointer";
+            let buttonClasses = "group w-full transition-all duration-200";
+            let buttonStyle =
+              "--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 58px; --hud-button-radius: 12px; --hud-button-padding: 12px; --hud-button-gap: 12px; --hud-button-justify-content: flex-start; --hud-button-text-align: left;";
 
             if (isDebug) {
-              buttonClasses +=
-                " animate-pulse font-bold text-white border-2 border-dashed border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-gradient-to-r from-red-600 via-yellow-600 via-green-600 via-blue-600 to-purple-600";
+              buttonClasses += " animate-pulse font-bold";
+              buttonStyle +=
+                " --hud-button-border-color: rgb(34,211,238); --hud-button-background: linear-gradient(90deg, rgb(220,38,38), rgb(202,138,4), rgb(22,163,74), rgb(37,99,235), rgb(147,51,234)); --hud-button-hover-background: linear-gradient(90deg, rgb(239,68,68), rgb(234,179,8), rgb(34,197,94), rgb(59,130,246), rgb(168,85,247));";
             } else if (isActive) {
-              buttonClasses += " bg-malibu-blue/20 border-malibu-blue/50";
+              buttonStyle +=
+                " --hud-button-border-color: rgba(125,211,252,0.5); --hud-button-background: rgba(14,165,233,0.2);";
             } else {
-              buttonClasses +=
-                " bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20";
+              buttonStyle +=
+                " --hud-button-border-color: rgba(255,255,255,0.1); --hud-button-background: rgba(255,255,255,0.05); --hud-button-hover-background: rgba(255,255,255,0.1);";
             }
 
             return html`
-              <button
+              <hud-button
                 class="${buttonClasses}"
+                variant=${isActive ? "active" : "default"}
+                style=${buttonStyle}
                 @click=${() => this.selectLanguage(lang.code)}
               >
                 <img
@@ -102,7 +108,7 @@ export class LanguageModal extends BaseModal {
                       </div>
                     `
                   : ""}
-              </button>
+              </hud-button>
             `;
           })}
         </div>

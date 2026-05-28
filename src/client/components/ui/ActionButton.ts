@@ -1,5 +1,5 @@
 import { html, TemplateResult } from "lit";
-import "./UiComponents";
+import "../../hud/ui";
 
 export type ButtonVariant =
   | "normal"
@@ -18,8 +18,8 @@ export interface ActionButtonProps {
   disabled?: boolean;
 }
 
-const ICON_SIZE =
-  "h-5 w-5 shrink-0 transition-transform group-hover:scale-110 text-zinc-400";
+// Shared helper retained for player-panel style action grids. It composes
+// <hud-button> but keeps the existing icon+label call-site shape stable.
 const TEXT_SIZE =
   "text-base sm:text-[14px] leading-5 font-semibold tracking-tight";
 
@@ -54,10 +54,10 @@ export const actionButton = (props: ActionButtonProps): TemplateResult => {
   const buttonStyles = getButtonStyles();
   const buttonClass = buttonStyles[type];
   const variant =
-    type === "red" ? "danger" : type === "normal" ? "default" : "ghost";
+    type === "red" ? "danger" : type === "normal" ? "default" : "active";
 
   return html`
-    <ui-button
+    <hud-button
       @click=${onClick}
       stacked
       variant=${variant}
@@ -67,14 +67,14 @@ export const actionButton = (props: ActionButtonProps): TemplateResult => {
       label="${title}"
       ?disabled=${disabled}
     >
-      <img
+      <hud-icon
         slot="icon"
-        src=${icon}
-        alt=${iconAlt}
-        aria-hidden="true"
-        class="${ICON_SIZE}"
-      />
+        .src=${icon}
+        label=${iconAlt}
+        size="md"
+        tone="muted"
+      ></hud-icon>
       <span class="${TEXT_SIZE}">${label}</span>
-    </ui-button>
+    </hud-button>
   `;
 };

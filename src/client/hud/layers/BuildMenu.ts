@@ -31,6 +31,7 @@ import {
 import { UIState } from "../../UIState";
 import { renderNumber } from "../../Utils";
 import { renderResourceCostText } from "../ResourceDisplay";
+import "../ui";
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
@@ -208,8 +209,11 @@ export class BuildMenu extends LitElement implements Controller {
       flex-wrap: wrap;
       width: 100%;
     }
-    .build-button {
+    hud-button.build-button {
       position: relative;
+      margin: 8px;
+    }
+    hud-button.build-button::part(button) {
       width: 120px;
       height: 140px;
       border: 2px solid #444;
@@ -222,29 +226,28 @@ export class BuildMenu extends LitElement implements Controller {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      margin: 8px;
       padding: 10px;
       gap: 5px;
     }
-    .build-button:not(:disabled):hover {
+    hud-button.build-button:not([disabled]):hover::part(button) {
       background-color: #3a3a3a;
       transform: scale(1.05);
       border-color: #666;
     }
-    .build-button:not(:disabled):active {
+    hud-button.build-button:not([disabled]):active::part(button) {
       background-color: #4a4a4a;
       transform: scale(0.95);
     }
-    .build-button:disabled {
+    hud-button.build-button[disabled]::part(button) {
       background-color: #1a1a1a;
       border-color: #333;
       cursor: not-allowed;
       opacity: 0.7;
     }
-    .build-button:disabled img {
+    hud-button.build-button[disabled] hud-mask-icon {
       opacity: 0.5;
     }
-    .build-button:disabled .build-cost {
+    hud-button.build-button[disabled] .build-cost {
       color: #ff4444;
     }
     .build-icon {
@@ -278,14 +281,14 @@ export class BuildMenu extends LitElement implements Controller {
       align-content: center;
       border: 1px solid #444;
     }
-    .build-button:not(:disabled):hover > .build-count-chip {
+    hud-button.build-button:not([disabled]):hover > .build-count-chip {
       background-color: #3a3a3a;
       border-color: #666;
     }
-    .build-button:not(:disabled):active > .build-count-chip {
+    hud-button.build-button:not([disabled]):active > .build-count-chip {
       background-color: #4a4a4a;
     }
-    .build-button:disabled > .build-count-chip {
+    hud-button.build-button[disabled] > .build-count-chip {
       background-color: #1a1a1a;
       border-color: #333;
       cursor: not-allowed;
@@ -301,12 +304,14 @@ export class BuildMenu extends LitElement implements Controller {
         max-height: 80vh;
         width: 80vw;
       }
-      .build-button {
+      hud-button.build-button::part(button) {
         width: 140px;
         height: 120px;
-        margin: 4px;
         padding: 6px;
         gap: 5px;
+      }
+      hud-button.build-button {
+        margin: 4px;
       }
       .build-icon {
         font-size: 28px;
@@ -332,12 +337,14 @@ export class BuildMenu extends LitElement implements Controller {
         padding: 8px;
         max-height: 70vh;
       }
-      .build-button {
+      hud-button.build-button::part(button) {
         width: calc(50% - 6px);
         height: 100px;
-        margin: 3px;
         padding: 4px;
         border-width: 1px;
+      }
+      hud-button.build-button {
+        margin: 3px;
       }
       .build-icon {
         font-size: 24px;
@@ -356,9 +363,8 @@ export class BuildMenu extends LitElement implements Controller {
       .build-count-chip {
         padding: 0 3px;
       }
-      .build-button img {
-        width: 24px;
-        height: 24px;
+      hud-button.build-button hud-mask-icon {
+        --hud-mask-icon-size: 24px;
       }
       .build-cost img {
         width: 10px;
@@ -428,67 +434,71 @@ export class BuildMenu extends LitElement implements Controller {
 
   render() {
     return html`
-      <div
+      <hud-surface
         class="build-menu ${this._hidden ? "hidden" : ""}"
+        style="--hud-surface-bg: #1e1e1e; --hud-radius: 10px; --hud-surface-body-padding: 0;"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        ${this.filteredBuildTable.map(
-          (row) => html`
-            <div class="build-row">
-              ${row.map((item) => {
-                const buildableUnit = this.playerBuildables?.find(
-                  (bu) => bu.type === item.unitType,
-                );
-                if (buildableUnit === undefined) {
-                  return html``;
-                }
-                const enabled =
-                  buildableUnit.canBuild !== false ||
-                  buildableUnit.canUpgrade !== false;
-                return html`
-                  <button
-                    class="build-button"
-                    @click=${() =>
-                      this.sendBuildOrUpgrade(buildableUnit, this.clickedTile)}
-                    ?disabled=${!enabled}
-                    title=${!enabled
-                      ? translateText("build_menu.not_enough_money")
-                      : ""}
-                  >
-                    ${item.icon
-                      ? html`<img
-                          src=${item.icon}
-                          alt="${item.unitType}"
-                          width="40"
-                          height="40"
-                        />`
-                      : html`<span class="letter-icon" aria-hidden="true"
-                          >${item.label}</span
-                        >`}
-                    <span class="build-name"
-                      >${item.key && translateText(item.key)}</span
+        <hud-surface-body style="--hud-surface-body-padding: 0;">
+          ${this.filteredBuildTable.map(
+            (row) => html`
+              <div class="build-row">
+                ${row.map((item) => {
+                  const buildableUnit = this.playerBuildables?.find(
+                    (bu) => bu.type === item.unitType,
+                  );
+                  if (buildableUnit === undefined) {
+                    return html``;
+                  }
+                  const enabled =
+                    buildableUnit.canBuild !== false ||
+                    buildableUnit.canUpgrade !== false;
+                  return html`
+                    <hud-button
+                      class="build-button"
+                      @click=${() =>
+                        this.sendBuildOrUpgrade(
+                          buildableUnit,
+                          this.clickedTile,
+                        )}
+                      ?disabled=${!enabled}
+                      title=${!enabled
+                        ? translateText("build_menu.not_enough_money")
+                        : ""}
                     >
-                    <span class="build-description"
-                      >${item.description &&
-                      translateText(item.description)}</span
-                    >
-                    <span class="build-cost" translate="no">
-                      ${this.game && this.game.myPlayer()
-                        ? renderResourceCostText(this.resourceCost(item))
-                        : renderNumber(0)}
-                    </span>
-                    ${item.countable
-                      ? html`<div class="build-count-chip">
-                          <span class="build-count">${this.count(item)}</span>
-                        </div>`
-                      : ""}
-                  </button>
-                `;
-              })}
-            </div>
-          `,
-        )}
-      </div>
+                      ${item.icon
+                        ? html`<hud-mask-icon
+                            .src=${item.icon}
+                            size="h-[40px]"
+                          ></hud-mask-icon>`
+                        : html`<span class="letter-icon" aria-hidden="true"
+                            >${item.label}</span
+                          >`}
+                      <span class="build-name"
+                        >${item.key && translateText(item.key)}</span
+                      >
+                      <span class="build-description"
+                        >${item.description &&
+                        translateText(item.description)}</span
+                      >
+                      <span class="build-cost" translate="no">
+                        ${this.game && this.game.myPlayer()
+                          ? renderResourceCostText(this.resourceCost(item))
+                          : renderNumber(0)}
+                      </span>
+                      ${item.countable
+                        ? html`<div class="build-count-chip">
+                            <span class="build-count">${this.count(item)}</span>
+                          </div>`
+                        : ""}
+                    </hud-button>
+                  `;
+                })}
+              </div>
+            `,
+          )}
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 

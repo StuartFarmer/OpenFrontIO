@@ -251,7 +251,11 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
               >${icon.text}</span
             >`
           : icon.kind === IMAGE_ICON_KIND && icon.src
-            ? html`<img src=${icon.src} alt="" class="w-4 h-4 shrink-0" />`
+            ? html`<hud-icon
+                .src=${icon.src}
+                size="sm"
+                tone="inherit"
+              ></hud-icon>`
             : html``,
       )}
     </span>`;
@@ -422,14 +426,12 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
           `}
           label-align="between"
         ></hud-meter>
-        <img
-          src=${soldierIcon}
-          alt=""
-          aria-hidden="true"
-          width="12"
-          height="12"
-          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 brightness-0 invert drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none"
-        />
+        <hud-icon
+          .src=${soldierIcon}
+          size="sm"
+          tone="default"
+          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none"
+        ></hud-icon>
       </span>
     `;
   }

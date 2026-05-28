@@ -189,11 +189,9 @@ describe("WinCheckExecution - Nation Winners", () => {
     // Verify territory distribution
     expect(nation.numTilesOwned()).toBeGreaterThan(human.numTilesOwned());
 
-    // Fast-forward game ticks past timer expiration
     const threshold = (game.config().gameConfig().maxTimerValue ?? 0) * 600;
-    while (game.ticks() < threshold) {
-      game.executeNextTick();
-    }
+    vi.spyOn(game, "ticks").mockReturnValue(threshold);
+    vi.spyOn(game, "elapsedGameSeconds").mockReturnValue(threshold / 10);
 
     // Mock setWinner to capture calls
     const setWinnerSpy = vi.fn();

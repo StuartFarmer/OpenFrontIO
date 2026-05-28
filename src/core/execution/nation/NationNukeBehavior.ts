@@ -14,9 +14,8 @@ import {
 import { TileRef, euclDistFN } from "../../game/GameMap";
 import { UniversalPathFinding } from "../../pathfinding/PathFinder";
 import { PseudoRandom } from "../../PseudoRandom";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever, boundingBoxTiles } from "../../Util";
-import { NukeExecution } from "../NukeExecution";
-import { UpgradeStructureExecution } from "../UpgradeStructureExecution";
 import { closestTwoTiles } from "../Util";
 import { AiAttackBehavior } from "../utils/AiAttackBehavior";
 import { EMOJI_NUKE, NationEmojiBehavior } from "./NationEmojiBehavior";
@@ -46,6 +45,7 @@ export class NationNukeBehavior {
   private hydrogenBombPerceivedCost = this.cost(UnitType.HydrogenBomb);
   // Make 1/3 of nations "hydro-nations" that only throw hydrogen bombs (to reduce atom bomb spam)
   private readonly isHydroNation: boolean = this.random.chance(3);
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
@@ -53,7 +53,9 @@ export class NationNukeBehavior {
     private player: Player,
     private attackBehavior: AiAttackBehavior,
     private emojiBehavior: NationEmojiBehavior,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   maybeSendNuke() {
     const silos = this.player.units(UnitType.MissileSilo);
@@ -765,9 +767,7 @@ export class NationNukeBehavior {
       this.hydrogenBombPerceivedCost =
         (this.hydrogenBombPerceivedCost * 125n) / 100n;
     }
-    this.game.addExecution(
-      new NukeExecution(nukeType, this.player, tile, null, -1, waitTicks),
-    );
+    this.commandSurface.sendNuke(nukeType, this.player, tile, null, -1, waitTicks);
     this.emojiBehavior.maybeSendEmoji(targetPlayer, EMOJI_NUKE);
   }
 
@@ -1091,9 +1091,7 @@ export class NationNukeBehavior {
     }
 
     if (bestSilo !== null) {
-      this.game.addExecution(
-        new UpgradeStructureExecution(this.player, bestSilo.id()),
-      );
+      this.commandSurface.upgradeStructure(this.player, bestSilo.id());
     }
   }
 

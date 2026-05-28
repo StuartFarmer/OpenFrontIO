@@ -9,8 +9,8 @@ import {
   Tick,
 } from "../../game/Game";
 import { PseudoRandom } from "../../PseudoRandom";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { flattenedEmojiTable } from "../../Util";
-import { EmojiExecution } from "../EmojiExecution";
 
 const emojiId = (e: (typeof flattenedEmojiTable)[number]) =>
   flattenedEmojiTable.indexOf(e);
@@ -47,12 +47,15 @@ export const EMOJI_GREET = (["👋"] as const).map(emojiId);
 export class NationEmojiBehavior {
   private readonly lastEmojiSent = new Map<Player, Tick>();
   private gameOver = false;
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
     private game: Game,
     private player: Player,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   maybeSendCasualEmoji() {
     if (this.gameOver) return;
@@ -249,12 +252,10 @@ export class NationEmojiBehavior {
     if (!this.shouldSendEmoji(otherPlayer, false)) return;
     if (!this.player.canSendEmoji(otherPlayer)) return;
 
-    this.game.addExecution(
-      new EmojiExecution(
-        this.player,
-        otherPlayer === AllPlayers ? AllPlayers : otherPlayer.id(),
-        this.random.randElement(emojisList),
-      ),
+    this.commandSurface.sendEmoji(
+      this.player,
+      otherPlayer === AllPlayers ? AllPlayers : otherPlayer.id(),
+      this.random.randElement(emojisList),
     );
   }
 
@@ -290,23 +291,19 @@ export function respondToEmoji(
 
   if (emojiString === "🖕") {
     recipient.updateRelation(sender, -100);
-    game.addExecution(
-      new EmojiExecution(
-        recipient,
-        sender.id(),
-        random.randElement(EMOJI_GOT_INSULTED),
-      ),
+    new AiCommandSurface(game).sendEmoji(
+      recipient,
+      sender.id(),
+      random.randElement(EMOJI_GOT_INSULTED),
     );
   }
 
   if (emojiString === "🤡") {
     recipient.updateRelation(sender, -10);
-    game.addExecution(
-      new EmojiExecution(
-        recipient,
-        sender.id(),
-        random.randElement(EMOJI_CONFUSED),
-      ),
+    new AiCommandSurface(game).sendEmoji(
+      recipient,
+      sender.id(),
+      random.randElement(EMOJI_CONFUSED),
     );
   }
 
@@ -314,14 +311,12 @@ export function respondToEmoji(
     if (game.config().gameConfig().difficulty === Difficulty.Easy) {
       recipient.updateRelation(sender, 15);
     }
-    game.addExecution(
-      new EmojiExecution(
-        recipient,
-        sender.id(),
-        sender.relation(recipient) >= Relation.Neutral
-          ? random.randElement(EMOJI_LOVE)
-          : random.randElement(EMOJI_CONFUSED),
-      ),
+    new AiCommandSurface(game).sendEmoji(
+      recipient,
+      sender.id(),
+      sender.relation(recipient) >= Relation.Neutral
+        ? random.randElement(EMOJI_LOVE)
+        : random.randElement(EMOJI_CONFUSED),
     );
   }
 }
@@ -334,11 +329,9 @@ export function respondToMIRV(
   if (!random.chance(8)) return;
   if (!mirvTarget.canSendEmoji(AllPlayers)) return;
 
-  game.addExecution(
-    new EmojiExecution(
-      mirvTarget,
-      AllPlayers,
-      random.randElement(EMOJI_OVERWHELMED),
-    ),
+  new AiCommandSurface(game).sendEmoji(
+    mirvTarget,
+    AllPlayers,
+    random.randElement(EMOJI_OVERWHELMED),
   );
 }

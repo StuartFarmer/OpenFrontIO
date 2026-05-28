@@ -8,6 +8,7 @@ import { Emoji, flattenedEmojiTable } from "../../../core/Util";
 import { CloseViewEvent, ShowEmojiMenuEvent } from "../../InputHandler";
 import { TransformHandler } from "../../TransformHandler";
 import { SendEmojiIntentEvent } from "../../Transport";
+import "../ui";
 
 @customElement("emoji-table")
 export class EmojiTable extends LitElement {
@@ -58,9 +59,7 @@ export class EmojiTable extends LitElement {
   private onEmojiClicked: (emoji: string) => void = () => {};
 
   private handleBackdropClick = (e: MouseEvent) => {
-    const panelContent = this.querySelector(
-      'div[class*="bg-zinc-900"]',
-    ) as HTMLElement;
+    const panelContent = this.querySelector("hud-surface") as HTMLElement;
     if (panelContent && !panelContent.contains(e.target as Node)) {
       this.hideTable();
     }
@@ -78,36 +77,42 @@ export class EmojiTable extends LitElement {
       >
         <div class="relative">
           <!-- Close button -->
-          <button
-            class="absolute -top-3 -right-3 w-7 h-7 flex items-center justify-center
-                    bg-zinc-700 hover:bg-red-500 text-white rounded-full shadow-sm transition-colors z-10004"
+          <hud-icon-button
+            class="absolute -top-3 -right-3 z-10004"
+            style="--hud-icon-button-size: 28px; --hud-icon-button-radius: 9999px;"
+            variant="danger"
+            size="sm"
+            label="Close"
             @click=${this.hideTable}
           >
             ✕
-          </button>
+          </hud-icon-button>
 
-          <div
-            class="bg-zinc-900/95 p-2 sm:p-3 rounded-[10px] z-10003 shadow-2xl shadow-black/50 ring-1 ring-white/5
-                   w-[calc(100vw-32px)] sm:w-100 max-h-[calc(100vh-60px)] overflow-y-auto"
+          <hud-surface
+            class="block z-10003 w-[calc(100vw-32px)] sm:w-100 max-h-[calc(100vh-60px)] overflow-y-auto"
+            style="--hud-radius: 10px; --hud-surface-bg: rgba(24,24,27,0.95); --hud-surface-body-padding: 8px;"
             @contextmenu=${(e: MouseEvent) => e.preventDefault()}
             @wheel=${(e: WheelEvent) => e.stopPropagation()}
             @click=${(e: MouseEvent) => e.stopPropagation()}
           >
-            <div class="grid grid-cols-5 gap-1 sm:gap-2">
-              ${flattenedEmojiTable.map(
-                (emoji) => html`
-                  <button
-                    class="flex items-center justify-center cursor-pointer aspect-square
-                           border border-solid border-zinc-600 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600
-                           text-3xl sm:text-4xl transition-transform duration-300 hover:scale-110 active:scale-95"
-                    @click=${() => this.onEmojiClicked(emoji)}
-                  >
-                    ${emoji}
-                  </button>
-                `,
-              )}
-            </div>
-          </div>
+            <hud-surface-body style="--hud-surface-body-padding: 8px;">
+              <div class="grid grid-cols-5 gap-1 sm:gap-2">
+                ${flattenedEmojiTable.map(
+                  (emoji) => html`
+                    <hud-button
+                      width="fill"
+                      class="aspect-square text-3xl sm:text-4xl transition-transform duration-300 hover:scale-110 active:scale-95"
+                      style="--hud-button-min-height: 0; --hud-button-radius: 8px; --hud-button-width: 100%;"
+                      label=${emoji}
+                      @click=${() => this.onEmojiClicked(emoji)}
+                    >
+                      ${emoji}
+                    </hud-button>
+                  `,
+                )}
+              </div>
+            </hud-surface-body>
+          </hud-surface>
         </div>
       </div>
     `;

@@ -33,6 +33,30 @@ Keep `hud-*` components for gameplay-HUD specific concerns:
 
 The migration rule is simple: app screens and normal modals should not import from `src/client/hud/ui`; HUD composites should use `hud-*` when they need gameplay density or semantics, and `ui-*` when they only need a generic button, modal shell, form control, stat, or table.
 
+### Boundary Audit Result
+
+`src/client/hud/ui/HudComponents.ts` intentionally overlaps with generic `ui-*` primitives in several names:
+
+- surface/header/body/footer
+- buttons and action groups
+- pills, labels, stats, tables, list rows, empty/loading states
+- inputs, textareas, selects, ranges, menus, tabs, alerts, toasts, modal shells
+
+This overlap is acceptable because the HUD family encodes the game surface: compact density, monospace/tabular numeric treatment, resource tones, safe-area layout, pointer-event behavior, and specialized rows for attacks, events, units, meters, and resource blending. These should not be replaced by app-level `ui-*` components inside the bottom HUD, sidebars, player info overlay, events feed, attacks display, control panel, or unit display.
+
+Use app-level `ui-*` primitives inside HUD layer files only when the rendered UI is a generic modal/panel/control rather than a HUD-specific composition. Current examples:
+
+- `send-resource-modal`: shared surface, pills, action buttons; keeps its custom capped range.
+- `player-moderation-modal`: shared surface/list shell; keeps gameplay action button composition.
+- `chat-modal` and `settings-modal`: shared inputs, ranges, buttons, and surfaces where they behave like normal dialogs.
+- `emoji-table`, `multi-tab-modal`, `win-modal`, `chat-display`: shared surfaces/buttons/chips for generic modal or feed shell behavior.
+- `performance-overlay`: shared button primitives only for command controls; the draggable/resizable profiler layout remains custom.
+- `build-menu`: shared surface wrapper only; build tiles stay native because they are fixed-format command cards with absolute count badges and gameplay-specific disabled/cost behavior.
+
+Do not add new generic controls under `src/client/hud/ui` unless they require HUD density or gameplay semantics. For normal web UI and account/lobby/settings surfaces, extend `src/client/components/ui` instead.
+
+The app component drift guard lives at `tests/client/components/UiMigrationGuard.test.ts`. It protects `src/client/components` from new raw controls and obvious ad hoc surface styling. Existing legacy files are allowlisted there with the expectation that future work removes entries as those files migrate.
+
 ## Existing HUD Catalog
 
 ### Foundations
@@ -115,29 +139,29 @@ The migration rule is simple: app screens and normal modals should not import fr
 
 ### Complete HUD Components
 
-| Element                                                                                                            | Category                    | Notes                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------- |
-| `control-panel`                                                                                                    | Bottom HUD panel            | Uses many reusable atoms/molecules: segmented control, meters, pills, ranges, blend slider. |
-| `unit-display`                                                                                                     | Bottom HUD command strip    | Uses `hud-unit-display`, `hud-unit-button`, `hud-tooltip`.                                  |
-| `attacks-display`                                                                                                  | Bottom HUD list panel       | Uses `hud-attack-row` and action controls.                                                  |
-| `events-display`                                                                                                   | Event feed panel            | Uses surface/header/body, icon buttons, event rows, pills, action groups.                   |
-| `leader-board`                                                                                                     | Table panel                 | Uses HUD table components and economy view.                                                 |
-| `team-stats`                                                                                                       | Team table panel            | Similar table/list surface.                                                                 |
-| `game-left-sidebar`                                                                                                | Toolbar + composite sidebar | Wraps leaderboard and team stats with toolbar buttons.                                      |
-| `game-right-sidebar`                                                                                               | Toolbar                     | Settings, replay, exit, fullscreen, and timer controls.                                     |
-| `replay-panel`                                                                                                     | Floating control panel      | Replay speed and transport controls.                                                        |
-| `player-info-overlay`                                                                                              | Popover / media object      | Player facts, troop meter, relations, action/status pills.                                  |
-| `spawn-timer`, `immunity-timer`                                                                                    | Progress/alert strips       | Time-limited top HUD bars.                                                                  |
-| `chat-display`, `chat-modal`, `emoji-table`                                                                        | Chat surfaces               | Mostly older styling; not yet normalized to HUD atoms.                                      |
-| `build-menu`, `main-radial-menu`, `radial-menu` classes                                                            | Radial command UI           | Specialized interaction surface, partly canvas/WebGL-backed.                                |
-| `player-panel`, `player-moderation-modal`, `send-resource-modal`, `settings-modal`, `multi-tab-modal`, `win-modal` | Modal/dialog surfaces       | Mixed styling; good candidates for modal-shell primitives.                                  |
-| `alert-frame`, `heads-up-message`, `in-game-promo`, `performance-overlay`                                          | Feedback/overlay surfaces   | Mostly standalone; should be classified and normalized.                                     |
+| Element                                                                                                            | Category                    | Notes                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `control-panel`                                                                                                    | Bottom HUD panel            | Uses many reusable atoms/molecules: segmented control, meters, pills, ranges, blend slider.                           |
+| `unit-display`                                                                                                     | Bottom HUD command strip    | Uses `hud-unit-display`, `hud-unit-button`, `hud-tooltip`.                                                            |
+| `attacks-display`                                                                                                  | Bottom HUD list panel       | Uses `hud-attack-row` and action controls.                                                                            |
+| `events-display`                                                                                                   | Event feed panel            | Uses surface/header/body, icon buttons, event rows, pills, action groups.                                             |
+| `leader-board`                                                                                                     | Table panel                 | Uses HUD table components and economy view.                                                                           |
+| `team-stats`                                                                                                       | Team table panel            | Similar table/list surface.                                                                                           |
+| `game-left-sidebar`                                                                                                | Toolbar + composite sidebar | Wraps leaderboard and team stats with toolbar buttons.                                                                |
+| `game-right-sidebar`                                                                                               | Toolbar                     | Settings, replay, exit, fullscreen, and timer controls.                                                               |
+| `replay-panel`                                                                                                     | Floating control panel      | Replay speed and transport controls.                                                                                  |
+| `player-info-overlay`                                                                                              | Popover / media object      | Player facts, troop meter, relations, action/status pills.                                                            |
+| `spawn-timer`, `immunity-timer`                                                                                    | Progress/alert strips       | Time-limited top HUD bars.                                                                                            |
+| `chat-display`, `chat-modal`, `emoji-table`                                                                        | Chat surfaces               | Shell and generic controls now use shared `ui-*`; gameplay option/feed behavior remains local.                        |
+| `build-menu`, `main-radial-menu`, `radial-menu` classes                                                            | Radial command UI           | Specialized interaction surface, partly canvas/WebGL-backed.                                                          |
+| `player-panel`, `player-moderation-modal`, `send-resource-modal`, `settings-modal`, `multi-tab-modal`, `win-modal` | Modal/dialog surfaces       | Generic shells/actions use shared `ui-*`; gameplay-specific action rows stay composed locally.                        |
+| `alert-frame`, `heads-up-message`, `in-game-promo`, `performance-overlay`                                          | Feedback/overlay surfaces   | Profiler command controls use `ui-*`; ad and heads-up/gameplay messaging remain standalone until separately migrated. |
 
 ## Gaps Compared With A Bootstrap-Style Catalog
 
 - The catalog page exists, but it is mostly visual. It does not yet define a stable API table for each component: attributes, properties, slots, events, CSS variables, states, and examples.
 - Current reusable HUD primitives cover panels, buttons, icons, labels, pills, meters, tables, sliders, segmented controls, unit buttons, event rows, and attack rows. Missing reusable primitives include modal shells, popovers, toast/alert variants, menu/dropdown, tabs, empty states, confirmation actions, and responsive layout helpers.
-- Several complete HUD components still carry local Tailwind-heavy markup that could be converted into shared atoms or molecules: `chat-display`, modal components, `alert-frame`, `heads-up-message`, and parts of `player-panel`.
+- Several complete HUD components still carry local Tailwind-heavy markup that could be converted into shared atoms or molecules: `alert-frame`, `heads-up-message`, and parts of `player-panel`.
 - There are now two intentional component families: generic `ui-*` primitives in `src/client/components/ui/` and gameplay-specific `hud-*` primitives in `src/client/hud/ui/`. Older layer-specific DOM/Tailwind patterns are migration candidates.
 - Icon assets are visible in the workbench, but there is not yet a named icon registry with intended usage, tone compatibility, or replacement guidance.
 
@@ -215,8 +239,8 @@ Use Bootstrap's component taxonomy as the documentation model, but name sections
 
 1. Document and stabilize the components already used by `control-panel`, `events-display`, `leader-board`, and `player-info-overlay`.
 2. Normalize feedback surfaces: `heads-up-message`, `alert-frame`, timer bars.
-3. Normalize modal shells and action footers.
-4. Normalize chat display and chat modal.
+3. Continue modal shell/action footer cleanup where any legacy dialogs remain.
+4. Continue chat display/chat modal cleanup only where it can preserve existing message filtering and phrase-selection behavior.
 5. Treat radial/build menus separately, because their interaction model is specialized and should not be forced into generic panel primitives too early.
 
 ## Definition Of Done

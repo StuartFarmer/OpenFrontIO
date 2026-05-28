@@ -3,7 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { invalidateUserMe } from "../../Api";
 import { withdrawClanRequest } from "../../ClanApi";
 import { translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 import { formatClanDate, showToast } from "./ClanShared";
 
 @customElement("clan-my-requests-view")
@@ -47,11 +47,11 @@ export class ClanMyRequestsView extends LitElement {
     return html`
       <div>
         ${this.myPendingRequests.length === 0
-          ? html`<ui-empty-state>
+          ? html`<hud-empty-state>
               <span slot="label"
                 >${translateText("clan_modal.no_pending_applications")}</span
               >
-            </ui-empty-state>`
+            </hud-empty-state>`
           : html`
               <div class="space-y-3">
                 ${this.myPendingRequests.map(
@@ -76,13 +76,14 @@ export class ClanMyRequestsView extends LitElement {
                           ${formatClanDate(req.createdAt)}
                         </span>
                       </div>
-                      <button
+                      <hud-button
                         @click=${() => this.handleWithdrawRequest(req.tag)}
                         ?disabled=${this.actionPending}
-                        class="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                        variant="danger"
+                        style="--hud-button-padding: 4px 12px; --hud-button-radius: 9999px; --hud-button-background: rgba(239,68,68,0.15); --hud-button-hover-background: rgba(239,68,68,0.25); --hud-button-border-color: rgba(239,68,68,0.2); --hud-button-color: #f87171;"
                       >
                         ${translateText("clan_modal.cancel_request")}
-                      </button>
+                      </hud-button>
                     </div>
                   `,
                 )}

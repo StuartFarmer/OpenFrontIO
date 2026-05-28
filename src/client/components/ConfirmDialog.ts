@@ -1,6 +1,7 @@
 import { html, LitElement, render as litRender } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { translateText } from "../Utils";
+import "../hud/ui";
 
 /**
  * A reusable inline confirmation dialog.
@@ -65,53 +66,48 @@ export class ConfirmDialog extends LitElement {
 
   private renderOverlay() {
     const isDanger = this.variant === "danger";
-    const borderColor = isDanger ? "border-red-500/50" : "border-amber-500/50";
-    const cardBg = "bg-surface";
-    const textColor = isDanger ? "text-red-300" : "text-amber-300";
-    const btnClass = isDanger
-      ? "bg-red-600 text-white hover:bg-red-700"
-      : "bg-amber-600 text-white hover:bg-amber-700";
 
     return html`
-      <div
-        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
-        @click=${(e: Event) => {
-          if (e.target === e.currentTarget) this.handleCancel();
-        }}
+      <hud-modal-shell
+        .open=${true}
+        maxWidth="24rem"
+        label=${translateText("common.confirm")}
+        @dismiss=${() => this.handleCancel()}
+        style="--hud-modal-z-index: 9999"
       >
-        <div
-          class="mx-4 w-full max-w-sm p-6 rounded-2xl border ${borderColor} ${cardBg} shadow-2xl"
-        >
-          <p class="text-sm font-medium ${textColor} mb-5">${this.message}</p>
+        <hud-modal-body style="--hud-surface-body-padding: 14px">
+          <hud-alert tone=${isDanger ? "danger" : "warning"}>
+            ${this.message}
+          </hud-alert>
           ${this.textareaPlaceholder
-            ? html`<textarea
+            ? html`<hud-textarea
                 .value=${this.text}
                 @input=${(e: Event) =>
-                  (this.text = (e.target as HTMLTextAreaElement).value)}
-                maxlength="200"
-                rows="2"
+                  (this.text = (
+                    e.currentTarget as HTMLElement & { value: string }
+                  ).value)}
+                rows=${2}
                 placeholder="${this.textareaPlaceholder}"
-                class="w-full px-3 py-2 mb-4 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-sm resize-none"
-              ></textarea>`
+                style="margin-top: 10px; --hud-textarea-min-height: 64px"
+              ></hud-textarea>`
             : ""}
-          <div class="flex gap-3">
-            <button
-              @click=${() => this.handleCancel()}
-              ?disabled=${this.disabled}
-              class="flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white/80 transition-all disabled:opacity-50 disabled:pointer-events-none"
-            >
-              ${translateText("common.cancel")}
-            </button>
-            <button
-              @click=${() => this.handleConfirm()}
-              ?disabled=${this.disabled}
-              class="flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl ${btnClass} transition-all disabled:opacity-50 disabled:pointer-events-none border-0"
-            >
-              ${translateText("common.confirm")}
-            </button>
-          </div>
-        </div>
-      </div>
+        </hud-modal-body>
+        <hud-modal-footer>
+          <hud-button
+            @click=${() => this.handleCancel()}
+            ?disabled=${this.disabled}
+          >
+            ${translateText("common.cancel")}
+          </hud-button>
+          <hud-button
+            variant=${isDanger ? "danger" : "active"}
+            @click=${() => this.handleConfirm()}
+            ?disabled=${this.disabled}
+          >
+            ${translateText("common.confirm")}
+          </hud-button>
+        </hud-modal-footer>
+      </hud-modal-shell>
     `;
   }
 

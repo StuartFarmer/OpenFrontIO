@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { formatKeyForDisplay, translateText } from "../../../../client/Utils";
-import "../../ui";
+import "../../../hud/ui";
 
 @customElement("setting-keybind")
 export class SettingKeybind extends LitElement {
@@ -57,19 +57,19 @@ export class SettingKeybind extends LitElement {
           </div>
 
           <div class="flex flex-col gap-1">
-            <ui-button
+            <hud-button
               size="xs"
-              variant="ghost"
+              variant="default"
               label=${translateText("user_setting.reset")}
               @click=${this.resetToDefault}
               ?disabled=${!canReset}
-            ></ui-button>
-            <ui-button
+            ></hud-button>
+            <hud-button
               size="xs"
               variant="danger"
               label=${translateText("user_setting.unbind")}
               @click=${this.unbindKey}
-            ></ui-button>
+            ></hud-button>
           </div>
         </div>
       </div>

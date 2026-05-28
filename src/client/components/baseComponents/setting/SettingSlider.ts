@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import "../../ui";
+import "../../../hud/ui";
 
 @customElement("setting-slider")
 export class SettingSlider extends LitElement {
@@ -58,9 +58,9 @@ export class SettingSlider extends LitElement {
               class="text-white font-bold text-sm shrink-0 text-right min-w-[3ch]"
               >${this.value}%</span
             >
-            <ui-range
+            <hud-range
               class="flex-1"
-              style="--ui-range-color: var(--color-malibu-blue, #38bdf8)"
+              style="--hud-range-color: var(--color-malibu-blue, #38bdf8)"
               .min=${this.min}
               .max=${this.max}
               .value=${this.value}
@@ -70,7 +70,7 @@ export class SettingSlider extends LitElement {
             >
               <span slot="label"></span>
               <span slot="value"></span>
-            </ui-range>
+            </hud-range>
           </div>
         </div>
       </div>

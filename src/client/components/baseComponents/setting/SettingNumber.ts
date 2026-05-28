@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import "../../ui";
+import "../../../hud/ui";
 
 @customElement("setting-number")
 export class SettingNumber extends LitElement {
@@ -48,17 +48,17 @@ export class SettingNumber extends LitElement {
             ${this.description}
           </div>
         </div>
-        <ui-input
+        <hud-input
           type="number"
           id="setting-number-input"
           class="shrink-0 w-[100px]"
-          style="--ui-field-text-align: center"
+          style="--hud-field-text-align: center"
           label=${this.label}
           .value=${String(this.value ?? 0)}
           .min=${String(this.min)}
           .max=${String(this.max)}
           @input=${this.handleInput}
-        ></ui-input>
+        ></hud-input>
       </div>
     `;
   }

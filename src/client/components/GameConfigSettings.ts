@@ -18,25 +18,60 @@ import {
   UnitType,
 } from "../../core/game/Game";
 import { TeamCountConfig } from "../../core/Schemas";
+import "../hud/ui";
 import { translateText } from "../Utils";
 import "./Difficulties";
 import "./FluentSlider";
 import "./map/MapPicker";
 
-const ACTIVE_CARD =
-  "bg-malibu-blue/20 border-malibu-blue/50 shadow-[var(--shadow-malibu-blue)]";
-const INACTIVE_CARD =
-  "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20";
-
-const DISABLED_CARD =
-  "w-full rounded-xl border transition-all duration-200 opacity-30 grayscale cursor-not-allowed bg-white/5 border-white/5";
+const ACTIVE_CARD = "border-malibu-blue/50 shadow-[var(--shadow-malibu-blue)]";
+const INACTIVE_CARD = "border-white/10 hover:border-white/20";
 
 function cardClass(active: boolean, extra = ""): string {
-  return `w-full rounded-xl border cursor-pointer transition-all duration-200 active:scale-95 ${extra} ${active ? ACTIVE_CARD : INACTIVE_CARD}`;
+  return `w-full transition-all duration-200 active:scale-95 ${extra} ${active ? ACTIVE_CARD : INACTIVE_CARD}`;
 }
 
 const CARD_LABEL_CLASS =
   "text-xs uppercase font-bold tracking-wider leading-tight break-words hyphens-auto";
+
+function cardButtonStyle(
+  active: boolean,
+  options: {
+    disabled?: boolean;
+    direction?: "row" | "column";
+    padding?: string;
+    gap?: string;
+    minHeight?: string;
+  } = {},
+): string {
+  const background = active
+    ? "rgba(14, 165, 233, 0.2)"
+    : "rgba(255,255,255,0.05)";
+  const hoverBackground = active
+    ? "rgba(14, 165, 233, 0.26)"
+    : "rgba(255,255,255,0.1)";
+  const borderColor = active
+    ? "rgba(125, 211, 252, 0.5)"
+    : "rgba(255,255,255,0.1)";
+
+  return [
+    "--hud-button-host-width: 100%",
+    "--hud-button-width: 100%",
+    `--hud-button-min-height: ${options.minHeight ?? "100%"}`,
+    "--hud-button-radius: 12px",
+    `--hud-button-padding: ${options.padding ?? "16px"}`,
+    `--hud-button-gap: ${options.gap ?? "8px"}`,
+    `--hud-button-direction: ${options.direction ?? "row"}`,
+    "--hud-button-text-align: center",
+    `--hud-button-background: ${background}`,
+    `--hud-button-hover-background: ${hoverBackground}`,
+    `--hud-button-border-color: ${borderColor}`,
+    `--hud-button-color: ${active ? "#fff" : "rgba(255,255,255,0.6)"}`,
+    options.disabled ? "filter: grayscale(1)" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
 
 const DIFFICULTY_OPTIONS = Object.entries(Difficulty).filter(([key]) =>
   isNaN(Number(key)),
@@ -65,11 +100,16 @@ function renderTextCardButton(
   cardExtraClass: string,
 ): TemplateResult {
   return html`
-    <button class="${cardClass(active, cardExtraClass)}" @click=${onClick}>
+    <hud-button
+      class="${cardClass(active, cardExtraClass)}"
+      variant=${active ? "active" : "default"}
+      style=${cardButtonStyle(active)}
+      @click=${onClick}
+    >
       <span class="${CARD_LABEL_CLASS} ${stateTextClass(active)}">
         ${label}
       </span>
-    </button>
+    </hud-button>
   `;
 }
 
@@ -298,15 +338,17 @@ export class GameConfigSettings extends LitElement {
     return unitOptions.map(({ type, translationKey }) => {
       const isEnabled = !disabledUnits.includes(type);
       return html`
-        <button
+        <hud-button
           class="${cardClass(isEnabled, "p-4 text-center")}"
+          variant=${isEnabled ? "active" : "default"}
+          style=${cardButtonStyle(isEnabled)}
           aria-pressed=${isEnabled}
           @click=${() => this.handleUnitToggle(type, isEnabled)}
         >
           <span class="${CARD_LABEL_CLASS} ${stateTextClass(isEnabled)}">
             ${translateText(translationKey)}
           </span>
-        </button>
+        </hud-button>
       `;
     });
   }
@@ -343,17 +385,22 @@ export class GameConfigSettings extends LitElement {
                 const isSelected = settings.difficulty.selected === value;
                 const isDisabled = settings.difficulty.disabled;
                 return html`
-                  <button
+                  <hud-button
                     ?disabled=${isDisabled}
                     @click=${() =>
                       !isDisabled &&
                       this.handleDifficultySelect(value as Difficulty)}
-                    class="${isDisabled
-                      ? `${DISABLED_CARD} flex flex-col items-center p-4 gap-3`
-                      : cardClass(
-                          isSelected,
-                          "flex flex-col items-center p-4 gap-3",
-                        )}"
+                    class="${cardClass(
+                      isSelected,
+                      `flex flex-col items-center ${isDisabled ? "opacity-30" : ""}`,
+                    )}"
+                    variant=${isSelected ? "active" : "default"}
+                    style=${cardButtonStyle(isSelected, {
+                      disabled: isDisabled,
+                      direction: "column",
+                      padding: "16px",
+                      gap: "12px",
+                    })}
                   >
                     <difficulty-display
                       .difficultyKey=${key}
@@ -366,7 +413,7 @@ export class GameConfigSettings extends LitElement {
                     >
                       ${translateText(`difficulty.${key.toLowerCase()}`)}
                     </span>
-                  </button>
+                  </hud-button>
                 `;
               })}
             </div>
@@ -382,8 +429,12 @@ export class GameConfigSettings extends LitElement {
               ${[GameMode.FFA, GameMode.Team].map((mode) => {
                 const isSelected = settings.gameMode.selected === mode;
                 return html`
-                  <button
+                  <hud-button
                     class="${cardClass(isSelected, "py-6 text-center")}"
+                    variant=${isSelected ? "active" : "default"}
+                    style=${cardButtonStyle(isSelected, {
+                      padding: "24px 16px",
+                    })}
                     @click=${() => this.handleGameModeSelect(mode)}
                   >
                     <span
@@ -393,7 +444,7 @@ export class GameConfigSettings extends LitElement {
                         ? translateText("game_mode.ffa")
                         : translateText("game_mode.teams")}
                     </span>
-                  </button>
+                  </hud-button>
                 `;
               })}
             </div>
@@ -412,11 +463,15 @@ export class GameConfigSettings extends LitElement {
                   ${TEAM_COUNT_OPTIONS.map((o) => {
                     const isSelected = settings.teamCount.selected === o;
                     return html`
-                      <button
+                      <hud-button
                         class="${cardClass(
                           isSelected,
                           "px-4 py-3 text-center",
                         )}"
+                        variant=${isSelected ? "active" : "default"}
+                        style=${cardButtonStyle(isSelected, {
+                          padding: "12px 16px",
+                        })}
                         @click=${() => this.handleTeamCountSelect(o)}
                       >
                         <span class="${CARD_LABEL_CLASS} text-white">
@@ -426,7 +481,7 @@ export class GameConfigSettings extends LitElement {
                               : translateText(`host_modal.teams_${o}`)
                             : translateText("public_lobby.teams", { num: o })}
                         </span>
-                      </button>
+                      </hud-button>
                     `;
                   })}
                 </div>

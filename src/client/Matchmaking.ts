@@ -7,6 +7,7 @@ import { getPlayToken } from "./Auth";
 import { BaseModal } from "./components/BaseModal";
 import "./components/Difficulties";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 import { JoinLobbyEvent } from "./Main";
 import { translateText } from "./Utils";
 
@@ -228,10 +229,12 @@ export class MatchmakingButton extends LitElement {
   render() {
     return this.isLoggedIn
       ? html`
-          <button
-            @click="${this.handleLoggedInClick}"
+          <hud-button
+            @click=${this.handleLoggedInClick}
             class="no-crazygames w-full h-20 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest rounded-xl transition-all duration-200 flex flex-col items-center justify-center group overflow-hidden relative"
             title="${translateText("matchmaking_modal.title")}"
+            variant="primary"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 80px; --hud-button-radius: 12px; --hud-button-direction: column; --hud-button-gap: 6px; --hud-button-background: rgb(147,51,234); --hud-button-hover-background: rgb(168,85,247); --hud-button-border-color: rgba(216,180,254,0.45); --hud-button-color: #fff;"
           >
             <span class="relative z-10 text-2xl">
               ${translateText("matchmaking_button.play_ranked")}
@@ -241,17 +244,19 @@ export class MatchmakingButton extends LitElement {
             >
               ${translateText("matchmaking_button.description")}
             </span>
-          </button>
+          </hud-button>
         `
       : html`
-          <button
-            @click="${this.handleLoggedOutClick}"
+          <hud-button
+            @click=${this.handleLoggedOutClick}
             class="no-crazygames w-full h-20 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest rounded-xl transition-all duration-200 flex flex-col items-center justify-center overflow-hidden relative cursor-pointer"
+            variant="primary"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 80px; --hud-button-radius: 12px; --hud-button-direction: column; --hud-button-background: rgb(147,51,234); --hud-button-hover-background: rgb(168,85,247); --hud-button-border-color: rgba(216,180,254,0.45); --hud-button-color: #fff;"
           >
             <span class="relative z-10 text-2xl">
               ${translateText("matchmaking_button.login_required")}
             </span>
-          </button>
+          </hud-button>
         `;
   }
 

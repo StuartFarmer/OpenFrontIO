@@ -8,41 +8,41 @@ import "../../../src/client/components/baseComponents/setting/SettingToggle";
 import "../../../src/client/components/ui";
 
 const sharedTags = [
-  "ui-surface",
-  "ui-surface-header",
-  "ui-surface-body",
-  "ui-surface-footer",
-  "ui-button",
-  "ui-icon-button",
-  "ui-action-group",
-  "ui-pill",
-  "ui-label",
-  "ui-alert",
-  "ui-form-row",
-  "ui-input",
-  "ui-textarea",
-  "ui-select",
-  "ui-range",
-  "ui-toggle",
-  "ui-checkbox",
-  "ui-stat-grid",
-  "ui-stat",
-  "ui-table",
-  "ui-table-row",
-  "ui-table-cell",
-  "ui-list-row",
-  "ui-empty-state",
-  "ui-loading-state",
-  "ui-modal-shell",
-  "ui-modal-header",
-  "ui-modal-body",
-  "ui-modal-footer",
-  "ui-menu",
-  "ui-menu-item",
-  "ui-divider",
-  "ui-row",
-  "ui-stack",
-  "ui-grid",
+  "hud-surface",
+  "hud-surface-header",
+  "hud-surface-body",
+  "hud-surface-footer",
+  "hud-button",
+  "hud-icon-button",
+  "hud-action-group",
+  "hud-pill",
+  "hud-label",
+  "hud-alert",
+  "hud-form-row",
+  "hud-input",
+  "hud-textarea",
+  "hud-select",
+  "hud-range",
+  "hud-toggle",
+  "hud-checkbox",
+  "hud-stat-grid",
+  "hud-stat",
+  "hud-table",
+  "hud-table-row",
+  "hud-table-cell",
+  "hud-list-row",
+  "hud-empty-state",
+  "hud-loading-state",
+  "hud-modal-shell",
+  "hud-modal-header",
+  "hud-modal-body",
+  "hud-modal-footer",
+  "hud-menu",
+  "hud-menu-item",
+  "hud-divider",
+  "hud-row",
+  "hud-stack",
+  "hud-grid",
 ];
 
 describe("shared UI components", () => {
@@ -59,12 +59,12 @@ describe("shared UI components", () => {
     }
   });
 
-  it("ui-button reflects disabled state to the internal button", async () => {
-    const button = document.createElement("ui-button") as HTMLElement & {
+  it("hud-button reflects disabled state to the internal button", async () => {
+    const button = document.createElement("hud-button") as HTMLElement & {
       disabled: boolean;
       updateComplete: Promise<boolean>;
     };
-    button.setAttribute("label", "Save");
+    button.textContent = "Save";
     button.disabled = true;
 
     document.body.append(button);
@@ -72,11 +72,11 @@ describe("shared UI components", () => {
 
     const internal = button.shadowRoot?.querySelector("button");
     expect(internal?.disabled).toBe(true);
-    expect(internal?.textContent?.trim()).toBe("Save");
+    expect(button.textContent?.trim()).toBe("Save");
   });
 
-  it("ui-input emits composed input events and updates value", async () => {
-    const input = document.createElement("ui-input") as HTMLElement & {
+  it("hud-input emits composed input events and updates value", async () => {
+    const input = document.createElement("hud-input") as HTMLElement & {
       value: string;
       updateComplete: Promise<boolean>;
     };
@@ -96,8 +96,8 @@ describe("shared UI components", () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it("ui-modal-shell dispatches close from the shared close button", async () => {
-    const modal = document.createElement("ui-modal-shell") as HTMLElement & {
+  it("hud-modal-shell dispatches close from the shared close button", async () => {
+    const modal = document.createElement("hud-modal-shell") as HTMLElement & {
       open: boolean;
       updateComplete: Promise<boolean>;
     };
@@ -108,7 +108,7 @@ describe("shared UI components", () => {
     document.body.append(modal);
     await modal.updateComplete;
 
-    const closeButton = modal.shadowRoot?.querySelector("ui-icon-button");
+    const closeButton = modal.shadowRoot?.querySelector("hud-icon-button");
     expect(closeButton).toBeDefined();
 
     closeButton!.dispatchEvent(
@@ -130,9 +130,9 @@ describe("shared UI components", () => {
     document.body.append(button);
     await button.updateComplete;
 
-    const sharedButton = button.querySelector("ui-button");
+    const sharedButton = button.querySelector("hud-button");
     expect(sharedButton).toBeDefined();
-    expect(sharedButton?.getAttribute("variant")).toBe("primary");
+    expect(sharedButton?.getAttribute("variant")).toBe("active");
     expect(sharedButton?.textContent?.trim()).toBe("Start");
   });
 
@@ -149,7 +149,7 @@ describe("shared UI components", () => {
     expect(modal.isModalOpen).toBe(true);
     expect(document.body.style.overflow).toBe("hidden");
 
-    const closeButton = modal.shadowRoot?.querySelector("ui-icon-button");
+    const closeButton = modal.shadowRoot?.querySelector("hud-icon-button");
     expect(closeButton).toBeDefined();
     closeButton!.dispatchEvent(
       new MouseEvent("click", { bubbles: true, composed: true }),
@@ -205,7 +205,7 @@ describe("shared UI components", () => {
       toggle.updateComplete,
     ]);
 
-    const sharedSlider = slider.querySelector("ui-range") as HTMLElement & {
+    const sharedSlider = slider.querySelector("hud-range") as HTMLElement & {
       value: number;
     };
     sharedSlider.value = 55;
@@ -214,7 +214,7 @@ describe("shared UI components", () => {
       expect.objectContaining({ detail: { value: 55 } }),
     );
 
-    const sharedSelect = select.querySelector("ui-select") as HTMLElement & {
+    const sharedSelect = select.querySelector("hud-select") as HTMLElement & {
       value: string;
     };
     sharedSelect.value = "5";
@@ -224,7 +224,7 @@ describe("shared UI components", () => {
       expect.objectContaining({ detail: { value: 5 } }),
     );
 
-    const sharedNumber = number.querySelector("ui-input") as HTMLElement & {
+    const sharedNumber = number.querySelector("hud-input") as HTMLElement & {
       value: string;
     };
     sharedNumber.value = "42";
@@ -233,7 +233,7 @@ describe("shared UI components", () => {
       expect.objectContaining({ detail: { value: 42 } }),
     );
 
-    const sharedToggle = toggle.querySelector("ui-toggle") as HTMLElement & {
+    const sharedToggle = toggle.querySelector("hud-toggle") as HTMLElement & {
       checked: boolean;
     };
     sharedToggle.checked = true;

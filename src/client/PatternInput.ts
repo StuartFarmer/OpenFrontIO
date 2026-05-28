@@ -8,6 +8,7 @@ import { PlayerPattern } from "../core/Schemas";
 import { renderPatternPreview } from "./components/PatternPreview";
 import { getPlayerCosmetics } from "./Cosmetics";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
+import "./hud/ui";
 import { translateText } from "./Utils";
 
 @customElement("pattern-input")
@@ -109,15 +110,16 @@ export class PatternInput extends LitElement {
     // Show loading state
     if (this.isLoading) {
       return html`
-        <button
+        <hud-button
           id="pattern-input"
-          class="pattern-btn m-0 p-0 w-full h-full flex cursor-pointer justify-center items-center focus:outline-none focus:ring-0 bg-surface rounded-lg overflow-hidden"
+          class="pattern-btn m-0 w-full h-full overflow-hidden"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 100%; --hud-button-min-height: 100%; --hud-button-padding: 0; --hud-button-radius: 8px; --hud-button-border-color: transparent; --hud-button-background: var(--surface-color, rgba(15,23,42,0.72));"
           disabled
         >
           <span
             class="w-6 h-6 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"
           ></span>
-        </button>
+        </hud-button>
       `;
     }
 
@@ -129,9 +131,10 @@ export class PatternInput extends LitElement {
     }
 
     return html`
-      <button
+      <hud-button
         id="pattern-input"
-        class="pattern-btn m-0 p-0 w-full h-full flex cursor-pointer justify-center items-center focus:outline-none focus:ring-0 transition-all duration-200 hover:scale-105 bg-surface hover:brightness-[1.08] active:brightness-[0.95] hover:shadow-[var(--shadow-action-card-hover)] rounded-lg overflow-hidden"
+        class="pattern-btn m-0 w-full h-full transition-all duration-200 hover:scale-105 active:brightness-[0.95] overflow-hidden"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 100%; --hud-button-min-height: 100%; --hud-button-padding: 0; --hud-button-radius: 8px; --hud-button-border-color: transparent; --hud-button-background: var(--surface-color, rgba(15,23,42,0.72)); --hud-button-hover-background: rgba(30,41,59,0.9);"
         title=${buttonTitle}
         @click=${this.onInputClick}
       >
@@ -151,7 +154,7 @@ export class PatternInput extends LitElement {
               ${translateText("territory_patterns.select_skin")}
             </span>`
           : null}
-      </button>
+      </hud-button>
     `;
   }
 }

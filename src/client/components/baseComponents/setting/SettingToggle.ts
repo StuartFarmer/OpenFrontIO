@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import "../../ui";
+import "../../../hud/ui";
 
 @customElement("setting-toggle")
 export class SettingToggle extends LitElement {
@@ -37,13 +37,13 @@ export class SettingToggle extends LitElement {
           </div>
         </div>
 
-        <ui-toggle
+        <hud-toggle
           id=${this.id}
           class="shrink-0"
           label=${this.label}
           .checked=${this.checked}
           @change=${this.handleChange}
-        ></ui-toggle>
+        ></hud-toggle>
       </div>
     `;
   }

@@ -52,6 +52,15 @@ export type PopulationResourceMechanicsConfig = {
 export type MechanicsConfig = {
   version: 1;
   populationResources: PopulationResourceMechanicsConfig;
+  expansionCombat: ExpansionCombatMechanicsConfig;
+};
+
+export type ExpansionCombatMechanicsConfig = {
+  humanAttackTroopFraction: number;
+  botAttackTroopFraction: number;
+  wildernessAttackerLossMultiplier: number;
+  wildernessBotAttackerLossMultiplier: number;
+  wildernessTilesPerTickMultiplier: number;
 };
 
 const finiteNonNegative = z.number().finite().min(0);
@@ -122,9 +131,18 @@ const PopulationResourceMechanicsConfigSchema = z.object({
   nationResourceRegenMultipliers: DifficultyMultiplierConfigSchema.optional(),
 });
 
+const ExpansionCombatMechanicsConfigSchema = z.object({
+  humanAttackTroopFraction: finiteUnit.optional(),
+  botAttackTroopFraction: finiteUnit.optional(),
+  wildernessAttackerLossMultiplier: finiteNonNegative.optional(),
+  wildernessBotAttackerLossMultiplier: finiteNonNegative.optional(),
+  wildernessTilesPerTickMultiplier: finiteNonNegative.optional(),
+});
+
 export const MechanicsConfigSchema = z.object({
   version: z.literal(1).optional(),
   populationResources: PopulationResourceMechanicsConfigSchema.optional(),
+  expansionCombat: ExpansionCombatMechanicsConfigSchema.optional(),
 });
 
 export type MechanicsConfigInput = z.infer<typeof MechanicsConfigSchema>;
@@ -189,6 +207,13 @@ export const DEFAULT_MECHANICS_CONFIG: MechanicsConfig = {
       Impossible: 1.05,
     },
   },
+  expansionCombat: {
+    humanAttackTroopFraction: 1 / 5,
+    botAttackTroopFraction: 1 / 20,
+    wildernessAttackerLossMultiplier: 1,
+    wildernessBotAttackerLossMultiplier: 1,
+    wildernessTilesPerTickMultiplier: 2,
+  },
 };
 
 export function resolveMechanicsConfig(
@@ -231,6 +256,7 @@ export function resolveMechanicsConfig(
     ...populationResourcesWithoutLegacyAliases
   } = legacyPopulationResources ?? {};
   const defaults = DEFAULT_MECHANICS_CONFIG.populationResources;
+  const expansionDefaults = DEFAULT_MECHANICS_CONFIG.expansionCombat;
 
   return {
     version: 1,
@@ -275,6 +301,10 @@ export function resolveMechanicsConfig(
         ...defaults.nationResourceRegenMultipliers,
         ...populationResources?.nationResourceRegenMultipliers,
       },
+    },
+    expansionCombat: {
+      ...expansionDefaults,
+      ...input?.expansionCombat,
     },
   };
 }

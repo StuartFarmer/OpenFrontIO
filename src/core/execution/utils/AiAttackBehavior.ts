@@ -20,8 +20,7 @@ import {
   boundingBoxCenter,
   calculateBoundingBoxCenter,
 } from "../../Util";
-import { AttackExecution } from "../AttackExecution";
-import { DonateTroopsExecution } from "../DonateTroopExecution";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { NationAllianceBehavior } from "../nation/NationAllianceBehavior";
 import {
   EMOJI_ASSIST_ACCEPT,
@@ -30,11 +29,11 @@ import {
   EMOJI_ASSIST_TARGET_ME,
   NationEmojiBehavior,
 } from "../nation/NationEmojiBehavior";
-import { TransportShipExecution } from "../TransportShipExecution";
 import { closestTwoTiles } from "../Util";
 
 export class AiAttackBehavior {
   private botAttackTroopsSent: number = 0;
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
@@ -45,7 +44,9 @@ export class AiAttackBehavior {
     private expandRatio: number,
     private allianceBehavior?: NationAllianceBehavior,
     private emojiBehavior?: NationEmojiBehavior,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   maybeAttack() {
     if (this.player === null || this.allianceBehavior === undefined) {
@@ -137,9 +138,7 @@ export class AiAttackBehavior {
       }
     }
 
-    this.game.addExecution(
-      new TransportShipExecution(this.player, dst, this.player.troops() / 5),
-    );
+    this.commandSurface.sendBoat(this.player, dst, this.player.troops() / 5);
     return;
   }
 
@@ -723,12 +722,10 @@ export class AiAttackBehavior {
   }
 
   forceSendAttack(target: Player | TerraNullius) {
-    this.game.addExecution(
-      new AttackExecution(
-        this.player.troops() / 2,
-        this.player,
-        target.isPlayer() ? target.id() : this.game.terraNullius().id(),
-      ),
+    this.commandSurface.sendAttack(
+      this.player,
+      this.player.troops() / 2,
+      target.isPlayer() ? target.id() : this.game.terraNullius().id(),
     );
   }
 
@@ -807,9 +804,7 @@ export class AiAttackBehavior {
         const troops = this.player.troops() / 5;
         if (troops < 1) return false;
 
-        this.game.addExecution(
-          new TransportShipExecution(this.player, tile, troops),
-        );
+        this.commandSurface.sendBoat(this.player, tile, troops);
         return true;
       }
     }
@@ -875,12 +870,10 @@ export class AiAttackBehavior {
       this.emojiBehavior.maybeSendAttackEmoji(target);
     }
 
-    this.game.addExecution(
-      new AttackExecution(
-        troops,
-        this.player,
-        target.isPlayer() ? target.id() : this.game.terraNullius().id(),
-      ),
+    this.commandSurface.sendAttack(
+      this.player,
+      troops,
+      target.isPlayer() ? target.id() : this.game.terraNullius().id(),
     );
     return true;
   }
@@ -919,9 +912,7 @@ export class AiAttackBehavior {
       this.emojiBehavior.maybeSendAttackEmoji(target);
     }
 
-    this.game.addExecution(
-      new TransportShipExecution(this.player, closest.y, troops),
-    );
+    this.commandSurface.sendBoat(this.player, closest.y, troops);
     return true;
   }
 
@@ -1035,12 +1026,10 @@ export class AiAttackBehavior {
       return false;
     }
 
-    this.game.addExecution(
-      new DonateTroopsExecution(
-        this.player,
-        selectedTeammate.id(),
-        availableTroops,
-      ),
+    this.commandSurface.donateTroops(
+      this.player,
+      selectedTeammate.id(),
+      availableTroops,
     );
 
     return true;

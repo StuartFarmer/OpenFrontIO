@@ -3,6 +3,7 @@ import { customElement, state } from "lit/decorators.js";
 import { UserMeResponse } from "../../core/ApiSchemas";
 import { getUserMe, hasLinkedAccount } from "../Api";
 import { userAuth } from "../Auth";
+import "../hud/ui";
 import { translateText } from "../Utils";
 import { BaseModal } from "./BaseModal";
 import { modalHeader } from "./ui/ModalHeader";
@@ -119,9 +120,10 @@ export class RankedModal extends BaseModal {
 
   private renderCard(title: string, subtitle: string, onClick: () => void) {
     return html`
-      <button
+      <hud-button
         @click=${onClick}
         class="flex flex-col w-full h-28 sm:h-32 rounded-2xl bg-surface border-0 transition-transform hover:scale-[1.02] active:scale-[0.98] p-6 items-center justify-center gap-3"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-height: 8rem; --hud-button-radius: 16px; --hud-button-padding: 24px; --hud-button-direction: column; --hud-button-gap: 12px; --hud-button-background: var(--surface-color, rgba(15,23,42,0.72)); --hud-button-hover-background: rgba(30,41,59,0.9); --hud-button-border-color: transparent;"
       >
         <div class="flex flex-col items-center gap-1 text-center">
           <h3
@@ -135,7 +137,7 @@ export class RankedModal extends BaseModal {
             ${subtitle}
           </p>
         </div>
-      </button>
+      </hud-button>
     `;
   }
 

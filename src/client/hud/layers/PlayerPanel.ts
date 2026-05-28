@@ -14,7 +14,6 @@ import { TileRef } from "../../../core/game/GameMap";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { Emoji, flattenedEmojiTable } from "../../../core/Util";
 import { actionButton } from "../../components/ui/ActionButton";
-import "../../components/ui/Divider";
 import { Controller } from "../../Controller";
 import {
   CloseViewEvent,
@@ -36,6 +35,7 @@ import {
   renderTroops,
   translateText,
 } from "../../Utils";
+import "../ui";
 import { ChatModal } from "./ChatModal";
 import { EmojiTable } from "./EmojiTable";
 import "./PlayerModerationModal";
@@ -433,7 +433,7 @@ export class PlayerPanel extends LitElement implements Controller {
             shadow-[inset_0_0_8px_rgba(239,68,68,0.12)]"
           title=${translateText("player_panel.traitor")}
         >
-          <img src=${traitorIcon} alt="" aria-hidden="true" class="size-4.5" />
+          <hud-icon .src=${traitorIcon} size="md" tone="danger"></hud-icon>
           <span class="tracking-tight"
             >${translateText("player_panel.traitor")}</span
           >
@@ -459,7 +459,7 @@ export class PlayerPanel extends LitElement implements Controller {
     const moderationTitle = translateText("player_panel.moderation");
 
     return html`
-      <ui-divider></ui-divider>
+      <hud-divider></hud-divider>
       <div class="grid auto-cols-fr grid-flow-col gap-1">
         ${actionButton({
           onClick: (e: MouseEvent) => this.openModeration(e, other),
@@ -577,23 +577,26 @@ export class PlayerPanel extends LitElement implements Controller {
 
   private renderRocketDirectionToggle() {
     return html`
-      <ui-divider></ui-divider>
-      <button
-        class="flex w-full items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-left text-white hover:bg-white/8 active:scale-[0.995] transition"
+      <hud-divider></hud-divider>
+      <hud-button
+        class="w-full"
+        style="--hud-button-width: 100%; --hud-button-min-height: 44px; --hud-button-radius: 8px; --hud-button-padding: 8px 12px; --hud-button-background: rgba(255,255,255,0.05); --hud-button-hover-background: rgba(255,255,255,0.08);"
         @click=${(e: Event) => this.handleToggleRocketDirection(e)}
       >
-        <div class="flex flex-col">
-          <span class="text-sm font-semibold tracking-tight">
-            ${translateText("player_panel.flip_rocket_trajectory")}
+        <div class="flex w-full items-center justify-between gap-3 text-left">
+          <span class="flex flex-col">
+            <span class="text-sm font-semibold tracking-tight">
+              ${translateText("player_panel.flip_rocket_trajectory")}
+            </span>
+            <span class="text-xs text-zinc-300" translate="no">
+              ${this.uiState.rocketDirectionUp
+                ? translateText("player_panel.arc_up")
+                : translateText("player_panel.arc_down")}
+            </span>
           </span>
-          <span class="text-xs text-zinc-300" translate="no">
-            ${this.uiState.rocketDirectionUp
-              ? translateText("player_panel.arc_up")
-              : translateText("player_panel.arc_down")}
-          </span>
+          <span class="text-lg" aria-hidden="true">↕</span>
         </div>
-        <span class="text-lg" aria-hidden="true">🔀</span>
-      </button>
+      </hud-button>
     `;
   }
 
@@ -780,7 +783,7 @@ export class PlayerPanel extends LitElement implements Controller {
               })
             : ""}
         </div>
-        <ui-divider></ui-divider>
+        <hud-divider></hud-divider>
         ${other === my
           ? html``
           : html`
@@ -932,14 +935,16 @@ export class PlayerPanel extends LitElement implements Controller {
                   class="overflow-auto [-webkit-overflow-scrolling:touch] resize-y max-h-[calc(100vh-120px-env(safe-area-inset-bottom))]"
                 >
                   <div class="sticky top-0 z-20 flex justify-end p-2">
-                    <button
+                    <hud-icon-button
                       @click=${this.handleClose}
-                      class="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-white shadow-sm hover:bg-red-500 transition-colors"
+                      class="absolute right-3 top-3 z-20"
+                      variant="danger"
+                      style="--hud-icon-button-size: 28px; --hud-icon-button-radius: 9999px;"
                       aria-label=${translateText("common.close") || "Close"}
                       title=${translateText("common.close") || "Close"}
                     >
                       ✕
-                    </button>
+                    </hud-icon-button>
                   </div>
 
                   <div
@@ -986,7 +991,7 @@ export class PlayerPanel extends LitElement implements Controller {
                         `
                       : ""}
 
-                    <ui-divider></ui-divider>
+                    <hud-divider></hud-divider>
 
                     <!-- Resources -->
                     ${this.renderResources(other)}
@@ -994,12 +999,12 @@ export class PlayerPanel extends LitElement implements Controller {
                     <!-- Rocket direction toggle -->
                     ${other === my ? this.renderRocketDirectionToggle() : ""}
 
-                    <ui-divider></ui-divider>
+                    <hud-divider></hud-divider>
 
                     <!-- Stats: betrayals / trading -->
                     ${this.renderStats(other, my)}
 
-                    <ui-divider></ui-divider>
+                    <hud-divider></hud-divider>
 
                     <!-- Alliances list -->
                     ${this.renderAlliances(other)}
@@ -1007,7 +1012,7 @@ export class PlayerPanel extends LitElement implements Controller {
                     <!-- Alliance time remaining -->
                     ${this.renderAllianceExpiry()}
 
-                    <ui-divider></ui-divider>
+                    <hud-divider></hud-divider>
 
                     <!-- Actions -->
                     ${this.renderActions(my, other)}

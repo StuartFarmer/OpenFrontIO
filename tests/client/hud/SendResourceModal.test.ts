@@ -54,13 +54,13 @@ describe("send-resource-modal", () => {
     document.body.append(modal);
     await modal.updateComplete;
 
-    expect(modal.querySelector("ui-surface")).toBeTruthy();
-    expect(modal.querySelector("ui-pill")).toBeTruthy();
-    expect(modal.querySelectorAll("ui-button").length).toBeGreaterThanOrEqual(
+    expect(modal.querySelector("hud-modal-shell")).toBeTruthy();
+    expect(modal.querySelector("hud-pill")).toBeTruthy();
+    expect(modal.querySelectorAll("hud-button").length).toBeGreaterThanOrEqual(
       7,
     );
 
-    const actions = Array.from(modal.querySelectorAll("ui-button"));
+    const actions = Array.from(modal.querySelectorAll("hud-button"));
     actions[actions.length - 1]!.dispatchEvent(
       new MouseEvent("click", { bubbles: true, composed: true }),
     );

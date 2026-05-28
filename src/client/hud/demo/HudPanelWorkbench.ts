@@ -819,15 +819,15 @@ export class HudPanelWorkbench extends LitElement {
         </hud-kit-row>
         <hud-kit-row>
           <hud-kit-caption>red</hud-kit-caption>
-          <hud-icon .src=${sampleSwordIcon} tone="danger" size="sm"></hud-icon>
-          <hud-icon .src=${sampleSwordIcon} tone="danger" size="md"></hud-icon>
-          <hud-icon .src=${sampleSwordIcon} tone="danger" size="lg"></hud-icon>
-          <hud-icon .src=${sampleSwordIcon} tone="danger" size="xl"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="red" size="sm"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="red" size="md"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="red" size="lg"></hud-icon>
+          <hud-icon .src=${sampleSwordIcon} tone="red" size="xl"></hud-icon>
         </hud-kit-row>
         <hud-kit-row>
           <hud-kit-caption>action</hud-kit-caption>
           ${renderLucideIcon(ChevronUp, "h-5 w-5")}
-          <hud-label tone="danger">${renderLucideIcon(X, "h-5 w-5")}</hud-label>
+          <hud-label tone="red">${renderLucideIcon(X, "h-5 w-5")}</hud-label>
         </hud-kit-row>
         <hud-kit-icon-gallery>
           ${hudIconSamples.map(
@@ -1263,7 +1263,7 @@ export class HudPanelWorkbench extends LitElement {
         <hud-event-row
           meta="00:42"
           text="Red requested attack on Delta."
-          tone="danger"
+          tone="red"
         >
           <hud-action-group slot="actions">
             <hud-button>Focus</hud-button>
@@ -1381,10 +1381,10 @@ export class HudPanelWorkbench extends LitElement {
           label-align="between"
         ></hud-meter>
         <hud-stat-grid>
-          <hud-stat label="Net" value="+1.2K/s" tone="success"></hud-stat>
-          <hud-stat label="Prod" value="+2.0K/s" tone="success"></hud-stat>
+          <hud-stat label="Net" value="+1.2K/s" tone="green"></hud-stat>
+          <hud-stat label="Prod" value="+2.0K/s" tone="green"></hud-stat>
           <hud-stat label="Rail" value="0/s"></hud-stat>
-          <hud-stat label="Delta" value="-120/s" tone="danger"></hud-stat>
+          <hud-stat label="Delta" value="-120/s" tone="red"></hud-stat>
         </hud-stat-grid>
       </hud-kit-stage>
     `;
@@ -1469,11 +1469,11 @@ export class HudPanelWorkbench extends LitElement {
         New alliance message received.
         <hud-button slot="actions">Open</hud-button>
       </hud-alert>
-      <hud-alert tone="warning" compact>
+      <hud-alert tone="orange" compact>
         <hud-icon slot="icon" .src=${sampleNukeIcon} size="sm"></hud-icon>
         Silo reload delayed.
       </hud-alert>
-      <hud-toast tone="success">
+      <hud-toast tone="green">
         <hud-icon slot="icon" .src=${sampleGoldCoinIcon} size="sm"></hud-icon>
         Trade route added.
       </hud-toast>
@@ -1505,7 +1505,7 @@ export class HudPanelWorkbench extends LitElement {
         <hud-menu-item disabled>
           <hud-icon slot="icon" .src=${sampleNukeIcon} size="sm"></hud-icon>
           Launch
-          <hud-label slot="meta" tone="warning">locked</hud-label>
+          <hud-label slot="meta" tone="orange">locked</hud-label>
         </hud-menu-item>
       </hud-menu>
     </hud-kit-stage>`;

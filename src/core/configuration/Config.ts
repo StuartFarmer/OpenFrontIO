@@ -747,9 +747,14 @@ export class Config {
           (defender.isTraitor() ? this.traitorSpeedDebuff() : 1),
       };
     } else {
+      const wildernessLossMultiplier =
+        attacker.type() === PlayerType.Bot
+          ? this.mechanics.expansionCombat.wildernessBotAttackerLossMultiplier
+          : this.mechanics.expansionCombat.wildernessAttackerLossMultiplier;
       return {
         attackerTroopLoss:
-          attacker.type() === PlayerType.Bot ? mag / 10 : mag / 5,
+          (attacker.type() === PlayerType.Bot ? mag / 10 : mag / 5) *
+          wildernessLossMultiplier,
         defenderTroopLoss: 0,
         tilesPerTickUsed: within(
           (2000 * Math.max(10, speed)) / attackTroops,
@@ -773,7 +778,10 @@ export class Config {
         3
       );
     } else {
-      return numAdjacentTilesWithEnemy * 2;
+      return (
+        numAdjacentTilesWithEnemy *
+        this.mechanics.expansionCombat.wildernessTilesPerTickMultiplier
+      );
     }
   }
 
@@ -799,9 +807,15 @@ export class Config {
 
   attackAmount(attacker: Player, defender: Player | TerraNullius) {
     if (attacker.type() === PlayerType.Bot) {
-      return attacker.troops() / 20;
+      return (
+        attacker.troops() *
+        this.mechanics.expansionCombat.botAttackTroopFraction
+      );
     } else {
-      return attacker.troops() / 5;
+      return (
+        attacker.troops() *
+        this.mechanics.expansionCombat.humanAttackTroopFraction
+      );
     }
   }
 

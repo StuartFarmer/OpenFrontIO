@@ -13,7 +13,7 @@ import {
 import "./components/baseComponents/ranking/PlayerRow";
 import "./components/baseComponents/ranking/RankingControls";
 import "./components/baseComponents/ranking/RankingHeader";
-import "./components/ui";
+import "./hud/ui";
 
 @customElement("game-info-modal")
 export class GameInfoModal extends LitElement {
@@ -65,11 +65,11 @@ export class GameInfoModal extends LitElement {
   private renderRanking() {
     if (this.rankedPlayers.length === 0) {
       return html`
-        <ui-empty-state style="--ui-empty-padding: 24px">
+        <hud-empty-state style="--hud-empty-padding: 24px">
           <span slot="label"
             >${translateText("game_info_modal.no_winner")}</span
           >
-        </ui-empty-state>
+        </hud-empty-state>
       `;
     }
     return html`
@@ -83,12 +83,12 @@ export class GameInfoModal extends LitElement {
   }
 
   private renderLoadingAnimation() {
-    return html`<ui-loading-state
-      style="--ui-loading-padding: 24px"
+    return html`<hud-loading-state
+      style="--hud-loading-padding: 24px"
       label=${translateText("game_info_modal.loading_game_info")}
     >
       ${translateText("game_info_modal.loading_game_info")}
-    </ui-loading-state>`;
+    </hud-loading-state>`;
   }
 
   private sort(e: CustomEvent<RankType>) {
@@ -108,9 +108,9 @@ export class GameInfoModal extends LitElement {
       return html``;
     }
     return html`
-      <ui-surface
+      <hud-surface
         class="h-37.5"
-        style="--ui-radius: 12px; --ui-surface-shadow: none; --ui-surface-bg: rgba(0,0,0,0.2)"
+        style="--hud-radius: 12px; --hud-surface-shadow: none; --hud-surface-bg: rgba(0,0,0,0.2)"
       >
         <div class="h-37.5 flex relative justify-between items-center">
           ${this.mapImage
@@ -134,7 +134,7 @@ export class GameInfoModal extends LitElement {
             </div>
           </div>
         </div>
-      </ui-surface>
+      </hud-surface>
     `;
   }
 

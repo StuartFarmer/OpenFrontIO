@@ -2,7 +2,7 @@ import { html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { type ClanBrowseResponse, fetchClans } from "../../ClanApi";
 import { translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 import "./ClanCard";
 import { type ClanRole, renderLoadingSpinner } from "./ClanShared";
 
@@ -104,13 +104,13 @@ export class ClanBrowseView extends LitElement {
     return html`
       <div class="space-y-4">
         <div class="relative">
-          <ui-input
+          <hud-input
             type="text"
             .value=${this.searchQuery}
             @input=${(e: Event) => this.onSearchInput(e)}
-            style="--ui-input-radius: 12px"
+            style="--hud-input-radius: 12px"
             placeholder=${translateText("clan_modal.search_placeholder")}
-          ></ui-input>
+          ></hud-input>
         </div>
 
         ${this.errorMsg
@@ -121,11 +121,11 @@ export class ClanBrowseView extends LitElement {
 
         <div class="space-y-3">
           ${filtered.length === 0 && this.browseData
-            ? html`<ui-empty-state>
+            ? html`<hud-empty-state>
                 <span slot="label"
                   >${translateText("clan_modal.no_results")}</span
                 >
-              </ui-empty-state>`
+              </hud-empty-state>`
             : filtered.map(
                 (clan) =>
                   html`<clan-card
@@ -138,35 +138,31 @@ export class ClanBrowseView extends LitElement {
         ${totalPages > 1
           ? html`
               <div class="flex items-center justify-center gap-2 pt-2">
-                <button
+                <hud-icon-button
+                  label="Previous page"
                   @click=${() => {
                     this.browsePage = Math.max(1, this.browsePage - 1);
                     this.loadBrowse();
                   }}
                   ?disabled=${this.browsePage <= 1}
-                  class="px-2 py-1 text-xs font-bold rounded-lg transition-all ${this
-                    .browsePage <= 1
-                    ? "text-white/20 cursor-not-allowed"
-                    : "text-white/60 hover:text-white hover:bg-white/10"}"
+                  style="--hud-icon-button-size: 24px;"
                 >
                   &lt;
-                </button>
+                </hud-icon-button>
                 <span class="text-xs text-white/50 font-medium">
                   ${this.browsePage} / ${totalPages}
                 </span>
-                <button
+                <hud-icon-button
+                  label="Next page"
                   @click=${() => {
                     this.browsePage = Math.min(totalPages, this.browsePage + 1);
                     this.loadBrowse();
                   }}
                   ?disabled=${this.browsePage >= totalPages}
-                  class="px-2 py-1 text-xs font-bold rounded-lg transition-all ${this
-                    .browsePage >= totalPages
-                    ? "text-white/20 cursor-not-allowed"
-                    : "text-white/60 hover:text-white hover:bg-white/10"}"
+                  style="--hud-icon-button-size: 24px;"
                 >
                   &gt;
-                </button>
+                </hud-icon-button>
               </div>
             `
           : ""}

@@ -1,6 +1,6 @@
 import { LitElement, TemplateResult, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import "./ui";
+import "../hud/ui";
 
 @customElement("lobby-config-item")
 export class LobbyConfigItem extends LitElement {
@@ -13,9 +13,9 @@ export class LobbyConfigItem extends LitElement {
 
   render() {
     return html`
-      <ui-stat
+      <hud-stat
         class="block min-w-[100px] text-center"
-        style="--ui-stat-padding: 0.75rem; --ui-stat-value-size: 0.875rem;"
+        style="--hud-stat-padding: 0.75rem; --hud-stat-value-size: 0.875rem;"
       >
         <span
           slot="label"
@@ -26,7 +26,7 @@ export class LobbyConfigItem extends LitElement {
           class="text-white font-bold text-sm w-full break-words hyphens-auto"
           >${this.value}</span
         >
-      </ui-stat>
+      </hud-stat>
     `;
   }
 }

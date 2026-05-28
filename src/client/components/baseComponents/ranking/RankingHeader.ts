@@ -1,5 +1,6 @@
-import { LitElement, html, nothing } from "lit";
+import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import "../../../hud/ui";
 import { translateText } from "../../../Utils";
 import { RankType } from "./GameInfoRanking";
 
@@ -98,14 +99,16 @@ export class RankingHeader extends LitElement {
 
   private renderMultipleChoiceHeaderButton(label: string, type: RankType) {
     return html`
-      <button
+      <hud-button
+        variant=${this.rankType === type ? "active" : "default"}
+        style="--hud-button-min-height: 22px; --hud-button-radius: 0; --hud-button-padding: 2px 6px; --hud-button-background: transparent; --hud-button-border-color: ${this
+          .rankType === type
+          ? "rgba(255,255,255,0.8)"
+          : "transparent"};"
         @click=${() => this.onSort(type)}
-        class="${this.rankType === type
-          ? "border-b-2 border-b-white"
-          : nothing}"
       >
         ${label}
-      </button>
+      </hud-button>
     `;
   }
 

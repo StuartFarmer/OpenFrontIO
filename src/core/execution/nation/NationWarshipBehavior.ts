@@ -10,7 +10,7 @@ import {
 } from "../../game/Game";
 import { TileRef } from "../../game/GameMap";
 import { PseudoRandom } from "../../PseudoRandom";
-import { ConstructionExecution } from "../ConstructionExecution";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import {
   EMOJI_WARSHIP_RETALIATION,
   NationEmojiBehavior,
@@ -25,13 +25,16 @@ export class NationWarshipBehavior {
   private trackedIncomingTransportShips: Set<Unit> = new Set();
   // Track incoming transport ships we have dealt with
   private dealtWithTransportShip: Set<Unit> = new Set();
+  private readonly commandSurface: AiCommandSurface;
 
   constructor(
     private random: PseudoRandom,
     private game: Game,
     private player: Player,
     private emojiBehavior: NationEmojiBehavior,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   maybeSpawnWarship(): boolean {
     if (this.player === null) throw new Error("not initialized");
@@ -57,9 +60,7 @@ export class NationWarshipBehavior {
       if (canBuild === false) {
         return false;
       }
-      this.game.addExecution(
-        new ConstructionExecution(this.player, UnitType.Warship, targetTile),
-      );
+      this.commandSurface.buildUnit(this.player, UnitType.Warship, targetTile);
       return true;
     }
     return false;
@@ -245,9 +246,7 @@ export class NationWarshipBehavior {
         this.maybeMoveWarship(tile);
         return;
       }
-      this.game.addExecution(
-        new ConstructionExecution(this.player, UnitType.Warship, tile),
-      );
+      this.commandSurface.buildUnit(this.player, UnitType.Warship, tile);
       this.emojiBehavior.maybeSendEmoji(enemy, EMOJI_WARSHIP_RETALIATION);
       this.player.updateRelation(enemy, reason === "trade" ? -7.5 : -15);
     }
@@ -447,12 +446,10 @@ export class NationWarshipBehavior {
       return;
     }
 
-    this.game.addExecution(
-      new ConstructionExecution(
-        this.player,
-        UnitType.Warship,
-        target.warship.tile(),
-      ),
+    this.commandSurface.buildUnit(
+      this.player,
+      UnitType.Warship,
+      target.warship.tile(),
     );
     this.emojiBehavior.sendEmoji(AllPlayers, EMOJI_WARSHIP_RETALIATION);
   }

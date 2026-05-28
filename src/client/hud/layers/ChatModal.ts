@@ -9,7 +9,7 @@ import { EventBus } from "../../../core/EventBus";
 import { CloseViewEvent } from "../../InputHandler";
 import { SendQuickChatEvent } from "../../Transport";
 import { translateText } from "../../Utils";
-import "../../components/ui";
+import "../ui";
 
 export type QuickChatPhrase = {
   key: string;
@@ -80,15 +80,16 @@ export class ChatModal extends LitElement {
             <div class="column-title">${translateText("chat.category")}</div>
             ${this.categories.map(
               (category) => html`
-                <button
-                  class="chat-option-button ${this.selectedCategory ===
-                  category.id
-                    ? "selected"
-                    : ""}"
+                <hud-button
+                  class="chat-option-button"
+                  variant=${this.selectedCategory === category.id
+                    ? "active"
+                    : "default"}
+                  style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
                   @click=${() => this.selectCategory(category.id)}
                 >
                   ${translateText(`chat.cat.${category.id}`)}
-                </button>
+                </hud-button>
               `,
             )}
           </div>
@@ -102,18 +103,19 @@ export class ChatModal extends LitElement {
                   <div class="phrase-scroll-area">
                     ${this.getPhrasesForCategory(this.selectedCategory).map(
                       (phrase) => html`
-                        <button
-                          class="chat-option-button ${this
-                            .selectedPhraseText ===
+                        <hud-button
+                          class="chat-option-button"
+                          variant=${this.selectedPhraseText ===
                           translateText(
                             `chat.${this.selectedCategory}.${phrase.key}`,
                           )
-                            ? "selected"
-                            : ""}"
+                            ? "active"
+                            : "default"}
+                          style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
                           @click=${() => this.selectPhrase(phrase)}
                         >
                           ${this.renderPhrasePreview(phrase)}
-                        </button>
+                        </hud-button>
                       `,
                     )}
                   </div>
@@ -127,29 +129,29 @@ export class ChatModal extends LitElement {
                     ${translateText("chat.player")}
                   </div>
 
-                  <ui-input
+                  <hud-input
                     class="player-search-input"
                     type="text"
                     placeholder="${translateText("chat.search")}"
                     .value=${this.playerSearchQuery}
                     @input=${this.onPlayerSearchInput}
-                  ></ui-input>
+                  ></hud-input>
 
                   <div class="player-scroll-area">
                     ${this.getSortedFilteredPlayers().map(
                       (player) => html`
-                        <button
-                          class="chat-option-button ${this.selectedPlayer ===
-                          player
-                            ? "selected"
-                            : ""}"
-                          style="border: 2px solid ${player
+                        <hud-button
+                          class="chat-option-button"
+                          variant=${this.selectedPlayer === player
+                            ? "active"
+                            : "default"}
+                          style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px; --hud-button-border-color: ${player
                             .territoryColor()
                             .toHex()};"
                           @click=${() => this.selectPlayer(player)}
                         >
                           ${player.displayName()}
-                        </button>
+                        </hud-button>
                       `,
                     )}
                   </div>
@@ -164,15 +166,15 @@ export class ChatModal extends LitElement {
             : translateText("chat.build")}
         </div>
         <div class="chat-send">
-          <ui-button
+          <hud-button
             class="chat-send-button"
-            variant="primary"
+            variant="active"
             @click=${this.sendChatMessage}
             ?disabled=${!this.previewText ||
             (this.requiresPlayerSelection && !this.selectedPlayer)}
           >
             ${translateText("chat.send")}
-          </ui-button>
+          </hud-button>
         </div>
       </o-modal>
     `;

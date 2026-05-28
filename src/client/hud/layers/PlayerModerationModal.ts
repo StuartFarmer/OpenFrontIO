@@ -4,10 +4,9 @@ import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
 import { PlayerType } from "../../../core/game/Game";
 import { PlayerView } from "../../../core/game/GameView";
-import "../../components/ui";
-import { actionButton } from "../../components/ui/ActionButton";
 import { SendKickPlayerIntentEvent } from "../../Transport";
 import { translateText } from "../../Utils";
+import "../ui";
 const kickIcon = assetUrl("images/ExitIconWhite.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
 
@@ -18,6 +17,7 @@ export class PlayerModerationModal extends LitElement {
   @property({ attribute: false }) target: PlayerView | null = null;
 
   @property({ type: Boolean }) open: boolean = false;
+  @property({ type: Boolean }) inline: boolean = false;
   @property({ type: Boolean }) alreadyKicked: boolean = false;
   @property({ type: Boolean }) isAdmin: boolean = false;
 
@@ -51,6 +51,11 @@ export class PlayerModerationModal extends LitElement {
       other.type() === PlayerType.Human &&
       !!other.clientID()
     );
+  }
+
+  private t(key: string, fallback: string): string {
+    const value = translateText(key);
+    return value === key ? fallback : value;
   }
 
   private handleKickClick = (e: MouseEvent) => {
@@ -89,84 +94,96 @@ export class PlayerModerationModal extends LitElement {
     const canKick = this.canKick(my, other);
     const alreadyKicked = this.alreadyKicked;
 
-    const moderationTitle = translateText("player_panel.moderation");
+    const moderationTitle = this.t("player_panel.moderation", "Moderation");
     const kickTitle = alreadyKicked
-      ? translateText("player_panel.kicked")
-      : translateText("player_panel.kick");
+      ? this.t("player_panel.kicked", "Kicked")
+      : this.t("player_panel.kick", "Kick");
+    const closeTitle = this.t("common.close", "Close");
+    const statusTone = alreadyKicked ? "orange" : canKick ? "green" : "red";
+    const statusLabel = alreadyKicked
+      ? this.t("player_panel.kicked", "Kicked")
+      : canKick
+        ? this.t("common.available", "Available")
+        : "Unavailable";
 
     return html`
-      <div class="absolute inset-0 z-1200 flex items-center justify-center p-4">
-        <div
-          class="absolute inset-0 bg-black/60 rounded-2xl"
-          @click=${() => this.closeModal()}
-        ></div>
-
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="moderation-title"
-          class="relative z-10 w-full max-w-120 focus:outline-hidden"
-          tabindex="0"
-          @keydown=${this.handleKeydown}
+      <div tabindex="0" @keydown=${this.handleKeydown}>
+        <hud-modal-shell
+          .open=${this.open}
+          .inline=${this.inline}
+          hideCloseButton
+          label=${moderationTitle}
+          maxWidth="28rem"
+          @close=${() => this.closeModal()}
         >
-          <ui-surface
-            style="--ui-radius: 16px; --ui-surface-bg: rgb(24 24 27); --ui-surface-border: rgb(39 39 42)"
-            @click=${(e: MouseEvent) => e.stopPropagation()}
-          >
-            <ui-surface-body style="--ui-surface-body-padding: 20px">
-              <div class="mb-3 flex items-center justify-between relative">
-                <div class="flex items-center gap-2">
-                  <img
-                    src=${shieldIcon}
-                    alt=""
-                    aria-hidden="true"
-                    class="h-5 w-5"
-                  />
-                  <h2
-                    id="moderation-title"
-                    class="text-lg font-semibold tracking-tight text-zinc-100"
-                  >
-                    ${moderationTitle}
-                  </h2>
-                </div>
+          <hud-modal-header>
+            <hud-row>
+              <hud-icon .src=${shieldIcon} size="sm" tone="active"></hud-icon>
+              <hud-label id="moderation-title" tone="default">
+                ${moderationTitle}
+              </hud-label>
+            </hud-row>
+            <hud-icon-button
+              label=${closeTitle}
+              variant="danger"
+              title=${closeTitle}
+              @click=${() => this.closeModal()}
+            >
+              x
+            </hud-icon-button>
+          </hud-modal-header>
 
-                <ui-icon-button
-                  class="absolute -top-3 -right-3"
-                  variant="danger"
-                  @click=${() => this.closeModal()}
-                  aria-label=${translateText("common.close")}
-                  title=${translateText("common.close")}
-                >
-                  ✕
-                </ui-icon-button>
-              </div>
+          <hud-modal-body>
+            <hud-stack>
+              <hud-list-row>
+                <hud-icon
+                  slot="leading"
+                  .src=${shieldIcon}
+                  size="sm"
+                  tone="active"
+                ></hud-icon>
+                <hud-player-identity
+                  .name=${other.displayName()}
+                  .iconSrc=${shieldIcon}
+                ></hud-player-identity>
+                <hud-pill slot="meta" tone=${statusTone}>
+                  ${statusLabel}
+                </hud-pill>
+              </hud-list-row>
 
-              <ui-list-row
-                class="mb-4 rounded-xl border border-white/10 bg-white/5"
-                style="--ui-list-row-padding: 8px 12px"
+              <hud-alert
+                compact
+                tone=${alreadyKicked ? "warning" : canKick ? "info" : "danger"}
               >
-                <div
-                  class="text-sm font-semibold text-zinc-100 truncate"
-                  title=${other.displayName()}
-                >
-                  ${other.displayName()}
-                </div>
-              </ui-list-row>
+                ${alreadyKicked
+                  ? this.t("player_panel.kicked", "Kicked")
+                  : canKick
+                    ? kickTitle
+                    : "Unavailable"}
+              </hud-alert>
+            </hud-stack>
+          </hud-modal-body>
 
-              <div class="grid auto-cols-fr grid-flow-col gap-1">
-                ${actionButton({
-                  onClick: this.handleKickClick,
-                  icon: kickIcon,
-                  iconAlt: "Kick",
-                  title: kickTitle,
-                  label: kickTitle,
-                  type: "red",
-                  disabled: alreadyKicked || !canKick,
-                })}
-              </div>
-            </ui-surface-body>
-          </ui-surface>
-        </div>
+          <hud-modal-footer>
+            <hud-button variant="default" @click=${() => this.closeModal()}>
+              ${this.t("common.cancel", "Cancel")}
+            </hud-button>
+            <hud-button
+              variant="danger"
+              ?disabled=${alreadyKicked || !canKick}
+              title=${kickTitle}
+              @click=${this.handleKickClick}
+            >
+              <hud-icon
+                slot="icon"
+                .src=${kickIcon}
+                size="sm"
+                tone="inherit"
+              ></hud-icon>
+              ${kickTitle}
+            </hud-button>
+          </hud-modal-footer>
+        </hud-modal-shell>
       </div>
     `;
   }

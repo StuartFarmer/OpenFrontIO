@@ -328,14 +328,11 @@ export class ControlPanel extends LitElement implements Controller {
         rateIsIncreasing: this._troopRateIsIncreasing,
         barTone: "blue",
         iconTone: "active",
-        icon: html`<img
-          src=${soldierIcon}
-          alt=""
-          aria-hidden="true"
-          width="14"
-          height="14"
-          class="shrink-0"
-        />`,
+        icon: html`<hud-icon
+          .src=${soldierIcon}
+          size="sm"
+          tone="active"
+        ></hud-icon>`,
       },
       food: {
         key: "food",

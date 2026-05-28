@@ -1,13 +1,15 @@
 import { LitElement, TemplateResult, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { translateText } from "../../Utils";
-import "../ui/UiComponents";
+import "../../hud/ui";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ButtonSize = "xs" | "sm" | "md" | "lg";
 type ButtonWidth = "auto" | "block" | "blockDesktop" | "fill";
 type IconPosition = "left" | "right" | "only";
 
+// Compatibility wrapper for legacy <o-button> call sites. New UI should prefer
+// <hud-button> / <hud-icon-button> directly unless it needs translationKey support.
 @customElement("o-button")
 export class OButton extends LitElement {
   @property() title = "";
@@ -24,16 +26,16 @@ export class OButton extends LitElement {
     return this;
   }
 
-  private uiVariant(): "primary" | "secondary" | "danger" | "ghost" {
+  private hudVariant(): "active" | "default" | "danger" {
     switch (this.variant) {
       case "primary":
-        return "primary";
+        return "active";
       case "secondary":
-        return "secondary";
+        return "default";
       case "danger":
         return "danger";
       case "ghost":
-        return "ghost";
+        return "default";
     }
   }
 
@@ -60,22 +62,22 @@ export class OButton extends LitElement {
 
     if (iconOnly) {
       return html`
-        <ui-icon-button
+        <hud-icon-button
           class=${blockDesktopClass}
-          variant=${this.uiVariant()}
+          variant=${this.hudVariant()}
           size=${this.size}
           label=${label}
           ?disabled=${this.disable}
         >
           ${this.icon ?? nothing}
-        </ui-icon-button>
+        </hud-icon-button>
       `;
     }
 
     return html`
-      <ui-button
+      <hud-button
         class=${blockDesktopClass}
-        variant=${this.uiVariant()}
+        variant=${this.hudVariant()}
         size=${this.size}
         width=${this.uiWidth()}
         ?disabled=${this.disable}
@@ -87,7 +89,7 @@ export class OButton extends LitElement {
           : nothing}
         ${label}
         ${this.icon && this.iconPosition === "right" ? this.icon : nothing}
-      </ui-button>
+      </hud-button>
     `;
   }
 }

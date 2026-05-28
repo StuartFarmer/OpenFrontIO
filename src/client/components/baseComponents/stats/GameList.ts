@@ -3,9 +3,9 @@ import { customElement, property, state } from "lit/decorators.js";
 import { PlayerGame } from "../../../../core/ApiSchemas";
 import { GameMode } from "../../../../core/game/Game";
 import { GameInfoModal } from "../../../GameInfoModal";
+import "../../../hud/ui";
 import { translateText } from "../../../Utils";
 import "../../CopyButton";
-import "../../ui";
 
 @customElement("game-list")
 export class GameList extends LitElement {
@@ -40,16 +40,16 @@ export class GameList extends LitElement {
       <div class="flex flex-col gap-3">
         ${this.games.map(
           (game) => html`
-            <ui-surface
+            <hud-surface
               tone="muted"
-              style="--ui-radius: 12px; --ui-surface-shadow: none"
+              style="--hud-radius: 12px; --hud-surface-shadow: none"
             >
-              <ui-surface-body style="--ui-surface-body-padding: 12px 16px">
+              <hud-surface-body style="--hud-surface-body-padding: 12px 16px">
                 <div
                   class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div class="flex items-center gap-4">
-                    <ui-icon-button
+                    <hud-icon-button
                       variant="active"
                       @click=${() => this.onViewGame?.(game.gameId)}
                     >
@@ -66,7 +66,7 @@ export class GameList extends LitElement {
                         <circle cx="12" cy="12" r="10"></circle>
                         <polygon points="10 8 16 12 10 16 10 8"></polygon>
                       </svg>
-                    </ui-icon-button>
+                    </hud-icon-button>
                     <div>
                       <div class="text-sm font-bold text-white tracking-wide">
                         ${new Date(game.start).toLocaleDateString()}
@@ -83,30 +83,30 @@ export class GameList extends LitElement {
                   </div>
 
                   <div class="flex gap-2 self-end sm:self-auto">
-                    <ui-button
+                    <hud-button
                       size="sm"
-                      variant="primary"
+                      variant="active"
                       @click=${() => this.onViewGame?.(game.gameId)}
                     >
                       ${translateText("game_list.replay")}
-                    </ui-button>
-                    <ui-button
+                    </hud-button>
+                    <hud-button
                       size="sm"
-                      variant="secondary"
+                      variant="default"
                       @click=${() => this.toggle(game.gameId)}
                     >
                       ${translateText("game_list.details")}
-                    </ui-button>
-                    <ui-button
+                    </hud-button>
+                    <hud-button
                       size="sm"
-                      variant="secondary"
+                      variant="default"
                       @click=${() => this.showRanking(game.gameId)}
                     >
                       ${translateText("game_list.ranking")}
-                    </ui-button>
+                    </hud-button>
                   </div>
                 </div>
-              </ui-surface-body>
+              </hud-surface-body>
 
               <div
                 class="bg-black/20 border-t border-white/5 px-4 text-xs text-gray-400 transition-all duration-300 overflow-hidden"
@@ -116,12 +116,12 @@ export class GameList extends LitElement {
                   ? "1"
                   : "0"}"
               >
-                <ui-stat-grid
+                <hud-stat-grid
                   columns="4"
-                  style="--ui-stat-grid-gap: 16px"
+                  style="--hud-stat-grid-gap: 16px"
                   class="py-3"
                 >
-                  <ui-stat>
+                  <hud-stat>
                     <span slot="label"
                       >${translateText("game_list.game_id")}</span
                     >
@@ -129,24 +129,24 @@ export class GameList extends LitElement {
                       .copyText="${game.gameId}"
                       compact
                     ></copy-button>
-                  </ui-stat>
-                  <ui-stat>
+                  </hud-stat>
+                  <hud-stat>
                     <span slot="label">${translateText("game_list.map")}</span>
                     ${game.map}
-                  </ui-stat>
-                  <ui-stat>
+                  </hud-stat>
+                  <hud-stat>
                     <span slot="label"
                       >${translateText("game_list.difficulty")}</span
                     >
                     ${game.difficulty}
-                  </ui-stat>
-                  <ui-stat>
+                  </hud-stat>
+                  <hud-stat>
                     <span slot="label">${translateText("game_list.type")}</span>
                     ${game.type}
-                  </ui-stat>
-                </ui-stat-grid>
+                  </hud-stat>
+                </hud-stat-grid>
               </div>
-            </ui-surface>
+            </hud-surface>
           `,
         )}
       </div>

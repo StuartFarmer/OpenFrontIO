@@ -7,6 +7,7 @@ import { GameView } from "../../../core/game/GameView";
 import { Controller } from "../../Controller";
 import { MultiTabDetector } from "../../MultiTabDetector";
 import { translateText } from "../../Utils";
+import "../ui";
 
 @customElement("multi-tab-modal")
 export class MultiTabModal extends LitElement implements Controller {
@@ -122,71 +123,62 @@ export class MultiTabModal extends LitElement implements Controller {
       <div
         class="fixed inset-0 z-50 overflow-auto bg-red-500/20 flex items-center justify-center"
       >
-        <div
-          class="relative p-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full m-4 transition-all transform"
+        <hud-surface
+          class="relative max-w-md w-full m-4 transition-all transform"
+          tone="default"
+          style="--hud-radius: 12px; --hud-surface-bg: rgba(31,41,55,0.96); --hud-surface-body-padding: 24px;"
         >
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-bold text-red-600 dark:text-red-400">
-              ${translateText("multi_tab.warning")}
-            </h2>
+          <hud-surface-body style="--hud-surface-body-padding: 24px;">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-2xl font-bold text-red-600 dark:text-red-400">
+                ${translateText("multi_tab.warning")}
+              </h2>
+              <hud-pill tone="red" class="animate-pulse"> RECORDING </hud-pill>
+            </div>
+
+            <p class="mb-4 text-gray-200">
+              ${translateText("multi_tab.detected")}
+            </p>
+
+            <hud-stat-grid columns="1" class="mb-4 text-sm font-mono">
+              <hud-stat label="IP" value=${this.fakeIp} tone="red"></hud-stat>
+              <hud-stat
+                label="Device Fingerprint"
+                value=${this.deviceFingerprint}
+                tone="red"
+              ></hud-stat>
+              <hud-stat
+                label="Reported"
+                value=${this.reported ? "TRUE" : "FALSE"}
+                tone="red"
+              ></hud-stat>
+            </hud-stat-grid>
+
+            <p class="mb-4 text-gray-200">
+              ${translateText("multi_tab.please_wait")}
+              <span class="font-bold text-xl">${this.countdown}</span>
+              ${translateText("multi_tab.seconds")}
+            </p>
+
             <div
-              class="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full animate-pulse"
+              class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4"
             >
-              RECORDING
+              <div
+                class="bg-red-600 dark:bg-red-500 h-2.5 rounded-full transition-all duration-1000 ease-linear w-(--width)"
+                style="--width: ${(this.countdown / (this.duration / 1000)) *
+                100}%"
+              ></div>
             </div>
-          </div>
 
-          <p class="mb-4 text-gray-800 dark:text-gray-200">
-            ${translateText("multi_tab.detected")}
-          </p>
+            <p class="text-sm text-gray-400">
+              ${translateText("multi_tab.explanation")}
+            </p>
 
-          <div
-            class="mb-4 p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm font-mono"
-          >
-            <div class="flex justify-between mb-1">
-              <span class="text-gray-500 dark:text-gray-400">IP:</span>
-              <span class="text-red-600 dark:text-red-400">${this.fakeIp}</span>
-            </div>
-            <div class="flex justify-between mb-1">
-              <span class="text-gray-500 dark:text-gray-400"
-                >Device Fingerprint:</span
-              >
-              <span class="text-red-600 dark:text-red-400"
-                >${this.deviceFingerprint}</span
-              >
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Reported:</span>
-              <span class="text-red-600 dark:text-red-400"
-                >${this.reported ? "TRUE" : "FALSE"}</span
-              >
-            </div>
-          </div>
-
-          <p class="mb-4 text-gray-800 dark:text-gray-200">
-            ${translateText("multi_tab.please_wait")}
-            <span class="font-bold text-xl">${this.countdown}</span>
-            ${translateText("multi_tab.seconds")}
-          </p>
-
-          <div
-            class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4"
-          >
-            <div
-              class="bg-red-600 dark:bg-red-500 h-2.5 rounded-full transition-all duration-1000 ease-linear w-(--width)"
-              style="--width: ${(this.countdown / (this.duration / 1000)) *
-              100}%"
-            ></div>
-          </div>
-
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            ${translateText("multi_tab.explanation")}
-          </p>
-
-          <p class="mt-3 text-xs text-red-500 font-semibold">
-            Repeated violations may result in permanent account suspension.
-          </p>
-        </div>
+            <p class="mt-3 text-xs text-red-500 font-semibold">
+              Repeated violations may result in permanent account suspension.
+            </p>
+          </hud-surface-body>
+        </hud-surface>
       </div>
     `;
   }

@@ -3,6 +3,11 @@ vi.mock("lit", () => ({
     strings,
     values,
   }),
+  css: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+    strings,
+    values,
+  }),
+  nothing: Symbol("nothing"),
   LitElement: class extends EventTarget {
     requestUpdate() {}
   },
@@ -25,6 +30,8 @@ vi.mock("../../../../src/client/Utils", () => ({
 vi.mock("../../../../src/client/components/ui/ActionButton", () => ({
   actionButton: vi.fn((props: unknown) => props),
 }));
+
+vi.mock("../../../../src/client/components/ui", () => ({}));
 
 import { actionButton } from "../../../../src/client/components/ui/ActionButton";
 import { PlayerModerationModal } from "../../../../src/client/hud/layers/PlayerModerationModal";

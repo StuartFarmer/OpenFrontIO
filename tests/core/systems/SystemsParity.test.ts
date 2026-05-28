@@ -1,6 +1,10 @@
 import { describe, test } from "vitest";
 import { AttackExecution } from "../../../src/core/execution/AttackExecution";
+import { ConstructionExecution } from "../../../src/core/execution/ConstructionExecution";
+import { MoveWarshipExecution } from "../../../src/core/execution/MoveWarshipExecution";
+import { NukeExecution } from "../../../src/core/execution/NukeExecution";
 import { PlayerExecution } from "../../../src/core/execution/PlayerExecution";
+import { WarshipExecution } from "../../../src/core/execution/WarshipExecution";
 import { PlayerInfo, PlayerType, UnitType } from "../../../src/core/game/Game";
 import {
   expectParity,
@@ -125,6 +129,45 @@ describe("systems parity legacy fixtures", () => {
       ),
     );
   });
+
+  test("unit_parity_structure_lifecycle", async () => {
+    const expected = await buildStructureLifecycleGame();
+    const actual = await buildStructureLifecycleGame();
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 6, captureUpdates: true },
+      ),
+    );
+  });
+
+  test("unit_parity_mobile_lifecycle", async () => {
+    const expected = await buildMobileLifecycleGame();
+    const actual = await buildMobileLifecycleGame();
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 6, captureUpdates: true },
+      ),
+    );
+  });
+
+  test("unit_parity_projectile_lifecycle", async () => {
+    const expected = await buildProjectileLifecycleGame();
+    const actual = await buildProjectileLifecycleGame();
+
+    expectParity(
+      runParityScenario(
+        { label: "legacy", game: expected },
+        { label: "systems", game: actual },
+        { ticks: 8, captureUpdates: true },
+      ),
+    );
+  });
 });
 
 async function buildEconomyGame() {
@@ -230,6 +273,64 @@ async function buildUnitGame() {
   player.conquer(tile);
   player.setTroops(10_000);
   player.buildUnit(UnitType.City, tile, {});
+
+  return game;
+}
+
+async function buildStructureLifecycleGame() {
+  const game = await setup("big_plains", { infiniteGold: true }, [
+    new PlayerInfo("builder", PlayerType.Human, "client", "builder"),
+  ]);
+  const player = game.player("builder");
+  const cityTile = game.ref(50, 50);
+  const siloTile = game.ref(70, 50);
+
+  player.conquer(cityTile);
+  player.conquer(siloTile);
+  game.addExecution(
+    new ConstructionExecution(player, UnitType.City, cityTile),
+    new ConstructionExecution(player, UnitType.MissileSilo, siloTile),
+  );
+
+  return game;
+}
+
+async function buildMobileLifecycleGame() {
+  const game = await setup(
+    "half_land_half_ocean",
+    { infiniteGold: true, instantBuild: true },
+    [new PlayerInfo("fleet", PlayerType.Human, "client", "fleet")],
+  );
+  const player = game.player("fleet");
+  const start = game.ref(8, 10);
+  const patrol = game.ref(11, 15);
+  const warship = player.buildUnit(UnitType.Warship, start, {
+    patrolTile: start,
+  });
+
+  game.addExecution(new WarshipExecution(warship));
+  game.addExecution(new MoveWarshipExecution(player, [warship.id()], patrol));
+
+  return game;
+}
+
+async function buildProjectileLifecycleGame() {
+  const game = await setup("big_plains", { infiniteGold: true }, [
+    new PlayerInfo("launcher", PlayerType.Human, "client", "launcher"),
+    new PlayerInfo("target", PlayerType.Human, "target-client", "target"),
+  ]);
+  const launcher = game.player("launcher");
+  const target = game.player("target");
+  const siloTile = game.ref(50, 50);
+  const targetTile = game.ref(55, 50);
+
+  launcher.conquer(siloTile);
+  target.conquer(targetTile);
+  launcher.buildUnit(UnitType.MissileSilo, siloTile, {});
+  target.buildUnit(UnitType.City, targetTile, {});
+  game.addExecution(
+    new NukeExecution(UnitType.AtomBomb, launcher, targetTile, null, 50),
+  );
 
   return game;
 }

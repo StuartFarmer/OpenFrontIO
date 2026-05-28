@@ -6,7 +6,7 @@ import {
 } from "../../../core/ClanApiSchemas";
 import { fetchClanLeaderboard } from "../../ClanApi";
 import { translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 
 export type ClanSortColumn =
   | "rank"
@@ -105,9 +105,9 @@ export class LeaderboardClanTable extends LitElement {
 
   private renderLoading() {
     return html`
-      <ui-loading-state
+      <hud-loading-state
         class="h-full"
-        style="--ui-loading-padding: 48px"
+        style="--hud-loading-padding: 48px"
         label=${translateText("leaderboard_modal.loading")}
       >
         <span
@@ -115,7 +115,7 @@ export class LeaderboardClanTable extends LitElement {
         >
           ${translateText("leaderboard_modal.loading")}
         </span>
-      </ui-loading-state>
+      </hud-loading-state>
     `;
   }
 
@@ -145,23 +145,128 @@ export class LeaderboardClanTable extends LitElement {
         <p class="mb-8 text-center text-red-100/80 font-medium">
           ${this.error ?? translateText("leaderboard_modal.error")}
         </p>
-        <ui-button variant="danger" @click=${() => this.loadClanLeaderboard()}>
+        <hud-button variant="danger" @click=${() => this.loadClanLeaderboard()}>
           ${translateText("leaderboard_modal.try_again")}
-        </ui-button>
+        </hud-button>
       </div>
     `;
   }
 
   private renderNoData() {
     return html`
-      <ui-empty-state class="h-full" style="--ui-empty-padding: 48px">
+      <hud-empty-state class="h-full" style="--hud-empty-padding: 48px">
         <span slot="label">
           ${translateText("leaderboard_modal.no_data_yet")}
         </span>
         <span class="text-white/30 text-sm">
           ${translateText("leaderboard_modal.no_stats")}
         </span>
-      </ui-empty-state>
+      </hud-empty-state>
+    `;
+  }
+
+  private renderSortButton(label: string, column: ClanSortColumn) {
+    const active = this.sortBy === column;
+    const direction = active ? (this.sortOrder === "asc" ? "↑" : "↓") : "↕";
+    return html`
+      <hud-button
+        variant=${active ? "active" : "default"}
+        style="--hud-button-min-height: 22px; --hud-button-radius: 3px; --hud-button-padding: 3px 6px; --hud-button-background: transparent; --hud-button-border-color: transparent;"
+        @click=${() => this.handleSort(column)}
+        aria-sort=${active
+          ? this.sortOrder === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"}
+      >
+        ${label} ${direction}
+      </hud-button>
+    `;
+  }
+
+  private renderClanRow(
+    clan: ClanLeaderboardEntry,
+    displayRank: number,
+    maxGames: number,
+  ) {
+    const rankColor =
+      displayRank === 1
+        ? "text-yellow-400 bg-yellow-400/10 ring-1 ring-yellow-400/20"
+        : displayRank === 2
+          ? "text-slate-300 bg-slate-400/10 ring-1 ring-slate-400/20"
+          : displayRank === 3
+            ? "text-amber-600 bg-amber-600/10 ring-1 ring-amber-600/20"
+            : "text-white/40 bg-white/5";
+    const rankIcon =
+      displayRank === 1
+        ? "👑"
+        : displayRank === 2
+          ? "🥈"
+          : displayRank === 3
+            ? "🥉"
+            : String(displayRank);
+
+    return html`
+      <hud-table-row interactive>
+        <hud-table-cell align="center" style="width: 4rem">
+          <div
+            class="w-10 h-10 mx-auto flex items-center justify-center rounded-lg font-bold font-mono text-lg ${rankColor}"
+          >
+            ${rankIcon}
+          </div>
+        </hud-table-cell>
+        <hud-table-cell align="left" style="width: 5rem">
+          <div
+            class="px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/20 inline-block font-bold text-blue-300"
+          >
+            ${clan.clanTag}
+          </div>
+        </hud-table-cell>
+        <hud-table-cell style="width: 8rem">
+          <div class="flex flex-col items-end gap-1">
+            <span class="text-white font-mono font-medium"
+              >${clan.games.toLocaleString()}</span
+            >
+            <div class="w-24 h-1 bg-white/10 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-blue-500/50 rounded-full"
+                style="width: ${(clan.games / maxGames) * 100}%"
+              ></div>
+            </div>
+          </div>
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
+          <span class="font-mono text-green-400/90">
+            ${clan.weightedWins.toLocaleString(undefined, {
+              maximumFractionDigits: 1,
+            })}
+          </span>
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
+          <span class="font-mono text-red-400/90">
+            ${clan.weightedLosses.toLocaleString(undefined, {
+              maximumFractionDigits: 1,
+            })}
+          </span>
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
+          <div class="inline-flex flex-col items-end">
+            <span
+              class="font-mono font-bold ${clan.weightedWLRatio >= 1
+                ? "text-green-400"
+                : "text-red-400"}"
+              >${clan.weightedWLRatio.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}</span
+            >
+            <span
+              class="text-[10px] uppercase text-white/30 font-bold tracking-wider"
+            >
+              ${translateText("leaderboard_modal.ratio")}
+            </span>
+          </div>
+        </hud-table-cell>
+      </hud-table-row>
     `;
   }
 
@@ -181,202 +286,51 @@ export class LeaderboardClanTable extends LitElement {
           <div
             class="h-full overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-white/20"
           >
-            <table class="w-full text-sm border-collapse table-fixed">
-              <colgroup>
-                <col style="width: 4rem" />
-                <col style="width: 5rem" />
-                <col style="width: 8rem" />
-                <col style="width: 6rem" />
-                <col style="width: 6rem" />
-                <col style="width: 6rem" />
-              </colgroup>
-              <thead class="sticky top-0 z-10">
-                <tr
-                  class="text-white/40 text-[10px] uppercase tracking-wider border-b border-white/5 bg-[#1e2433]"
+            <hud-table class="text-sm table-fixed">
+              <hud-table-row class="sticky top-0 z-10 bg-[#1e2433]">
+                <hud-table-cell header align="center" style="width: 4rem">
+                  ${translateText("leaderboard_modal.rank")}
+                </hud-table-cell>
+                <hud-table-cell header align="left" style="width: 5rem">
+                  ${translateText("leaderboard_modal.clan")}
+                </hud-table-cell>
+                <hud-table-cell header style="width: 8rem">
+                  ${this.renderSortButton(
+                    translateText("leaderboard_modal.games"),
+                    "games",
+                  )}
+                </hud-table-cell>
+                <hud-table-cell
+                  header
+                  style="width: 6rem"
+                  title=${translateText("leaderboard_modal.win_score_tooltip")}
                 >
-                  <th class="py-4 px-4 text-center font-bold">
-                    ${translateText("leaderboard_modal.rank")}
-                  </th>
-                  <th class="py-4 px-4 text-left font-bold">
-                    ${translateText("leaderboard_modal.clan")}
-                  </th>
-                  <th
-                    class="py-4 px-4 text-right font-bold cursor-pointer hover:text-white/60 transition-colors"
-                  >
-                    <button
-                      class="whitespace-nowrap uppercase"
-                      @click=${() => this.handleSort("games")}
-                      aria-sort=${this.sortBy === "games"
-                        ? this.sortOrder === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"}
-                    >
-                      ${translateText("leaderboard_modal.games")}
-                      ${this.sortBy === "games"
-                        ? this.sortOrder === "asc"
-                          ? "↑"
-                          : "↓"
-                        : "↕"}
-                    </button>
-                  </th>
-                  <th
-                    class="py-4 px-4 text-right font-bold cursor-pointer hover:text-white/60 transition-colors"
-                    title=${translateText(
-                      "leaderboard_modal.win_score_tooltip",
-                    )}
-                  >
-                    <button
-                      class="whitespace-nowrap uppercase"
-                      @click=${() => this.handleSort("winScore")}
-                      aria-sort=${this.sortBy === "winScore"
-                        ? this.sortOrder === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"}
-                    >
-                      ${translateText("leaderboard_modal.win_score")}
-                      ${this.sortBy === "winScore"
-                        ? this.sortOrder === "asc"
-                          ? "↑"
-                          : "↓"
-                        : "↕"}
-                    </button>
-                  </th>
-                  <th
-                    class="py-4 px-4 text-right font-bold cursor-pointer hover:text-white/60 transition-colors"
-                    title=${translateText(
-                      "leaderboard_modal.loss_score_tooltip",
-                    )}
-                  >
-                    <button
-                      class="whitespace-nowrap uppercase"
-                      @click=${() => this.handleSort("lossScore")}
-                      aria-sort=${this.sortBy === "lossScore"
-                        ? this.sortOrder === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"}
-                    >
-                      ${translateText("leaderboard_modal.loss_score")}
-                      ${this.sortBy === "lossScore"
-                        ? this.sortOrder === "asc"
-                          ? "↑"
-                          : "↓"
-                        : "↕"}
-                    </button>
-                  </th>
-                  <th
-                    class="py-4 px-4 text-right font-bold pr-6 cursor-pointer hover:text-white/60 transition-colors"
-                  >
-                    <button
-                      class="whitespace-nowrap uppercase"
-                      @click=${() => this.handleSort("ratio")}
-                      aria-sort=${this.sortBy === "ratio"
-                        ? this.sortOrder === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"}
-                    >
-                      ${translateText("leaderboard_modal.win_loss_ratio")}
-                      ${this.sortBy === "ratio"
-                        ? this.sortOrder === "asc"
-                          ? "↑"
-                          : "↓"
-                        : "↕"}
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sorted.map((clan, index) => {
-                  const displayRank = index + 1;
-                  const rankColor =
-                    displayRank === 1
-                      ? "text-yellow-400 bg-yellow-400/10 ring-1 ring-yellow-400/20"
-                      : displayRank === 2
-                        ? "text-slate-300 bg-slate-400/10 ring-1 ring-slate-400/20"
-                        : displayRank === 3
-                          ? "text-amber-600 bg-amber-600/10 ring-1 ring-amber-600/20"
-                          : "text-white/40 bg-white/5";
-                  const rankIcon =
-                    displayRank === 1
-                      ? "👑"
-                      : displayRank === 2
-                        ? "🥈"
-                        : displayRank === 3
-                          ? "🥉"
-                          : String(displayRank);
-
-                  return html`
-                    <tr
-                      class="border-b border-white/5 hover:bg-white/[0.07] transition-colors group"
-                    >
-                      <td class="py-3 px-4 text-center">
-                        <div
-                          class="w-10 h-10 mx-auto flex items-center justify-center rounded-lg font-bold font-mono text-lg ${rankColor}"
-                        >
-                          ${rankIcon}
-                        </div>
-                      </td>
-                      <td class="py-3 px-4 font-bold text-blue-300">
-                        <div
-                          class="px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/20 inline-block"
-                        >
-                          ${clan.clanTag}
-                        </div>
-                      </td>
-                      <td class="py-3 px-4 text-right">
-                        <div class="flex flex-col items-end gap-1">
-                          <span class="text-white font-mono font-medium"
-                            >${clan.games.toLocaleString()}</span
-                          >
-                          <div
-                            class="w-24 h-1 bg-white/10 rounded-full overflow-hidden"
-                          >
-                            <div
-                              class="h-full bg-blue-500/50 rounded-full"
-                              style="width: ${(clan.games / maxGames) * 100}%"
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td
-                        class="py-3 px-4 text-right font-mono text-green-400/90"
-                      >
-                        ${clan.weightedWins.toLocaleString(undefined, {
-                          maximumFractionDigits: 1,
-                        })}
-                      </td>
-                      <td
-                        class="py-3 px-4 text-right font-mono text-red-400/90"
-                      >
-                        ${clan.weightedLosses.toLocaleString(undefined, {
-                          maximumFractionDigits: 1,
-                        })}
-                      </td>
-                      <td class="py-3 px-4 text-right pr-6">
-                        <div class="inline-flex flex-col items-end">
-                          <span
-                            class="font-mono font-bold ${clan.weightedWLRatio >=
-                            1
-                              ? "text-green-400"
-                              : "text-red-400"}"
-                            >${clan.weightedWLRatio.toLocaleString(undefined, {
-                              maximumFractionDigits: 2,
-                            })}</span
-                          >
-                          <span
-                            class="text-[10px] uppercase text-white/30 font-bold tracking-wider"
-                            >${translateText("leaderboard_modal.ratio")}</span
-                          >
-                        </div>
-                      </td>
-                    </tr>
-                  `;
-                })}
-              </tbody>
-            </table>
+                  ${this.renderSortButton(
+                    translateText("leaderboard_modal.win_score"),
+                    "winScore",
+                  )}
+                </hud-table-cell>
+                <hud-table-cell
+                  header
+                  style="width: 6rem"
+                  title=${translateText("leaderboard_modal.loss_score_tooltip")}
+                >
+                  ${this.renderSortButton(
+                    translateText("leaderboard_modal.loss_score"),
+                    "lossScore",
+                  )}
+                </hud-table-cell>
+                <hud-table-cell header style="width: 6rem">
+                  ${this.renderSortButton(
+                    translateText("leaderboard_modal.win_loss_ratio"),
+                    "ratio",
+                  )}
+                </hud-table-cell>
+              </hud-table-row>
+              ${sorted.map((clan, index) =>
+                this.renderClanRow(clan, index + 1, maxGames),
+              )}
+            </hud-table>
           </div>
         </div>
       </div>

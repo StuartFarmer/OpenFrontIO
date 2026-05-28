@@ -126,14 +126,14 @@ export class EventsDisplay extends LitElement implements Controller {
     }
 
     return html`
-      <button
+      <hud-button
         class="${className}"
         @click=${onClick}
         ?disabled=${disabled}
         ?translate=${translate}
       >
         ${content}
-      </button>
+      </hud-button>
     `;
   }
 
@@ -882,7 +882,7 @@ export class EventsDisplay extends LitElement implements Controller {
                   ${this.hasActiveBetrayalDebuff()
                     ? html`<hud-event-row
                         style="--hud-event-columns: 0 minmax(0, 1fr) auto"
-                        tone="warning"
+                        tone="orange"
                       >
                         ${this.renderBetrayalDebuffTimer()}
                       </hud-event-row>`

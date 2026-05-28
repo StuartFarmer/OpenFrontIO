@@ -12,7 +12,6 @@ import { PlayerPattern } from "../core/Schemas";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticButton";
 import "./components/NotLoggedInWarning";
-import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
 import {
   fetchCosmetics,
@@ -21,6 +20,7 @@ import {
   ResolvedCosmetic,
   resolvedToPlayerPattern,
 } from "./Cosmetics";
+import "./hud/ui";
 import { translateText } from "./Utils";
 
 @customElement("territory-patterns-modal")
@@ -137,7 +137,7 @@ export class TerritoryPatternsModal extends BaseModal {
         })}
 
         <div class="md:flex items-center gap-2 justify-center mt-4">
-          <ui-input
+          <hud-input
             class="block w-full max-w-md"
             type="text"
             label=${translateText("territory_patterns.search")}
@@ -145,7 +145,7 @@ export class TerritoryPatternsModal extends BaseModal {
             .value=${this.search}
             @input=${this.handleSearch}
             @change=${this.handleSearch}
-          ></ui-input>
+          ></hud-input>
         </div>
       </div>
     `;
@@ -156,7 +156,7 @@ export class TerritoryPatternsModal extends BaseModal {
       <div class="flex justify-center py-3 shrink-0">
         <o-button
           class="no-crazygames"
-          variant="primary"
+          variant="active"
           size="sm"
           translationKey="main.store"
           @click=${() => {

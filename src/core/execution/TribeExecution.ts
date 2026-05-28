@@ -1,14 +1,14 @@
 ﻿import { Execution, Game, Player, Structures } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
+import { AiCommandSurface } from "../systems/commands/AiCommandSurface";
 import { simpleHash } from "../Util";
-import { AllianceExtensionExecution } from "./alliance/AllianceExtensionExecution";
-import { DeleteUnitExecution } from "./DeleteUnitExecution";
 import { AiAttackBehavior } from "./utils/AiAttackBehavior";
 
 export class TribeExecution implements Execution {
   private active = true;
   private random: PseudoRandom;
   private mg: Game;
+  private commandSurface: AiCommandSurface;
   private neighborsTerraNullius = true;
 
   private attackBehavior: AiAttackBehavior | null = null;
@@ -33,6 +33,7 @@ export class TribeExecution implements Execution {
 
   init(mg: Game) {
     this.mg = mg;
+    this.commandSurface = new AiCommandSurface(mg);
   }
 
   tick(ticks: number) {
@@ -77,9 +78,7 @@ export class TribeExecution implements Execution {
       if (!alliance.onlyOneAgreedToExtend()) continue;
 
       const human = alliance.other(this.tribe);
-      this.mg.addExecution(
-        new AllianceExtensionExecution(this.tribe, human.id()),
-      );
+      this.commandSurface.extendAlliance(this.tribe, human.id());
     }
   }
 
@@ -88,7 +87,7 @@ export class TribeExecution implements Execution {
     for (const unit of this.tribe.units()) {
       if (!Structures.has(unit.type())) continue;
       if (unit.isMarkedForDeletion()) continue;
-      this.mg.addExecution(new DeleteUnitExecution(this.tribe, unit.id()));
+      this.commandSurface.deleteUnit(this.tribe, unit.id());
       return;
     }
   }

@@ -7,9 +7,9 @@ import {
   denyClanRequest,
   fetchClanRequests,
 } from "../../ClanApi";
+import "../../hud/ui";
 import { translateText } from "../../Utils";
 import "../CopyButton";
-import "../ui";
 import {
   filterRequestsBySearch,
   formatClanDate,
@@ -139,11 +139,11 @@ export class ClanRequestsView extends LitElement {
           "clan_modal.search_requests_placeholder",
         )}
         ${filtered.length === 0
-          ? html`<ui-empty-state style="--ui-empty-padding: 48px">
+          ? html`<hud-empty-state style="--hud-empty-padding: 48px">
               <span slot="label"
                 >${translateText("clan_modal.no_requests")}</span
               >
-            </ui-empty-state>`
+            </hud-empty-state>`
           : html`
               <div class="space-y-3">
                 ${filtered.map(
@@ -167,20 +167,22 @@ export class ClanRequestsView extends LitElement {
                         </span>
                       </div>
                       <div class="flex items-center gap-2 shrink-0">
-                        <button
+                        <hud-button
                           @click=${() => this.handleApprove(req.publicId)}
                           ?disabled=${this.memberActionPending}
-                          class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                          variant="active"
+                          style="--hud-button-padding: 6px 12px; --hud-button-radius: 8px; --hud-button-background: rgba(34,197,94,0.2); --hud-button-hover-background: rgba(34,197,94,0.3); --hud-button-border-color: rgba(34,197,94,0.3); --hud-button-color: #4ade80;"
                         >
                           ${translateText("clan_modal.approve")}
-                        </button>
-                        <button
+                        </hud-button>
+                        <hud-button
                           @click=${() => this.handleDeny(req.publicId)}
                           ?disabled=${this.memberActionPending}
-                          class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                          variant="danger"
+                          style="--hud-button-padding: 6px 12px; --hud-button-radius: 8px; --hud-button-background: rgba(239,68,68,0.2); --hud-button-hover-background: rgba(239,68,68,0.3); --hud-button-border-color: rgba(239,68,68,0.3); --hud-button-color: #f87171;"
                         >
                           ${translateText("clan_modal.deny")}
-                        </button>
+                        </hud-button>
                       </div>
                     </div>
                   `,

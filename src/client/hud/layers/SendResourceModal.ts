@@ -3,19 +3,20 @@ import { customElement, property, state } from "lit/decorators.js";
 import { EventBus } from "../../../core/EventBus";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { within } from "../../../core/Util";
-import "../../components/ui";
 import {
   SendDonateGoldIntentEvent,
   SendDonateTroopsIntentEvent,
 } from "../../Transport";
 import { UIState } from "../../UIState";
 import { renderTroops, translateText } from "../../Utils";
+import "../ui";
 
 @customElement("send-resource-modal")
 export class SendResourceModal extends LitElement {
   @property({ attribute: false }) eventBus: EventBus | null = null;
 
   @property({ type: Boolean }) open: boolean = false;
+  @property({ type: Boolean }) inline: boolean = false;
   @property({ type: String }) mode: "troops" | "gold" = "troops";
 
   @property({ type: Object }) total: number | bigint = 0;
@@ -176,16 +177,6 @@ export class SendResourceModal extends LitElement {
     return Math.max(0, total - allowed);
   }
 
-  private getFillColor(): string {
-    return this.mode === "troops"
-      ? "rgb(168 85 247)" /* purple */
-      : "rgb(234 179 8)" /* amber */;
-  }
-
-  private getMinKeepRatio(): number {
-    return this.mode === "troops" ? 0.3 : 0;
-  }
-
   private isTargetAlive(): boolean {
     return this.target?.isAlive() ?? false;
   }
@@ -224,17 +215,6 @@ export class SendResourceModal extends LitElement {
     cap: () => translateText("common.cap_label"),
     capTooltip: () => translateText("common.cap_tooltip"),
 
-    sliderTooltip: (percent: number, amountStr: string) =>
-      this.mode === "troops"
-        ? translateText("send_troops_modal.slider_tooltip", {
-            percent,
-            amount: amountStr,
-          })
-        : translateText("send_gold_modal.slider_tooltip", {
-            percent,
-            amount: amountStr,
-          }),
-
     capacityNote: (amountStr: string) =>
       translateText("send_troops_modal.capacity_note", { amount: amountStr }),
 
@@ -245,38 +225,53 @@ export class SendResourceModal extends LitElement {
   private renderHeader() {
     const name = this.target?.name?.() ?? "";
     return html`
-      <div class="mb-3 flex items-center justify-between relative">
-        <h2
-          id="send-title"
-          class="text-lg font-semibold tracking-tight text-zinc-100"
-        >
+      <hud-modal-header>
+        <hud-label id="send-title">
           ${this.heading ?? this.i18n.title(name)}
-        </h2>
-        <ui-icon-button
-          class="absolute -top-3 -right-3"
+        </hud-label>
+        <hud-icon-button
           variant="danger"
+          label=${this.i18n.closeLabel()}
           @click=${() => this.closeModal()}
-          aria-label=${this.i18n.closeLabel()}
           title=${this.i18n.closeLabel()}
         >
-          ✕
-        </ui-icon-button>
-      </div>
+          x
+        </hud-icon-button>
+      </hud-modal-header>
     `;
   }
 
   private renderAvailable() {
     const total = this.getTotalNumber();
+    const cap = this.getCapacityLeft();
 
     return html`
-      <div class="mb-4 pb-3 border-b border-zinc-800">
-        <div class="flex items-center gap-2 text-[13px]">
-          <ui-pill tone="primary" title=${this.i18n.availableTooltip()}>
-            <span class="opacity-90">${this.i18n.availableChip()}</span>
-            <span class="font-mono tabular-nums">${this.format(total)}</span>
-          </ui-pill>
-        </div>
-      </div>
+      <hud-stat-grid .columns=${cap === null ? 3 : 4}>
+        <hud-stat
+          label=${this.i18n.availableChip()}
+          value=${this.format(total)}
+          tone="active"
+          title=${this.i18n.availableTooltip()}
+        ></hud-stat>
+        <hud-stat
+          label=${this.i18n.summarySend()}
+          value=${this.format(this.limitAmount(this.sendAmount))}
+        ></hud-stat>
+        <hud-stat
+          label=${this.i18n.summaryKeep()}
+          value=${this.format(
+            this.keepAfter(this.limitAmount(this.sendAmount)),
+          )}
+        ></hud-stat>
+        ${cap === null
+          ? html``
+          : html`<hud-stat
+              label=${this.i18n.cap()}
+              value=${this.format(cap)}
+              tone="orange"
+              title=${this.i18n.capTooltip()}
+            ></hud-stat>`}
+      </hud-stat-grid>
     `;
   }
 
@@ -285,16 +280,15 @@ export class SendResourceModal extends LitElement {
     const dead = !this.isSenderAlive() || !this.isTargetAlive();
 
     return html`
-      <div class="mb-8 grid grid-cols-5 gap-2">
+      <hud-action-group style="--hud-action-group-gap: 6px">
         ${this.PRESETS.map((p) => {
           const pct = this.sanitizePercent(p);
           const active = (this.selectedPercent ?? percentNow) === pct;
           const label = pct === 100 ? this.i18n.max() : `${pct}%`;
           return html`
-            <ui-button
-              size="sm"
-              variant=${active ? "primary" : "secondary"}
-              width="block"
+            <hud-button
+              variant=${active ? "active" : "default"}
+              style="--hud-button-min-width: 3.25rem"
               ?disabled=${dead}
               @click=${() => {
                 if (dead) return;
@@ -306,10 +300,10 @@ export class SendResourceModal extends LitElement {
               title="${pct}%"
             >
               ${label}
-            </ui-button>
+            </hud-button>
           `;
         })}
-      </div>
+      </hud-action-group>
     `;
   }
 
@@ -318,120 +312,53 @@ export class SendResourceModal extends LitElement {
     const cap = this.getCapacityLeft();
     const hardMax = cap === null ? basis : Math.min(basis, cap);
     const dead = !this.isSenderAlive() || !this.isTargetAlive();
-
-    // Where to draw the cap marker (as % of Available)
-    const capPercent =
-      cap === null
-        ? null
-        : Math.max(
-            0,
-            Math.min(
-              100,
-              Math.round((Math.min(cap, basis) / (basis || 1)) * 100),
-            ),
-          );
-
-    const fill = this.getFillColor();
     const disabled = basis <= 0 || dead;
-    const sliderOuterMb = capPercent !== null ? "mb-8" : "mb-2";
 
     return html`
-      <div class="${sliderOuterMb}">
-        <div
-          class="relative px-1 rounded-lg overflow-visible focus-within:ring-2 focus-within:ring-indigo-500/30"
-        >
-          <input
-            type="range"
-            min="0"
-            .max=${basis}
-            .value=${this.sendAmount}
-            ?disabled=${disabled}
-            @input=${(e: Event) => {
-              if (dead) return;
-              const raw = Number((e.target as HTMLInputElement).value);
-              const pctRaw = basis ? Math.round((raw / basis) * 100) : 0;
-              this.selectedPercent = this.sanitizePercent(pctRaw);
-              const clamped = Math.min(raw, hardMax);
-              this.sendAmount = this.clampSend(clamped);
-            }}
-            class="w-full appearance-none bg-transparent range-x focus:outline-hidden"
-            aria-label=${this.i18n.ariaSlider()}
-            aria-valuemin="0"
-            aria-valuemax=${hardMax}
-            aria-valuetext=${this.i18n.sliderTooltip(
-              percentNow,
-              this.format(this.sendAmount),
-            )}
-            style="--percent:${percentNow}%; --fill:${fill}; --track: rgba(255,255,255,.28); --thumb-ring: rgb(24 24 27);"
-          />
-
-          <!-- Tooltip -->
-          <div
-            class="pointer-events-none absolute -top-6 -translate-x-1/2 select-none left-(--pos)"
-            style="--pos: ${percentNow}%"
-          >
-            <div
-              class="rounded-sm bg-[#0f1116] ring-1 ring-zinc-700 text-zinc-100 px-1.5 py-0.5 text-[12px] shadow-sm whitespace-nowrap w-max z-50"
-            >
-              ${percentNow}% • ${this.format(this.sendAmount)}
-            </div>
-          </div>
-
-          <!-- Cap marker -->
-          ${capPercent !== null
-            ? html`
-                <div
-                  class="pointer-events-none absolute top-1/2 -translate-y-1/2 h-3 w-0.5 bg-amber-400/80 shadow-sm left-(--pos)"
-                  style="--pos:${capPercent}%;"
-                  title=${this.i18n.capTooltip()}
-                ></div>
-                <div
-                  class="pointer-events-none absolute top-full mt-1.5 -translate-x-1/2 select-none left-(--pos)"
-                  style="--pos:${capPercent}%"
-                >
-                  <div
-                    class="rounded-sm bg-[#0f1116] ring-1 ring-amber-400/40 text-amber-200 px-1 py-0.5 text-[11px] shadow-sm whitespace-nowrap"
-                  >
-                    ${this.i18n.cap()}
-                  </div>
-                </div>
-              `
-            : html``}
-        </div>
-      </div>
+      <hud-form-row
+        label=${this.i18n.summarySend()}
+        style="--hud-form-label-width: 4.75rem"
+      >
+        <hud-range
+          min="0"
+          .max=${hardMax}
+          .value=${this.limitAmount(this.sendAmount)}
+          ?disabled=${disabled}
+          label=${this.i18n.ariaSlider()}
+          @input=${(e: Event) => {
+            if (dead) return;
+            const raw = Number(
+              (e.target as HTMLElement & { value?: number }).value ?? 0,
+            );
+            const pctRaw = basis ? Math.round((raw / basis) * 100) : 0;
+            this.selectedPercent = this.sanitizePercent(pctRaw);
+            this.sendAmount = this.clampSend(raw);
+          }}
+        ></hud-range>
+      </hud-form-row>
+      <hud-row justify="between">
+        <hud-pill tone="blue">
+          ${percentNow}% · ${this.format(this.limitAmount(this.sendAmount))}
+        </hud-pill>
+        ${cap === null
+          ? html``
+          : html`<hud-label tone="warning" title=${this.i18n.capTooltip()}>
+              ${this.i18n.cap()} ${this.format(cap)}
+            </hud-label>`}
+      </hud-row>
     `;
   }
 
-  private renderCapacityNote(allowed: number) {
-    const capped = allowed !== this.sendAmount;
-    if (!capped) return html``;
-    return html`<p class="mt-1 text-xs text-amber-300">
-      ${this.i18n.capacityNote(this.format(allowed))}
-    </p>`;
-  }
-
-  private renderSummary(allowed: number) {
-    const total = this.getTotalNumber();
-    const keep = this.keepAfter(allowed);
-    const belowMinKeep =
-      this.getMinKeepRatio() > 0 &&
-      keep < Math.floor(total * this.getMinKeepRatio());
-
+  private renderBody(percent: number, allowed: number) {
     return html`
-      <div class="mt-3 text-center text-sm text-zinc-200">
-        ${this.i18n.summarySend()}
-        <span class="font-semibold text-indigo-400 font-mono"
-          >${this.format(allowed)}</span
-        >
-        · ${this.i18n.summaryKeep()}
-        <span
-          class="font-semibold font-mono ${belowMinKeep
-            ? "text-amber-400"
-            : "text-emerald-400"}"
-        >
-          ${this.format(keep)}
-        </span>
-      </div>
+      <hud-modal-body>
+        <hud-stack>
+          ${this.renderAvailable()}
+          ${!this.isTargetAlive() ? this.renderDeadNote() : html``}
+          ${this.renderPresets(percent)} ${this.renderSlider(percent)}
+          ${this.mode === "troops" ? this.renderCapacityNote(allowed) : html``}
+        </hud-stack>
+      </hud-modal-body>
     `;
   }
 
@@ -440,84 +367,40 @@ export class SendResourceModal extends LitElement {
     const dead = !this.isSenderAlive() || !this.isTargetAlive();
     const disabled = total <= 0 || this.clampSend(this.sendAmount) <= 0 || dead;
     return html`
-      <div class="mt-5 flex justify-end gap-2">
-        <ui-button
-          variant="secondary"
-          style="--ui-button-min-width: 6rem"
+      <hud-modal-footer>
+        <hud-button
+          variant="default"
+          style="--hud-button-min-width: 6rem"
           @click=${() => this.closeModal()}
         >
           ${this.i18n.cancel()}
-        </ui-button>
-        <ui-button
-          variant="primary"
-          style="--ui-button-min-width: 6rem"
+        </hud-button>
+        <hud-button
+          variant="active"
+          style="--hud-button-min-width: 6rem"
           ?disabled=${disabled}
           @click=${() => this.confirm()}
         >
           ${this.i18n.send()}
-        </ui-button>
-      </div>
+        </hud-button>
+      </hud-modal-footer>
     `;
+  }
+
+  private renderCapacityNote(allowed: number) {
+    const capped = allowed !== this.sendAmount;
+    if (!capped) return html``;
+    return html`<hud-alert compact tone="orange">
+      ${this.i18n.capacityNote(this.format(allowed))}
+    </hud-alert>`;
   }
 
   private renderDeadNote() {
     return html`
-      <ui-alert tone="warning" class="mb-2">
-        <div class="font-semibold">${this.i18n.targetDeadTitle()}</div>
-        <div>${this.i18n.targetDeadNote()}</div>
-      </ui-alert>
-    `;
-  }
-
-  private renderSliderStyles() {
-    return html`
-      <style>
-        .range-x {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 8px;
-          outline: none;
-          background: transparent;
-        }
-        .range-x::-webkit-slider-runnable-track {
-          height: 8px;
-          border-radius: 9999px;
-          background: linear-gradient(
-            90deg,
-            var(--fill) 0,
-            var(--fill) var(--percent),
-            /* allowed (clamped) fill */ rgba(255, 255, 255, 0.22)
-              var(--percent),
-            rgba(255, 255, 255, 0.22) 100%
-          );
-        }
-        .range-x::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          height: 18px;
-          width: 18px;
-          border-radius: 9999px;
-          background: var(--fill);
-          border: 3px solid var(--thumb-ring);
-          margin-top: -5px;
-        }
-        .range-x::-moz-range-track {
-          height: 8px;
-          border-radius: 9999px;
-          background: rgba(255, 255, 255, 0.22);
-        }
-        .range-x::-moz-range-progress {
-          height: 8px;
-          border-radius: 9999px;
-          background: var(--fill);
-        }
-        .range-x::-moz-range-thumb {
-          height: 18px;
-          width: 18px;
-          border-radius: 9999px;
-          background: var(--fill);
-          border: 3px solid var(--thumb-ring);
-        }
-      </style>
+      <hud-alert tone="orange" compact>
+        <hud-label tone="warning">${this.i18n.targetDeadTitle()}</hud-label>
+        ${this.i18n.targetDeadNote()}
+      </hud-alert>
     `;
   }
 
@@ -528,38 +411,18 @@ export class SendResourceModal extends LitElement {
     const allowed = this.limitAmount(this.sendAmount);
 
     return html`
-      <div class="absolute inset-0 z-1100 flex items-center justify-center p-4">
-        <div
-          class="absolute inset-0 bg-black/60 rounded-2xl"
-          @click=${() => this.closeModal()}
-        ></div>
-
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="send-title"
-          class="relative z-10 w-full max-w-135 focus:outline-hidden"
-          tabindex="0"
-          @keydown=${this.handleKeydown}
+      <div tabindex="0" @keydown=${this.handleKeydown}>
+        <hud-modal-shell
+          .open=${this.open}
+          .inline=${this.inline}
+          hideCloseButton
+          label=${this.heading ?? this.i18n.title(this.target?.name?.() ?? "")}
+          maxWidth="34rem"
+          @close=${() => this.closeModal()}
         >
-          <ui-surface
-            style="--ui-radius: 16px; --ui-surface-bg: rgb(24 24 27); --ui-surface-border: rgb(39 39 42)"
-            @click=${(e: MouseEvent) => e.stopPropagation()}
-          >
-            <ui-surface-body style="--ui-surface-body-padding: 20px">
-              <div class="max-h-[90vh] text-zinc-200">
-                ${this.renderHeader()} ${this.renderAvailable()}
-                ${!this.isTargetAlive() ? this.renderDeadNote() : html``}
-                ${this.renderPresets(percent)} ${this.renderSlider(percent)}
-                ${this.mode === "troops"
-                  ? this.renderCapacityNote(allowed)
-                  : html``}
-                ${this.renderSummary(allowed)} ${this.renderActions()}
-                ${this.renderSliderStyles()}
-              </div>
-            </ui-surface-body>
-          </ui-surface>
-        </div>
+          ${this.renderHeader()} ${this.renderBody(percent, allowed)}
+          ${this.renderActions()}
+        </hud-modal-shell>
       </div>
     `;
   }

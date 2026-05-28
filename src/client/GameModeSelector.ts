@@ -1,7 +1,7 @@
 import { html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
-import "./components/ui";
 import { HostLobbyModal } from "./HostLobbyModal";
+import "./hud/ui";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import { SinglePlayerModal } from "./SinglePlayerModal";
 import { UsernameInput } from "./UsernameInput";
@@ -29,6 +29,11 @@ export class GameModeSelector extends LitElement {
     )?.open();
   };
 
+  private openQuickGame = () => {
+    if (!this.validateUsername()) return;
+    window.location.assign("/quick-game");
+  };
+
   private openHostLobby = () => {
     if (!this.validateUsername()) return;
     (document.querySelector("host-lobby-modal") as HostLobbyModal)?.open();
@@ -45,23 +50,23 @@ export class GameModeSelector extends LitElement {
     variant: "primary" | "secondary" = "secondary",
   ) {
     return html`
-      <ui-button
+      <hud-button
         @click=${onClick}
         variant=${variant}
         width="block"
         label=${title}
-        style="--ui-button-min-height: 4rem; --ui-button-radius: 8px; --ui-button-width: 100%;"
-      ></ui-button>
+        style="--hud-button-min-height: 4rem; --hud-button-radius: 8px; --hud-button-width: 100%;"
+      ></hud-button>
     `;
   }
 
   render() {
     return html`
       <div class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-4">
+        ${this.renderActionButton("Quick Game", this.openQuickGame, "primary")}
         ${this.renderActionButton(
           translateText("main.solo"),
           this.openSinglePlayerModal,
-          "primary",
         )}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           ${this.renderActionButton(

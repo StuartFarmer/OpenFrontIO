@@ -41,6 +41,11 @@ describe("Donate troops to an ally", () => {
       new SpawnExecution(gameID, recipientInfo, spawnB),
     );
 
+    // Spawn executions initialize on one tick and land on the next. Donation
+    // capacity depends on the recipient's spawned territory/troop capacity.
+    game.executeNextTick();
+    game.executeNextTick();
+
     // donor sends alliance request to recipient
     const allianceRequest = donor.createAllianceRequest(recipient);
     expect(allianceRequest).not.toBeNull();

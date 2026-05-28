@@ -7,6 +7,7 @@ import {
   type ClanMemberWL,
 } from "../../../core/ClanApiSchemas";
 import { translateText } from "../../Utils";
+import "../../hud/ui";
 import { renderWLBarRow } from "./ClanShared";
 
 type SubKey =
@@ -117,19 +118,27 @@ export class ClanStatsBreakdown extends LitElement {
     const title = translateText(
       expand.expanded ? "clan_modal.stats_collapse" : "clan_modal.stats_expand",
     );
+    const buttonPadding =
+      level === 0
+        ? "2px 6px"
+        : level === 1
+          ? "2px 6px 2px 20px"
+          : "2px 6px 2px 36px";
     return html`
-      <button
-        type="button"
+      <hud-button
         class="w-full flex items-center gap-2 ${padding} text-left rounded-md transition-colors cursor-pointer
           hover:bg-white/10 focus-visible:bg-white/10 focus:outline-none
           ${expand.expanded ? "bg-white/5" : ""}"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: ${buttonPadding}; --hud-button-radius: 6px; --hud-button-background: ${expand.expanded
+          ? "rgba(255,255,255,0.05)"
+          : "transparent"}; --hud-button-hover-background: rgba(255,255,255,0.1); --hud-button-border-color: transparent; --hud-button-justify-content: flex-start; --hud-button-text-align: left;"
         @click=${expand.onToggle}
         title=${title}
         aria-expanded=${expand.expanded}
       >
         ${toggleIcon}
         <div class="flex-1 min-w-0">${row}</div>
-      </button>
+      </hud-button>
     `;
   }
 

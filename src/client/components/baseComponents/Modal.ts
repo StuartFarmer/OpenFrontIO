@@ -1,10 +1,12 @@
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import "../../hud/ui";
 import tailwindStyles from "../../styles.css?inline";
-import "../ui/UiComponents";
 
 export type OModalTab = { key: string; label: string };
 
+// Compatibility shell for existing <o-modal> screens. It now composes shared
+// ui primitives for controls, while preserving legacy open/close and tab APIs.
 @customElement("o-modal")
 export class OModal extends LitElement {
   static styles = [unsafeCSS(tailwindStyles)];
@@ -142,15 +144,15 @@ export class OModal extends LitElement {
         >
           ${this.inline || this.hideCloseButton
             ? html``
-            : html`<ui-icon-button
+            : html`<hud-icon-button
                 class="absolute top-5 right-5 z-10"
-                variant="ghost"
+                variant="default"
                 size="sm"
                 label="Close"
                 @click=${() => this.close()}
               >
                 ✕
-              </ui-icon-button>`}
+              </hud-icon-button>`}
           ${!this.hideHeader && this.title
             ? html`<div
                 class="px-[1.4rem] py-[1rem] text-2xl font-bold text-white"

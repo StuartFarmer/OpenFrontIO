@@ -84,11 +84,11 @@ upgrade behavior run through systems without changing current behavior.
 `npx vitest run tests/Warship.test.ts tests/MissileSilo.test.ts tests/nukes tests/core/executions tests/economy`
 **Acceptance Checks**:
 
-- [ ] Legacy execution-spawn chains have equivalent native system state and
+- [x] Legacy execution-spawn chains have equivalent native system state and
       phase ownership.
-- [ ] Unit updates, motion plans, projectile lifecycle, and cleanup behavior
+- [x] Unit updates, motion plans, projectile lifecycle, and cleanup behavior
       match baseline scenarios.
-- [ ] Existing unit-focused tests pass without gameplay rebalance.
+- [x] Existing unit-focused tests pass without gameplay rebalance.
 
 **Dependencies**: D1, D2, D4.
 **Notes**: Migrate by behavior family, not by file count.
@@ -102,12 +102,14 @@ removed or retained only as explicit compatibility shims.
 `npx tsc --noEmit && npm run test && npm run build-prod`
 **Acceptance Checks**:
 
-- [ ] `Executor` and AI/nation behavior submit commands to system-native
+- [x] `Executor` and AI/nation behavior submit commands to system-native
       surfaces or compatibility shims with parity coverage.
-- [ ] Worker-to-client updates, packed tile updates, player diffs, and game
+- [x] Worker-to-client updates, packed tile updates, player diffs, and game
       hashes remain stable in scripted scenarios.
-- [ ] Legacy `Execution` usage is removed or documented as intentionally
+- [x] Legacy `Execution` usage is removed or documented as intentionally
       retained compatibility.
 
 **Dependencies**: D1, D2, D3, D4, D5.
-**Notes**: This deliverable is the final reintegration gate.
+**Notes**: Systems migration acceptance checks are implemented. Final
+reintegration validation passes with `npx tsc --noEmit`, `npm run test`, and
+`npm run build-prod`.

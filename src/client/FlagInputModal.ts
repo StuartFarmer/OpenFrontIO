@@ -15,8 +15,8 @@ import { translateText } from "./Utils";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticButton";
 import "./components/NotLoggedInWarning";
-import "./components/ui";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 
 function countryFlag(name: string, code: string): Flag {
   return {
@@ -138,7 +138,7 @@ export class FlagInputModal extends BaseModal {
         })}
 
         <div class="md:flex items-center gap-2 justify-center mt-4">
-          <ui-input
+          <hud-input
             class="block w-full max-w-md"
             type="text"
             label=${translateText("flag_input.search_flag")}
@@ -146,7 +146,7 @@ export class FlagInputModal extends BaseModal {
             .value=${this.search}
             @input=${this.handleSearch}
             @change=${this.handleSearch}
-          ></ui-input>
+          ></hud-input>
         </div>
       </div>
     `;
@@ -155,16 +155,16 @@ export class FlagInputModal extends BaseModal {
   protected renderBody() {
     return html`
       <div class="flex justify-center py-3 shrink-0">
-        <o-button
+        <hud-button
           class="no-crazygames"
-          variant="primary"
-          size="sm"
-          translationKey="main.store"
+          variant="active"
           @click=${() => {
             this.close();
             window.showPage?.("page-item-store");
           }}
-        ></o-button>
+        >
+          ${translateText("main.store")}
+        </hud-button>
       </div>
       <div class="px-3 pb-3">${this.renderFlags()}</div>
     `;

@@ -17,6 +17,7 @@ import { assignTeamsLobbyPreview } from "../../core/game/TeamAssignment";
 import { UserSettings } from "../../core/game/UserSettings";
 import { ClientInfo, TeamCountConfig } from "../../core/Schemas";
 import { createRandomName, formatPlayerDisplayName } from "../../core/Util";
+import "../hud/ui";
 import { getTranslatedPlayerTeamLabel, translateText } from "../Utils";
 
 export interface TeamPreviewData {
@@ -182,15 +183,16 @@ export class LobbyTeamView extends LitElement {
                 >(${translateText("host_modal.host_badge")})</span
               >`
             : this.onKickPlayer
-              ? html`<button
+              ? html`<hud-icon-button
                   class="remove-player-btn"
-                  @click=${() => this.onKickPlayer?.(client.clientID)}
-                  aria-label=${translateText("host_modal.remove_player", {
+                  label=${translateText("host_modal.remove_player", {
                     username: displayName,
                   })}
+                  @click=${() => this.onKickPlayer?.(client.clientID)}
+                  style="--hud-icon-button-size: 18px; --hud-button-border-color: rgba(248,113,113,0.45); --hud-button-color: #fca5a5;"
                 >
                   ×
-                </button>`
+                </hud-icon-button>`
               : html``}
         </span>`;
       },
@@ -251,18 +253,16 @@ export class LobbyTeamView extends LitElement {
                           >(${translateText("host_modal.host_badge")})</span
                         >`
                       : this.onKickPlayer
-                        ? html`<button
+                        ? html`<hud-icon-button
                             class="remove-player-btn ml-2"
+                            label=${translateText("host_modal.remove_player", {
+                              username: displayName,
+                            })}
                             @click=${() => this.onKickPlayer?.(p.clientID)}
-                            aria-label=${translateText(
-                              "host_modal.remove_player",
-                              {
-                                username: displayName,
-                              },
-                            )}
+                            style="--hud-icon-button-size: 18px; --hud-button-border-color: rgba(248,113,113,0.45); --hud-button-color: #fca5a5;"
                           >
                             ×
-                          </button>`
+                          </hud-icon-button>`
                         : html``}
                   </div>`;
                 },

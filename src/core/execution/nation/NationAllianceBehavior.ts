@@ -7,9 +7,8 @@ import {
   Relation,
 } from "../../game/Game";
 import { PseudoRandom } from "../../PseudoRandom";
+import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever } from "../../Util";
-import { AllianceExtensionExecution } from "../alliance/AllianceExtensionExecution";
-import { AllianceRequestExecution } from "../alliance/AllianceRequestExecution";
 import {
   EMOJI_CONFUSED,
   EMOJI_HANDSHAKE,
@@ -19,12 +18,16 @@ import {
 } from "./NationEmojiBehavior";
 
 export class NationAllianceBehavior {
+  private readonly commandSurface: AiCommandSurface;
+
   constructor(
     private random: PseudoRandom,
     private game: Game,
     private player: Player,
     private emojiBehavior: NationEmojiBehavior,
-  ) {}
+  ) {
+    this.commandSurface = new AiCommandSurface(game);
+  }
 
   handleAllianceRequests() {
     if (this.game.config().disableAlliances()) return;
@@ -56,9 +59,7 @@ export class NationAllianceBehavior {
       const human = alliance.other(this.player);
       if (!this.getAllianceDecision(human, true)) continue;
 
-      this.game.addExecution(
-        new AllianceExtensionExecution(this.player, human.id()),
-      );
+      this.commandSurface.extendAlliance(this.player, human.id());
     }
   }
 
@@ -78,9 +79,7 @@ export class NationAllianceBehavior {
         this.player.canSendAllianceRequest(enemy) &&
         this.getAllianceDecision(enemy, false)
       ) {
-        this.game.addExecution(
-          new AllianceRequestExecution(this.player, enemy.id()),
-        );
+        this.commandSurface.requestAlliance(this.player, enemy.id());
       }
     }
   }

@@ -11,6 +11,7 @@ import {
   validateUsername,
 } from "../core/validations/username";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
+import "./hud/ui";
 
 interface LangSelectorLike {
   currentLang?: string;
@@ -98,24 +99,28 @@ export class UsernameInput extends LitElement {
   render() {
     return html`
       <div class="flex items-center w-full h-full gap-2">
-        <input
+        <hud-input
           type="text"
           .value=${this.clanTag}
           @input=${this.handleClanTagChange}
           placeholder="${translateText("username.tag")}"
           minlength="${MIN_CLAN_TAG_LENGTH}"
           maxlength="${MAX_CLAN_TAG_LENGTH}"
-          class="w-[6rem] text-xl font-medium tracking-wider text-center uppercase shrink-0 bg-transparent text-white placeholder-white/70 focus:placeholder-transparent border-0 border-b border-white/40 focus:outline-none focus:border-white/60"
-        />
-        <input
+          aria-label=${translateText("username.tag")}
+          class="w-[6rem] shrink-0 uppercase"
+          style="--hud-input-height: 2rem; --hud-input-font-size: 1.25rem; --hud-input-text-align: center; --hud-input-background: transparent; --hud-input-border-color: rgba(255,255,255,0.4); --hud-input-focus-border-color: rgba(255,255,255,0.6); --hud-input-radius: 0; --hud-input-border-width: 0 0 1px 0;"
+        ></hud-input>
+        <hud-input
           type="text"
           .value=${this.baseUsername}
           @input=${this.handleUsernameChange}
           placeholder="${translateText("username.enter_username")}"
           minlength="${MIN_USERNAME_LENGTH}"
           maxlength="${MAX_USERNAME_LENGTH}"
-          class="flex-1 min-w-0 border-0 text-2xl font-medium tracking-wider text-left text-white placeholder-white/70 focus:outline-none focus:ring-0 overflow-x-auto whitespace-nowrap text-ellipsis pr-2 bg-transparent"
-        />
+          aria-label=${translateText("username.enter_username")}
+          class="flex-1 min-w-0"
+          style="--hud-input-height: 2.25rem; --hud-input-font-size: 1.5rem; --hud-input-text-align: left; --hud-input-background: transparent; --hud-input-border-color: transparent; --hud-input-focus-border-color: transparent; --hud-input-radius: 0;"
+        ></hud-input>
       </div>
       ${this.validationError
         ? html`<div

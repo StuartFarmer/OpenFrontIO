@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { translateText } from "../../../Utils";
-import "../../ui";
+import "../../../hud/ui";
 import { RankType } from "./GameInfoRanking";
 
 const economyRankings = new Set([
@@ -63,13 +63,13 @@ export class RankingControls extends LitElement {
 
   private renderButton(type: RankType, active: boolean, label: string) {
     return html`
-      <ui-button
+      <hud-button
         size="sm"
         variant=${active ? "primary" : "ghost"}
         @click=${() => this.onSort(type)}
       >
         ${translateText(label)}
-      </ui-button>
+      </hud-button>
     `;
   }
 
@@ -117,13 +117,13 @@ export class RankingControls extends LitElement {
 
   private renderSubButton(type: RankType, active: boolean, label: string) {
     return html`
-      <ui-button
+      <hud-button
         size="xs"
         variant=${active ? "primary" : "ghost"}
         @click=${() => this.onSort(type)}
       >
         ${translateText(label)}
-      </ui-button>
+      </hud-button>
     `;
   }
 

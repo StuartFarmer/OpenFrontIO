@@ -11,6 +11,7 @@ import {
   isGameType,
 } from "../../../../core/game/Game";
 import { PlayerStats } from "../../../../core/StatsSchemas";
+import "../../../hud/ui";
 import { renderNumber, translateText } from "../../../Utils";
 import "./PlayerStatsGrid";
 import "./PlayerStatsTable";
@@ -281,11 +282,9 @@ export class PlayerStatsTreeView extends LitElement {
           <div class="flex gap-1">
             ${types.map(
               (t) => html`
-                <button
-                  class="text-xs px-3 py-1.5 rounded-md border font-bold uppercase tracking-wider transition-all duration-200 ${this
-                    .selectedType === t
-                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/40"
-                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"}"
+                <hud-button
+                  variant=${this.selectedType === t ? "active" : "default"}
+                  style="--hud-button-min-height: 28px; --hud-button-radius: 6px; --hud-button-padding: 6px 12px;"
                   @click=${() => this.setGameType(t)}
                 >
                   ${t === "Ranked"
@@ -295,7 +294,7 @@ export class PlayerStatsTreeView extends LitElement {
                       : t === GameType.Private
                         ? translateText("player_stats_tree.private")
                         : translateText("player_stats_tree.solo")}
-                </button>
+                </hud-button>
               `,
             )}
           </div>
@@ -308,15 +307,15 @@ export class PlayerStatsTreeView extends LitElement {
                 >
                   ${rankedTypes.map(
                     (r) => html`
-                      <button
-                        class="text-xs px-3 py-1 rounded-sm transition-colors ${this
-                          .selectedRankedType === r
-                          ? "bg-white/20 text-white font-bold"
-                          : "text-gray-400 hover:text-white"}"
+                      <hud-button
+                        variant=${this.selectedRankedType === r
+                          ? "active"
+                          : "default"}
+                        style="--hud-button-min-height: 24px; --hud-button-radius: 3px; --hud-button-padding: 4px 10px;"
                         @click=${() => this.setRankedType(r)}
                       >
                         ${this.labelForRankedType(r)}
-                      </button>
+                      </hud-button>
                     `,
                   )}
                 </div>`
@@ -329,16 +328,16 @@ export class PlayerStatsTreeView extends LitElement {
                 >
                   ${modes.map(
                     (m) => html`
-                      <button
-                        class="text-xs px-3 py-1 rounded-sm transition-colors ${this
-                          .selectedMode === m
-                          ? "bg-white/20 text-white font-bold"
-                          : "text-gray-400 hover:text-white"}"
+                      <hud-button
+                        variant=${this.selectedMode === m
+                          ? "active"
+                          : "default"}
+                        style="--hud-button-min-height: 24px; --hud-button-radius: 3px; --hud-button-padding: 4px 10px;"
                         @click=${() => this.setMode(m)}
                         title=${translateText("player_stats_tree.mode")}
                       >
                         ${this.labelForMode(m)}
-                      </button>
+                      </hud-button>
                     `,
                   )}
                 </div>`
@@ -351,16 +350,16 @@ export class PlayerStatsTreeView extends LitElement {
                 >
                   ${diffs.map(
                     (d) =>
-                      html` <button
-                        class="text-xs px-3 py-1 rounded-sm transition-colors ${this
-                          .selectedDifficulty === d
-                          ? "bg-white/20 text-white font-bold"
-                          : "text-gray-400 hover:text-white"}"
+                      html` <hud-button
+                        variant=${this.selectedDifficulty === d
+                          ? "active"
+                          : "default"}
+                        style="--hud-button-min-height: 24px; --hud-button-radius: 3px; --hud-button-padding: 4px 10px;"
                         @click=${() => this.setDifficulty(d)}
                         title=${translateText("difficulty.difficulty")}
                       >
                         ${translateText(`difficulty.${d.toLowerCase()}`)}
-                      </button>`,
+                      </hud-button>`,
                   )}
                 </div>`
               : html``}

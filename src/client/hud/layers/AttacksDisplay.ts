@@ -140,14 +140,17 @@ export class AttacksDisplay extends LitElement implements Controller {
     }
 
     return html`
-      <button
+      <hud-icon-button
         class="${className}"
+        style="--hud-icon-button-size: 20px; --hud-icon-button-radius: 3px;"
+        variant=${className.includes("red") ? "danger" : "default"}
+        label=""
         @click=${onClick}
         ?disabled=${disabled}
         ?translate=${translate}
       >
         ${content}
-      </button>
+      </hud-icon-button>
     `;
   }
 
@@ -238,6 +241,18 @@ export class AttacksDisplay extends LitElement implements Controller {
     tone: "blue" | "red",
     pixelated = false,
   ) {
+    if (!pixelated) {
+      return html`
+        <span class="${this.iconBoxClass(tone)} h-5 w-5">
+          <hud-icon
+            .src=${src}
+            size="sm"
+            tone=${tone === "red" ? "danger" : "active"}
+          ></hud-icon>
+        </span>
+      `;
+    }
+
     return html`
       <span class="${this.iconBoxClass(tone)} h-5 w-5">
         <img
@@ -341,11 +356,11 @@ export class AttacksDisplay extends LitElement implements Controller {
         retreating: attack.retreating,
         action: !attack.retreating
           ? this.renderButton({
-              content: html`<img
-                src="${swordIcon}"
-                class="h-3.5 w-3.5"
-                style="filter: ${redIconFilter}"
-              />`,
+              content: html`<hud-icon
+                .src=${swordIcon}
+                size="sm"
+                tone="danger"
+              ></hud-icon>`,
               onClick: () => this.handleRetaliate(attack),
               className: `${this.attackActionClass("red")} text-red-300`,
               translate: false,

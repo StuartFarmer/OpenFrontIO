@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import "../../ui";
+import "../../../hud/ui";
 
 type SelectOption = {
   value: number | string;
@@ -51,7 +51,7 @@ export class SettingSelect extends LitElement {
             ${this.description}
           </div>
         </div>
-        <ui-select
+        <hud-select
           id="setting-select-input"
           label=${this.label}
           .value=${String(this.value)}
@@ -60,7 +60,7 @@ export class SettingSelect extends LitElement {
             value: String(option.value),
           }))}
           @change=${this.handleChange}
-        ></ui-select>
+        ></hud-select>
       </div>
     `;
   }

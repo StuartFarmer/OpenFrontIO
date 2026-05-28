@@ -21,6 +21,7 @@ import {
 import { crazyGamesSDK } from "../../CrazyGamesSDK";
 import { Platform } from "../../Platform";
 import { SendWinnerEvent } from "../../Transport";
+import "../ui";
 
 @customElement("win-modal")
 export class WinModal extends LitElement implements Controller {
@@ -58,50 +59,55 @@ export class WinModal extends LitElement implements Controller {
   }
 
   render() {
+    if (!this.isVisible) {
+      return html``;
+    }
+
     return html`
-      <div
-        class="${this.isVisible
-          ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800/70 p-6 shrink-0 rounded-lg z-[10010] shadow-2xl backdrop-blur-xs text-white w-87.5 max-w-[90%] md:w-175"
-          : "hidden"}"
+      <hud-surface
+        class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shrink-0 z-[10010] text-white w-87.5 max-w-[90%] md:w-175"
+        style="--hud-surface-bg: rgba(31,41,55,0.72); --hud-radius: 8px; --hud-surface-body-padding: 24px;"
       >
-        <h2 class="m-0 mb-4 text-[26px] text-center text-white">
-          ${this._title || ""}
-        </h2>
-        ${this.innerHtml()}
-        <div
-          class="${this.showButtons
-            ? "flex justify-between gap-2.5"
-            : "hidden"}"
-        >
-          <o-button
-            variant="primary"
-            width="block"
-            class="flex-1"
-            translationKey="win_modal.exit"
-            @click=${this._handleExit}
-          ></o-button>
-          ${this.isRankedGame
-            ? html`
-                <o-button
-                  variant="primary"
-                  width="block"
-                  class="flex-1"
-                  translationKey="win_modal.requeue"
-                  @click=${this._handleRequeue}
-                ></o-button>
-              `
-            : null}
-          <o-button
-            variant="primary"
-            width="block"
-            class="flex-1"
-            .title=${this.game?.myPlayer()?.isAlive()
-              ? translateText("win_modal.keep")
-              : translateText("win_modal.spectate")}
-            @click=${this.hide}
-          ></o-button>
-        </div>
-      </div>
+        <hud-surface-body style="--hud-surface-body-padding: 24px;">
+          <h2 class="m-0 mb-4 text-[26px] text-center text-white">
+            ${this._title || ""}
+          </h2>
+          ${this.innerHtml()}
+          <hud-action-group
+            align="center"
+            class="${this.showButtons ? "block" : "hidden"}"
+            style="--hud-action-gap: 10px;"
+          >
+            <o-button
+              variant="active"
+              width="block"
+              class="flex-1"
+              translationKey="win_modal.exit"
+              @click=${this._handleExit}
+            ></o-button>
+            ${this.isRankedGame
+              ? html`
+                  <o-button
+                    variant="active"
+                    width="block"
+                    class="flex-1"
+                    translationKey="win_modal.requeue"
+                    @click=${this._handleRequeue}
+                  ></o-button>
+                `
+              : null}
+            <o-button
+              variant="active"
+              width="block"
+              class="flex-1"
+              .title=${this.game?.myPlayer()?.isAlive()
+                ? translateText("win_modal.keep")
+                : translateText("win_modal.spectate")}
+              @click=${this.hide}
+            ></o-button>
+          </hud-action-group>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 
@@ -124,36 +130,40 @@ export class WinModal extends LitElement implements Controller {
 
   renderYoutubeTutorial() {
     return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("win_modal.youtube_tutorial")}
-        </h3>
-        <!-- 56.25% = 9:16 -->
-        <div class="relative w-full pb-[56.25%]">
-          <iframe
-            class="absolute top-0 left-0 w-full h-full rounded-sm"
-            src="${this.isVisible ? TUTORIAL_VIDEO_URL : ""}"
-            title="YouTube video player"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-          ></iframe>
-        </div>
-      </div>
+      <hud-surface tone="muted" class="text-center mb-6">
+        <hud-surface-body style="--hud-surface-body-padding: 10px;">
+          <h3 class="text-xl font-semibold text-white mb-3">
+            ${translateText("win_modal.youtube_tutorial")}
+          </h3>
+          <!-- 56.25% = 9:16 -->
+          <div class="relative w-full pb-[56.25%]">
+            <iframe
+              class="absolute top-0 left-0 w-full h-full rounded-sm"
+              src="${this.isVisible ? TUTORIAL_VIDEO_URL : ""}"
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 
   renderPatternButton() {
     return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("win_modal.support_openfront")}
-        </h3>
-        <p class="text-white mb-3">
-          ${translateText("win_modal.territory_pattern")}
-        </p>
-        <div class="flex justify-center">${this.patternContent}</div>
-      </div>
+      <hud-surface tone="muted" class="text-center mb-6">
+        <hud-surface-body style="--hud-surface-body-padding: 10px;">
+          <h3 class="text-xl font-semibold text-white mb-3">
+            ${translateText("win_modal.support_openfront")}
+          </h3>
+          <p class="text-white mb-3">
+            ${translateText("win_modal.territory_pattern")}
+          </p>
+          <div class="flex justify-center">${this.patternContent}</div>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 
@@ -190,36 +200,40 @@ export class WinModal extends LitElement implements Controller {
   }
 
   steamWishlist(): TemplateResult {
-    return html`<p class="m-0 mb-5 text-center bg-black/30 p-2.5 rounded-sm">
-      <a
-        href="https://store.steampowered.com/app/3560670"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="text-[#4a9eff] underline font-medium transition-colors duration-200 text-2xl hover:text-[#6db3ff]"
-      >
-        ${translateText("win_modal.wishlist")}
-      </a>
-    </p>`;
+    return html`<hud-surface tone="muted" class="block mb-5 text-center">
+      <hud-surface-body style="--hud-surface-body-padding: 10px;">
+        <a
+          href="https://store.steampowered.com/app/3560670"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-[#4a9eff] underline font-medium transition-colors duration-200 text-2xl hover:text-[#6db3ff]"
+        >
+          ${translateText("win_modal.wishlist")}
+        </a>
+      </hud-surface-body>
+    </hud-surface>`;
   }
 
   discordDisplay(): TemplateResult {
     return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("win_modal.join_discord")}
-        </h3>
-        <p class="text-white mb-3">
-          ${translateText("win_modal.discord_description")}
-        </p>
-        <a
-          href="https://discord.com/invite/openfront"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-block px-6 py-3 bg-indigo-600 text-white rounded-sm font-semibold transition-all duration-200 hover:bg-indigo-700 hover:-translate-y-px no-underline"
-        >
-          ${translateText("win_modal.join_server")}
-        </a>
-      </div>
+      <hud-surface tone="muted" class="text-center mb-6">
+        <hud-surface-body style="--hud-surface-body-padding: 10px;">
+          <h3 class="text-xl font-semibold text-white mb-3">
+            ${translateText("win_modal.join_discord")}
+          </h3>
+          <p class="text-white mb-3">
+            ${translateText("win_modal.discord_description")}
+          </p>
+          <a
+            href="https://discord.com/invite/openfront"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block px-6 py-3 bg-indigo-600 text-white rounded-sm font-semibold transition-all duration-200 hover:bg-indigo-700 hover:-translate-y-px no-underline"
+          >
+            ${translateText("win_modal.join_server")}
+          </a>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 

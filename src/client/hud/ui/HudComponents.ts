@@ -18,8 +18,22 @@ export type HudAtomTone =
   | "danger"
   | "success"
   | "gold"
-  | "warning";
-type HudFeedbackTone = "neutral" | "info" | "success" | "warning" | "danger";
+  | "warning"
+  | "blue"
+  | "green"
+  | "orange"
+  | "red";
+type HudFeedbackTone =
+  | "neutral"
+  | "info"
+  | "success"
+  | "warning"
+  | "danger"
+  | "default"
+  | "green"
+  | "orange"
+  | "red"
+  | "blue";
 export type HudMeterTone = "blue" | "cyan" | "slate" | "green" | "gold" | "red";
 type HudAlign = "left" | "center" | "right";
 type HudControlValue = string | number;
@@ -40,6 +54,10 @@ const toneColor: Record<HudAtomTone, string> = {
   success: "#86efac",
   gold: "#fde68a",
   warning: "#fdba74",
+  blue: "#7dd3fc",
+  green: "#86efac",
+  orange: "#fdba74",
+  red: "#fca5a5",
 };
 
 const pillIconTone: Record<HudPillTone, HudAtomTone> = {
@@ -87,13 +105,19 @@ const hudButtonStyles = [
   css`
     :host {
       display: inline-block;
+      width: var(--hud-button-host-width, auto);
     }
 
     button {
+      display: inline-flex;
       width: var(--hud-button-width, auto);
       min-width: var(--hud-button-min-width, 0);
       height: var(--hud-button-height, auto);
       min-height: var(--hud-button-min-height, 24px);
+      align-items: center;
+      flex-direction: var(--hud-button-direction, row);
+      justify-content: var(--hud-button-justify-content, center);
+      gap: var(--hud-button-gap, 6px);
       border: 1px solid var(--hud-button-border-color, rgba(148, 163, 184, 0.6));
       border-radius: var(--hud-button-radius, 3px);
       background: var(--hud-button-background, rgba(15, 23, 42, 0.72));
@@ -104,6 +128,15 @@ const hudButtonStyles = [
       font-weight: 700;
       line-height: 1;
       padding: var(--hud-button-padding, 4px 8px);
+      text-align: var(--hud-button-text-align, center);
+      white-space: var(--hud-button-white-space, normal);
+    }
+
+    ::slotted(img[slot="icon"]) {
+      width: var(--hud-button-icon-size, 14px);
+      height: var(--hud-button-icon-size, 14px);
+      flex: 0 0 auto;
+      object-fit: contain;
     }
 
     button:hover:not(:disabled) {
@@ -115,7 +148,8 @@ const hudButtonStyles = [
       opacity: 0.45;
     }
 
-    :host([variant="active"]) button {
+    :host([variant="active"]) button,
+    :host([variant="primary"]) button {
       border-color: rgba(125, 211, 252, 0.7);
       background: rgba(14, 165, 233, 0.25);
       color: #e0f2fe;
@@ -859,7 +893,7 @@ export class HudTimerLabel extends HudScopedElement {
         text-align: center;
       }
 
-      :host([tone="danger"]) {
+      :host([tone="red"]) {
         color: #f87171;
       }
     `,
@@ -997,13 +1031,23 @@ export class HudNumber extends HudScopedElement {
 export class HudButton extends HudScopedElement {
   static styles = hudButtonStyles;
 
-  @property({ reflect: true }) variant: "default" | "active" | "danger" =
-    "default";
+  @property({ reflect: true }) variant:
+    | "default"
+    | "active"
+    | "danger"
+    | "primary"
+    | "secondary"
+    | "ghost" = "default";
   @property({ type: Boolean, reflect: true }) disabled = false;
+  @property() type: "button" | "submit" | "reset" = "button";
 
   render() {
-    return html`<button part="button" ?disabled=${this.disabled}>
-      <slot></slot>
+    return html`<button
+      part="button"
+      type=${this.type}
+      ?disabled=${this.disabled}
+    >
+      <slot name="icon"></slot><slot></slot>
     </button>`;
   }
 }
@@ -1030,6 +1074,7 @@ export class HudIconButton extends HudButton {
   render() {
     return html`<button
       part="button"
+      type=${this.type}
       ?disabled=${this.disabled}
       aria-label=${this.label || nothing}
     >
@@ -1462,15 +1507,15 @@ export class HudStat extends HudScopedElement {
         font-variant-numeric: tabular-nums;
       }
 
-      :host([tone="success"]) .value {
+      :host([tone="green"]) .value {
         color: #86efac;
       }
 
-      :host([tone="danger"]) .value {
+      :host([tone="red"]) .value {
         color: #fca5a5;
       }
 
-      :host([tone="warning"]) .value {
+      :host([tone="orange"]) .value {
         color: #fdba74;
       }
 
@@ -1505,11 +1550,31 @@ export class HudFormRow extends HudScopedElement {
         align-items: center;
         gap: var(--hud-form-gap, 8px);
       }
+
+      .description {
+        display: block;
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 1.25;
+        text-transform: none;
+      }
     `,
   ];
 
+  @property() label = "";
+  @property() description = "";
+
   render() {
-    return html`<slot></slot>`;
+    return html`${this.label || this.description
+        ? html`<hud-field-label>
+            ${this.label}
+            ${this.description
+              ? html`<span class="description">${this.description}</span>`
+              : nothing}
+          </hud-field-label>`
+        : nothing} <slot></slot>`;
   }
 }
 
@@ -1548,21 +1613,27 @@ export class HudInput extends HudScopedElement {
       input {
         width: 100%;
         min-width: 0;
-        height: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
+        height: var(--hud-input-height, 24px);
+        border-color: var(--hud-input-border-color, rgba(255, 255, 255, 0.2));
+        border-style: solid;
+        border-width: var(--hud-input-border-width, 1px);
+        border-radius: var(--hud-input-radius, 3px);
         outline: 0;
-        background: rgba(15, 23, 42, 0.5);
-        color: #fff;
+        background: var(--hud-input-background, rgba(15, 23, 42, 0.5));
+        color: var(--hud-input-color, #fff);
         font: inherit;
-        font-size: 10px;
+        font-size: var(--hud-input-font-size, 10px);
         line-height: 1;
         padding: 0 6px;
+        text-align: var(--hud-input-text-align, left);
         transition: border-color 120ms ease;
       }
 
       input:focus {
-        border-color: rgba(34, 211, 238, 0.7);
+        border-color: var(
+          --hud-input-focus-border-color,
+          rgba(34, 211, 238, 0.7)
+        );
       }
 
       input:disabled {
@@ -1575,6 +1646,12 @@ export class HudInput extends HudScopedElement {
   @property() type = "text";
   @property() value = "";
   @property() placeholder = "";
+  @property() min = "";
+  @property() max = "";
+  @property() step = "";
+  @property() minlength = "";
+  @property() maxlength = "";
+  @property({ attribute: "aria-label" }) ariaLabel = "";
   @property({ type: Boolean, reflect: true }) disabled = false;
 
   render() {
@@ -1583,6 +1660,12 @@ export class HudInput extends HudScopedElement {
       .type=${this.type}
       .value=${this.value}
       .placeholder=${this.placeholder}
+      aria-label=${this.ariaLabel || nothing}
+      min=${this.min || nothing}
+      max=${this.max || nothing}
+      step=${this.step || nothing}
+      minlength=${this.minlength || nothing}
+      maxlength=${this.maxlength || nothing}
       ?disabled=${this.disabled}
       @input=${this.emitValueChange}
     />`;
@@ -1602,6 +1685,8 @@ export class HudInput extends HudScopedElement {
         composed: true,
       }),
     );
+    this.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
 }
 
@@ -1669,6 +1754,8 @@ export class HudTextarea extends HudScopedElement {
         composed: true,
       }),
     );
+    this.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
 }
 
@@ -1739,6 +1826,7 @@ export class HudSelect extends HudScopedElement {
         composed: true,
       }),
     );
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
 }
 
@@ -1799,6 +1887,170 @@ export class HudRange extends HudScopedElement {
         composed: true,
       }),
     );
+    this.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  }
+}
+
+@customElement("hud-toggle")
+export class HudToggle extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: inline-flex;
+      }
+
+      button {
+        display: inline-grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        min-height: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        border-radius: 3px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #cbd5e1;
+        cursor: pointer;
+        font: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        padding: 4px 7px;
+      }
+
+      button:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      button:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+
+      .track {
+        position: relative;
+        width: 28px;
+        height: 14px;
+        border-radius: 9999px;
+        background: rgba(100, 116, 139, 0.65);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      }
+
+      .thumb {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 9999px;
+        background: #e2e8f0;
+        transition: transform 120ms ease;
+      }
+
+      :host([checked]) button {
+        border-color: rgba(125, 211, 252, 0.7);
+        background: rgba(14, 165, 233, 0.22);
+        color: #e0f2fe;
+      }
+
+      :host([checked]) .track {
+        background: rgba(14, 165, 233, 0.72);
+      }
+
+      :host([checked]) .thumb {
+        transform: translateX(14px);
+      }
+
+      .label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    `,
+  ];
+
+  @property({ type: Boolean, reflect: true }) checked = false;
+  @property({ type: Boolean, reflect: true }) disabled = false;
+  @property() label = "";
+
+  render() {
+    return html`<button
+      part="button"
+      type="button"
+      role="switch"
+      aria-checked=${this.checked ? "true" : "false"}
+      ?disabled=${this.disabled}
+      @click=${this.toggle}
+    >
+      <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+      <span class="label"><slot>${this.label}</slot></span>
+    </button>`;
+  }
+
+  private toggle() {
+    if (this.disabled) return;
+    this.checked = !this.checked;
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  }
+}
+
+@customElement("hud-checkbox")
+export class HudCheckbox extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: inline-flex;
+      }
+
+      label {
+        display: inline-grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 7px;
+        color: #cbd5e1;
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: #22d3ee;
+      }
+
+      :host([disabled]) label {
+        cursor: default;
+        opacity: 0.45;
+      }
+    `,
+  ];
+
+  @property({ type: Boolean, reflect: true }) checked = false;
+  @property({ type: Boolean, reflect: true }) disabled = false;
+  @property() label = "";
+
+  render() {
+    return html`<label part="label">
+      <input
+        part="input"
+        type="checkbox"
+        .checked=${this.checked}
+        ?disabled=${this.disabled}
+        @change=${this.handleChange}
+      />
+      <span><slot>${this.label}</slot></span>
+    </label>`;
+  }
+
+  private handleChange(event: Event) {
+    this.checked = (event.target as HTMLInputElement).checked;
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
 }
 
@@ -2612,15 +2864,15 @@ export class HudEventRow extends HudScopedElement {
         white-space: nowrap;
       }
 
-      :host([tone="success"]) .text {
+      :host([tone="green"]) .text {
         color: #86efac;
       }
 
-      :host([tone="danger"]) .text {
+      :host([tone="red"]) .text {
         color: #fca5a5;
       }
 
-      :host([tone="warning"]) .text {
+      :host([tone="orange"]) .text {
         color: #fdba74;
       }
 
@@ -2964,11 +3216,11 @@ export class HudListRow extends HudScopedElement {
         font-weight: 700;
       }
 
-      :host([tone="danger"]) {
+      :host([tone="red"]) {
         color: #fca5a5;
       }
 
-      :host([tone="success"]) {
+      :host([tone="green"]) {
         color: #86efac;
       }
 
@@ -3181,18 +3433,23 @@ export class HudEmptyState extends HudScopedElement {
         text-align: center;
       }
 
-      :host([tone="warning"]) {
+      :host([tone="orange"]) {
         color: #fdba74;
       }
 
-      :host([tone="danger"]) {
+      :host([tone="red"]) {
         color: #fca5a5;
       }
     `,
   ];
 
   @property() message = "";
-  @property({ reflect: true }) tone: "muted" | "warning" | "danger" = "muted";
+  @property({ reflect: true }) tone:
+    | "muted"
+    | "warning"
+    | "danger"
+    | "orange"
+    | "red" = "muted";
 
   render() {
     return html`<div part="message"><slot>${this.message}</slot></div>`;
@@ -3251,6 +3508,10 @@ export class HudModalShell extends HudScopedElement {
         display: contents;
       }
 
+      :host([inline]) {
+        display: block;
+      }
+
       .overlay {
         position: fixed;
         inset: 0;
@@ -3271,11 +3532,28 @@ export class HudModalShell extends HudScopedElement {
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.38);
         color: #f8fafc;
       }
+
+      .inline {
+        position: relative;
+        width: auto;
+        max-height: none;
+      }
+
+      hud-icon-button.close {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        z-index: 1;
+      }
     `,
   ];
 
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: Boolean, reflect: true }) dismissible = true;
+  @property({ type: Boolean, reflect: true }) inline = false;
+  @property({ type: Boolean, reflect: true }) hideCloseButton = false;
+  @property() label = "";
+  @property() maxWidth = "";
 
   connectedCallback() {
     super.connectedCallback();
@@ -3288,6 +3566,19 @@ export class HudModalShell extends HudScopedElement {
   }
 
   render() {
+    if (this.inline) {
+      return html`<section
+        class="dialog inline"
+        part="dialog"
+        role="dialog"
+        aria-modal="false"
+        aria-label=${this.label || nothing}
+        style=${this.dialogStyle()}
+      >
+        ${this.renderCloseButton()}<slot></slot>
+      </section>`;
+    }
+
     if (!this.open) return nothing;
     return html`<div class="overlay" part="overlay" @click=${this.onBackdrop}>
       <section
@@ -3295,11 +3586,28 @@ export class HudModalShell extends HudScopedElement {
         part="dialog"
         role="dialog"
         aria-modal="true"
+        aria-label=${this.label || nothing}
+        style=${this.dialogStyle()}
         @click=${(event: Event) => event.stopPropagation()}
       >
-        <slot></slot>
+        ${this.renderCloseButton()}<slot></slot>
       </section>
     </div>`;
+  }
+
+  private renderCloseButton() {
+    if (this.hideCloseButton || !this.dismissible) return nothing;
+    return html`<hud-icon-button
+      class="close"
+      label="Close"
+      variant="danger"
+      @click=${() => this.emitDismiss()}
+      >x</hud-icon-button
+    >`;
+  }
+
+  private dialogStyle() {
+    return this.maxWidth ? `--hud-modal-width: ${this.maxWidth};` : "";
   }
 
   private onBackdrop() {
@@ -3317,14 +3625,21 @@ export class HudModalShell extends HudScopedElement {
     this.dispatchEvent(
       new CustomEvent("dismiss", { bubbles: true, composed: true }),
     );
+    this.dispatchEvent(new Event("close", { bubbles: true, composed: true }));
   }
 }
 
 @customElement("hud-modal-header")
 export class HudModalHeader extends HudScopedElement {
   static styles = HudSurfaceHeader.styles;
+
+  @property() title = "";
+
   render() {
-    return html`<header part="header"><slot></slot></header>`;
+    return html`<header part="header">
+      <slot>${this.title}</slot>
+      <slot name="actions"></slot>
+    </header>`;
   }
 }
 
@@ -3388,19 +3703,19 @@ export class HudAlert extends HudScopedElement {
         --hud-alert-color: #bae6fd;
       }
 
-      :host([tone="success"]) {
+      :host([tone="green"]) {
         --hud-alert-border: rgba(34, 197, 94, 0.4);
         --hud-alert-background: rgba(22, 163, 74, 0.12);
         --hud-alert-color: #bbf7d0;
       }
 
-      :host([tone="warning"]) {
+      :host([tone="orange"]) {
         --hud-alert-border: rgba(251, 191, 36, 0.42);
         --hud-alert-background: rgba(217, 119, 6, 0.14);
         --hud-alert-color: #fde68a;
       }
 
-      :host([tone="danger"]) {
+      :host([tone="red"]) {
         --hud-alert-border: rgba(248, 113, 113, 0.42);
         --hud-alert-background: rgba(220, 38, 38, 0.14);
         --hud-alert-color: #fecaca;
@@ -3453,19 +3768,19 @@ export class HudToast extends HudScopedElement {
         --hud-alert-color: #bae6fd;
       }
 
-      :host([tone="success"]) {
+      :host([tone="green"]) {
         --hud-alert-border: rgba(34, 197, 94, 0.4);
         --hud-alert-background: rgba(22, 163, 74, 0.12);
         --hud-alert-color: #bbf7d0;
       }
 
-      :host([tone="warning"]) {
+      :host([tone="orange"]) {
         --hud-alert-border: rgba(251, 191, 36, 0.42);
         --hud-alert-background: rgba(217, 119, 6, 0.14);
         --hud-alert-color: #fde68a;
       }
 
-      :host([tone="danger"]) {
+      :host([tone="red"]) {
         --hud-alert-border: rgba(248, 113, 113, 0.42);
         --hud-alert-background: rgba(220, 38, 38, 0.14);
         --hud-alert-color: #fecaca;
@@ -3637,6 +3952,25 @@ export class HudMenuDivider extends HudScopedElement {
   }
 }
 
+@customElement("hud-divider")
+export class HudDivider extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        height: 1px;
+        margin: var(--hud-divider-margin, 6px 0);
+        background: var(--hud-divider-color, rgba(148, 163, 184, 0.24));
+      }
+    `,
+  ];
+
+  render() {
+    return nothing;
+  }
+}
+
 declare global {
   interface HTMLElementTagNameMap {
     "hud-surface": HudSurface;
@@ -3679,6 +4013,8 @@ declare global {
     "hud-select": HudSelect;
     "hud-range": HudRange;
     "hud-textarea": HudTextarea;
+    "hud-toggle": HudToggle;
+    "hud-checkbox": HudCheckbox;
     "hud-dual-range": HudDualRange;
     "hud-blend-slider": HudBlendSlider;
     "hud-segmented-control": HudSegmentedControl;
@@ -3712,5 +4048,6 @@ declare global {
     "hud-menu": HudMenu;
     "hud-menu-item": HudMenuItem;
     "hud-menu-divider": HudMenuDivider;
+    "hud-divider": HudDivider;
   }
 }

@@ -4,7 +4,7 @@ import { PlayerLeaderboardEntry } from "../../../core/ApiSchemas";
 import { RankedType } from "../../../core/game/Game";
 import { fetchPlayerLeaderboard, getUserMe } from "../../Api";
 import { translateText } from "../../Utils";
-import "../ui";
+import "../../hud/ui";
 
 @customElement("leaderboard-player-list")
 export class LeaderboardPlayerList extends LitElement {
@@ -227,20 +227,20 @@ export class LeaderboardPlayerList extends LitElement {
       }?.[displayRank] ?? String(displayRank);
 
     return html`
-      <tr
+      <hud-table-row
+        interactive
+        ?selected=${isCurrentUser}
         data-current-user=${isCurrentUser ? "true" : "false"}
-        class="border-b border-white/5 hover:bg-white/[0.07] transition-colors group ${isCurrentUser
-          ? "bg-blue-500/15"
-          : ""}"
+        class=${isCurrentUser ? "bg-blue-500/15" : ""}
       >
-        <td class="py-3 px-4 text-center">
+        <hud-table-cell align="center" style="width: 4rem">
           <div
             class="w-10 h-10 mx-auto flex items-center justify-center rounded-lg font-bold font-mono text-lg ${rankColor}"
           >
             ${rankIcon}
           </div>
-        </td>
-        <td class="py-3 px-4">
+        </hud-table-cell>
+        <hud-table-cell align="left" truncate style="width: 12rem">
           <div class="flex items-center gap-2">
             ${player.clanTag
               ? html`<div
@@ -253,14 +253,14 @@ export class LeaderboardPlayerList extends LitElement {
               >${player.username}</span
             >
           </div>
-        </td>
-        <td class="py-3 px-4 text-right">
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
           <span class="font-mono text-white font-medium">${player.elo}</span>
-        </td>
-        <td class="py-3 px-4 text-right">
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
           <span class="font-mono text-white font-medium">${player.games}</span>
-        </td>
-        <td class="py-3 px-4 text-right pr-6">
+        </hud-table-cell>
+        <hud-table-cell style="width: 6rem">
           <div class="inline-flex flex-col items-end">
             <span
               class="font-mono font-bold ${player.winRate >= 0.5
@@ -273,8 +273,8 @@ export class LeaderboardPlayerList extends LitElement {
               >${translateText("leaderboard_modal.ratio")}</span
             >
           </div>
-        </td>
-      </tr>
+        </hud-table-cell>
+      </hud-table-row>
     `;
   }
 
@@ -295,13 +295,13 @@ export class LeaderboardPlayerList extends LitElement {
     if (this.loadMoreError) {
       return html`
         <div class="flex items-center justify-center py-4">
-          <ui-button
+          <hud-button
             size="sm"
             variant="danger"
             @click=${() => this.loadPlayerLeaderboard()}
           >
             ${translateText("leaderboard_modal.try_again")}
-          </ui-button>
+          </hud-button>
         </div>
       `;
     }
@@ -311,9 +311,9 @@ export class LeaderboardPlayerList extends LitElement {
 
   private renderLoading() {
     return html`
-      <ui-loading-state
+      <hud-loading-state
         class="h-full"
-        style="--ui-loading-padding: 48px"
+        style="--hud-loading-padding: 48px"
         label=${translateText("leaderboard_modal.loading")}
       >
         <span
@@ -321,7 +321,7 @@ export class LeaderboardPlayerList extends LitElement {
         >
           ${translateText("leaderboard_modal.loading")}
         </span>
-      </ui-loading-state>
+      </hud-loading-state>
     `;
   }
 
@@ -351,12 +351,12 @@ export class LeaderboardPlayerList extends LitElement {
         <p class="mb-8 text-center text-red-100/80 font-medium">
           ${this.error ?? translateText("leaderboard_modal.error")}
         </p>
-        <ui-button
+        <hud-button
           variant="danger"
           @click=${() => this.loadPlayerLeaderboard(true)}
         >
           ${translateText("leaderboard_modal.try_again")}
-        </ui-button>
+        </hud-button>
       </div>
     `;
   }
@@ -376,39 +376,26 @@ export class LeaderboardPlayerList extends LitElement {
               : "pb-0"}"
             @scroll=${() => this.handleScroll()}
           >
-            <table class="w-full text-sm border-collapse table-fixed">
-              <colgroup>
-                <col style="width: 4rem" />
-                <col style="width: 12rem" />
-                <col style="width: 6rem" />
-                <col style="width: 6rem" />
-                <col style="width: 6rem" />
-              </colgroup>
-              <thead class="sticky top-0 z-10">
-                <tr
-                  class="text-white/40 text-[10px] uppercase tracking-wider border-b border-white/5 bg-[#1e2433]"
-                >
-                  <th class="py-4 px-4 text-center font-bold">
-                    ${translateText("leaderboard_modal.rank")}
-                  </th>
-                  <th class="py-4 px-4 text-left font-bold">
-                    ${translateText("leaderboard_modal.player")}
-                  </th>
-                  <th class="py-4 px-4 text-right font-bold">
-                    ${translateText("leaderboard_modal.elo")}
-                  </th>
-                  <th class="py-4 px-4 text-right font-bold">
-                    ${translateText("leaderboard_modal.games")}
-                  </th>
-                  <th class="py-4 px-4 text-right font-bold pr-6">
-                    ${translateText("leaderboard_modal.win_loss_ratio")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                ${this.playerData.map((player) => this.renderPlayerRow(player))}
-              </tbody>
-            </table>
+            <hud-table class="text-sm table-fixed">
+              <hud-table-row class="sticky top-0 z-10 bg-[#1e2433]">
+                <hud-table-cell header align="center" style="width: 4rem">
+                  ${translateText("leaderboard_modal.rank")}
+                </hud-table-cell>
+                <hud-table-cell header align="left" style="width: 12rem">
+                  ${translateText("leaderboard_modal.player")}
+                </hud-table-cell>
+                <hud-table-cell header style="width: 6rem">
+                  ${translateText("leaderboard_modal.elo")}
+                </hud-table-cell>
+                <hud-table-cell header style="width: 6rem">
+                  ${translateText("leaderboard_modal.games")}
+                </hud-table-cell>
+                <hud-table-cell header style="width: 6rem">
+                  ${translateText("leaderboard_modal.win_loss_ratio")}
+                </hud-table-cell>
+              </hud-table-row>
+              ${this.playerData.map((player) => this.renderPlayerRow(player))}
+            </hud-table>
             ${this.renderPlayerFooter()}
           </div>
           ${this.currentUserEntry

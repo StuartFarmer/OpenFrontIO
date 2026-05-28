@@ -2,6 +2,7 @@ import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { ClanInfo } from "../../ClanApi";
 import { translateText } from "../../Utils";
+import "../../hud/ui";
 import { translateClanRole } from "./ClanShared";
 
 @customElement("clan-card")
@@ -62,9 +63,10 @@ export class ClanCard extends LitElement {
   render() {
     const clan = this.clan;
     return html`
-      <button
+      <hud-button
         @click=${() => this.onClick()}
         class="w-full text-left bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 p-4 transition-all cursor-pointer group"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 16px; --hud-button-radius: 12px; --hud-button-background: rgba(255,255,255,0.05); --hud-button-hover-background: rgba(255,255,255,0.1); --hud-button-border-color: rgba(255,255,255,0.1); --hud-button-justify-content: flex-start; --hud-button-text-align: left;"
       >
         <div class="flex items-center gap-4">
           <div
@@ -102,7 +104,7 @@ export class ClanCard extends LitElement {
             />
           </svg>
         </div>
-      </button>
+      </hud-button>
     `;
   }
 }

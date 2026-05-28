@@ -8,11 +8,11 @@ import {
   openSubscriptionPortal,
 } from "../Api";
 import { translateCosmetic } from "../Cosmetics";
+import "../hud/ui";
 import { translateText } from "../Utils";
 import "./baseComponents/Button";
 import "./CapIcon";
 import "./PlutoniumIcon";
-import "./ui";
 
 @customElement("subscription-panel")
 export class SubscriptionPanel extends LitElement {
@@ -102,14 +102,14 @@ export class SubscriptionPanel extends LitElement {
   render() {
     const { sub, cosmetic } = this;
     return html`
-      <ui-surface class="block">
-        <ui-surface-header>
+      <hud-surface class="block">
+        <hud-surface-header>
           <h3 class="text-lg font-bold text-white flex items-center gap-2">
             <span class="text-amber-400">⭐</span>
             ${translateText("account_modal.your_subscription")}
           </h3>
-        </ui-surface-header>
-        <ui-surface-body>
+        </hud-surface-header>
+        <hud-surface-body>
           <div
             class="flex flex-wrap items-start justify-between gap-4 p-4 rounded-lg bg-white/5 border border-white/10"
           >
@@ -162,20 +162,20 @@ export class SubscriptionPanel extends LitElement {
               <div class="flex flex-wrap justify-end gap-2">
                 ${sub.cancelAtPeriodEnd
                   ? html`<o-button
-                      variant="secondary"
+                      variant="default"
                       size="xs"
                       translationKey="account_modal.reactivate_subscription"
                       @click=${this.handleManage}
                     ></o-button>`
                   : html`
                       <o-button
-                        variant="secondary"
+                        variant="default"
                         size="xs"
                         translationKey="account_modal.manage_subscription"
                         @click=${this.handleManage}
                       ></o-button>
                       <o-button
-                        variant="secondary"
+                        variant="default"
                         size="xs"
                         translationKey="account_modal.change_tier"
                         @click=${this.handleChangeTier}
@@ -194,8 +194,8 @@ export class SubscriptionPanel extends LitElement {
                   </div>`}
             </div>
           </div>
-        </ui-surface-body>
-      </ui-surface>
+        </hud-surface-body>
+      </hud-surface>
     `;
   }
 }

@@ -51,6 +51,11 @@ describe("InputHandler AutoUpgrade", () => {
 
     mockGameView = {
       inSpawnPhase: () => false,
+      config: () => ({
+        gameConfig: () => ({
+          isSandbox: false,
+        }),
+      }),
       myPlayer: () => ({ isAlive: () => true }),
     } as GameView;
     mockCanvas = document.createElement("canvas");
@@ -620,9 +625,7 @@ describe("InputHandler AutoUpgrade", () => {
       window.dispatchEvent(
         new KeyboardEvent("keyup", { code: "Numpad5", key: "5" }),
       );
-      expect(inputHandler["uiState"].ghostStructure).toBe(
-        UnitType.RailStation,
-      );
+      expect(inputHandler["uiState"].ghostStructure).toBe(UnitType.RailStation);
     });
 
     test("Numpad0 sets ghost structure to MIRV when buildMIRV is Digit0", () => {
