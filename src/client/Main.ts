@@ -18,6 +18,10 @@ import {
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
 } from "../core/game/UserSettings";
+import "./AccountModal";
+import "./ClanModal";
+import "./FlagInput";
+import "./FlagInputModal";
 import { userAuth } from "./Auth";
 import {
   joinLobby,
@@ -29,20 +33,33 @@ import { crazyGamesSDK } from "./CrazyGamesSDK";
 import "./GameModeSelector";
 import { GameModeSelector } from "./GameModeSelector";
 import { GameStartingModal } from "./GameStartingModal";
+import "./GoogleAdElement";
+import "./HelpModal";
+import "./HomepagePromos";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import "./LangSelector";
 import { LangSelector } from "./LangSelector";
 import { areLocalServicesEnabled } from "./LocalServices";
+import { initLayout } from "./Layout";
+import "./LeaderboardModal";
+import "./Matchmaking";
 import { modalRouter } from "./ModalRouter";
 import { initNavigation } from "./Navigation";
+import "./NewsModal";
+import "./PatternInput";
 import "./SinglePlayerModal";
+import "./Store";
+import "./TerritoryPatternsModal";
+import "./TokenLoginModal";
+import "./TroubleshootingModal";
 import {
   PauseGameIntentEvent,
   SendKickPlayerIntentEvent,
   SendStartGameEvent,
   SendUpdateGameConfigIntentEvent,
 } from "./Transport";
+import "./UserSettingModal";
 import "./UsernameInput";
 import { genAnonUsername, UsernameInput } from "./UsernameInput";
 import { incrementGamesPlayed, translateText } from "./Utils";
@@ -51,11 +68,15 @@ import { createQuickGameStartInfo } from "./utilities/QuickGame";
 
 import "./components/DesktopNavBar";
 import "./components/Footer";
+import "./components/MainLayout";
+import "./components/MobileNavBar";
 import "./components/PlayPage";
+import "./components/RankedModal";
 import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
 import "./hud/demo/HudLiveComponentsDemo";
 import "./hud/demo/HudPanelWorkbench";
+import "./hud/ui";
 import "./styles.css";
 import "./styles/core/typography.css";
 import "./styles/core/variables.css";
@@ -840,50 +861,35 @@ const renderSandboxShell = (sandboxTag: string) => {
   document.body.innerHTML = `
     <${sandboxTag}></${sandboxTag}>
     <lang-selector style="display: none"></lang-selector>
-    <div id="app"></div>
-    <div
-      class="fixed bottom-0 left-0 w-full z-[200] flex flex-col pointer-events-none sm:flex-row sm:items-end lg:grid lg:grid-cols-[1fr_500px_1fr] lg:items-end min-[1200px]:px-4"
-      style="
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-      "
-    >
-      <div class="contents sm:flex sm:flex-col sm:pointer-events-none w-full sm:w-[500px] lg:col-start-2 sm:z-10">
-        <attacks-display class="w-full pointer-events-auto order-1 sm:order-none"></attacks-display>
-        <div class="pointer-events-auto font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm rounded-[3px] shadow-lg order-3 sm:order-none">
-          <control-panel class="w-full"></control-panel>
-          <unit-display class="hidden lg:block w-full"></unit-display>
-        </div>
-      </div>
-      <div class="flex flex-col pointer-events-none items-end order-2 sm:order-none sm:flex-1 lg:col-start-3 lg:self-end lg:justify-end min-[1200px]:mr-4">
-        <chat-display class="w-full sm:w-auto pointer-events-auto"></chat-display>
-        <events-display class="w-full sm:w-auto pointer-events-auto"></events-display>
-      </div>
-    </div>
-    <emoji-table></emoji-table>
-    <build-menu></build-menu>
-    <win-modal></win-modal>
-    <game-starting-modal></game-starting-modal>
-    <div class="flex flex-col items-end fixed top-0 right-0 min-[1200px]:top-4 min-[1200px]:right-4 z-1000 gap-2">
-      <game-right-sidebar></game-right-sidebar>
-      <replay-panel></replay-panel>
-    </div>
-    <settings-modal></settings-modal>
-    <player-panel></player-panel>
-    <spawn-timer></spawn-timer>
-    <immunity-timer></immunity-timer>
-    <in-game-promo></in-game-promo>
-    <game-info-modal></game-info-modal>
-    <alert-frame></alert-frame>
-    <chat-modal></chat-modal>
-    <multi-tab-modal></multi-tab-modal>
-    <game-left-sidebar></game-left-sidebar>
-    <performance-overlay></performance-overlay>
-    <player-info-overlay></player-info-overlay>
-    <leader-board></leader-board>
-    <team-stats></team-stats>
-    <heads-up-message></heads-up-message>
+    <hud-game-shell>
+      <div id="app" slot="app"></div>
+      <attacks-display slot="bottom-center-top" class="w-full"></attacks-display>
+      <control-panel slot="bottom-center-main" class="w-full"></control-panel>
+      <unit-display slot="bottom-center-main" class="hidden lg:block w-full"></unit-display>
+      <chat-display slot="bottom-side" class="w-full sm:w-auto"></chat-display>
+      <events-display slot="bottom-side" class="w-full sm:w-auto"></events-display>
+      <game-right-sidebar slot="top-right"></game-right-sidebar>
+      <replay-panel slot="top-right"></replay-panel>
+      <emoji-table></emoji-table>
+      <build-menu></build-menu>
+      <win-modal></win-modal>
+      <game-starting-modal></game-starting-modal>
+      <settings-modal></settings-modal>
+      <player-panel></player-panel>
+      <spawn-timer></spawn-timer>
+      <immunity-timer></immunity-timer>
+      <in-game-promo></in-game-promo>
+      <game-info-modal></game-info-modal>
+      <alert-frame></alert-frame>
+      <chat-modal></chat-modal>
+      <multi-tab-modal></multi-tab-modal>
+      <game-left-sidebar></game-left-sidebar>
+      <performance-overlay></performance-overlay>
+      <player-info-overlay></player-info-overlay>
+      <leader-board></leader-board>
+      <team-stats></team-stats>
+      <heads-up-message></heads-up-message>
+    </hud-game-shell>
   `;
 };
 
@@ -978,6 +984,7 @@ const bootstrap = async () => {
   installSafariPinchZoomBlocker();
 
   new Client().initialize();
+  initLayout();
   initNavigation();
 
   // Hide elements immediately

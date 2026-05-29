@@ -1,10 +1,11 @@
-import { html, LitElement } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { html } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
 import { GameEndInfo } from "../core/Schemas";
 import { GameMapType } from "../core/game/Game";
 import { fetchGameById } from "./Api";
 import { terrainMapFileLoader } from "./TerrainMapFileLoader";
 import { renderDuration, translateText } from "./Utils";
+import { BaseModal, ModalConfig } from "./components/BaseModal";
 import {
   PlayerInfo,
   Ranking,
@@ -16,12 +17,7 @@ import "./components/baseComponents/ranking/RankingHeader";
 import "./hud/ui";
 
 @customElement("game-info-modal")
-export class GameInfoModal extends LitElement {
-  @query("o-modal") private modalEl!: HTMLElement & {
-    open: () => void;
-    close: () => void;
-  };
-
+export class GameInfoModal extends BaseModal {
   @state() private mapImage: string | null = null;
   @state() private gameInfo: GameEndInfo | null = null;
   @state() private rankedPlayers: Array<PlayerInfo> = [];
@@ -42,23 +38,26 @@ export class GameInfoModal extends LitElement {
     return this;
   }
 
-  render() {
+  protected modalConfig(): ModalConfig {
+    return {
+      title: translateText("game_info_modal.title"),
+      hideHeader: false,
+      hideCloseButton: false,
+      maxWidth: "900px",
+    };
+  }
+
+  protected renderBody() {
     return html`
-      <o-modal
-        id="gameInfoModal"
-        title="${translateText("game_info_modal.title")}"
-        translationKey="main.game_info"
+      <div
+        class="h-full flex flex-col items-center px-25 text-center mb-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
       >
-        <div
-          class="h-full flex flex-col items-center px-25 text-center mb-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
-        >
-          <div class="w-75 sm:w-125">
-            ${this.isLoadingGame
-              ? this.renderLoadingAnimation()
-              : this.renderRanking()}
-          </div>
+        <div class="w-75 sm:w-125">
+          ${this.isLoadingGame
+            ? this.renderLoadingAnimation()
+            : this.renderRanking()}
         </div>
-      </o-modal>
+      </div>
     `;
   }
 
@@ -161,14 +160,6 @@ export class GameInfoModal extends LitElement {
         )}
       </ul>
     `;
-  }
-
-  public open() {
-    this.modalEl?.open();
-  }
-
-  public close() {
-    this.modalEl?.close();
   }
 
   private score(player: PlayerInfo): number {

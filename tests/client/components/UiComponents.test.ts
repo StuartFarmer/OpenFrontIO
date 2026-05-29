@@ -149,7 +149,8 @@ describe("shared UI components", () => {
     expect(modal.isModalOpen).toBe(true);
     expect(document.body.style.overflow).toBe("hidden");
 
-    const closeButton = modal.shadowRoot?.querySelector("hud-icon-button");
+    const shell = modal.shadowRoot?.querySelector("hud-modal-shell");
+    const closeButton = shell?.shadowRoot?.querySelector("hud-icon-button");
     expect(closeButton).toBeDefined();
     closeButton!.dispatchEvent(
       new MouseEvent("click", { bubbles: true, composed: true }),

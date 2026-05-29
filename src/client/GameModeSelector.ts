@@ -62,13 +62,13 @@ export class GameModeSelector extends LitElement {
 
   render() {
     return html`
-      <div class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-4">
+      <hud-stack class="mx-auto w-full max-w-3xl px-4 pb-4" density="loose">
         ${this.renderActionButton("Quick Game", this.openQuickGame, "primary")}
         ${this.renderActionButton(
           translateText("main.solo"),
           this.openSinglePlayerModal,
         )}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <hud-grid columns="2" style="--hud-grid-gap: 1rem;">
           ${this.renderActionButton(
             translateText("main.create"),
             this.openHostLobby,
@@ -77,8 +77,8 @@ export class GameModeSelector extends LitElement {
             translateText("main.join"),
             this.openJoinLobby,
           )}
-        </div>
-      </div>
+        </hud-grid>
+      </hud-stack>
     `;
   }
 }

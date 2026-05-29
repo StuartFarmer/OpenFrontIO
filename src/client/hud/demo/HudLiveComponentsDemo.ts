@@ -22,6 +22,7 @@ import "../layers/PlayerInfoOverlay";
 import "../layers/ReplayPanel";
 import "../layers/TeamStats";
 import "../layers/UnitDisplay";
+import "../ui";
 
 export type MockPlayer = any;
 
@@ -478,54 +479,35 @@ export class HudLiveComponentsDemo extends LitElement {
       </style>
 
       <div class="demo-page">
-        <div id="app" class="fixed inset-0 bg-slate-950"></div>
-
-        <!-- Bottom HUD: exact index.html scaffold, with blank map behind it. -->
-        <div
-          class="fixed bottom-0 left-0 w-full z-[200] flex flex-col pointer-events-none sm:flex-row sm:items-end lg:grid lg:grid-cols-[1fr_500px_1fr] lg:items-end min-[1200px]:px-4"
-          style="
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
-          "
-        >
-          <div
-            class="contents sm:flex sm:flex-col sm:pointer-events-none w-full sm:w-[500px] lg:col-start-2 sm:z-10"
-          >
-            <attacks-display
-              class="w-full pointer-events-auto order-1 sm:order-none"
-            ></attacks-display>
-            <div
-              class="pointer-events-auto font-mono tabular-nums text-white bg-gray-800/88 backdrop-blur-sm rounded-[3px] shadow-lg order-3 sm:order-none"
-            >
-              <control-panel class="w-full"></control-panel>
-              <unit-display class="hidden lg:block w-full"></unit-display>
-            </div>
-          </div>
-
-          <div
-            class="flex flex-col pointer-events-none items-end order-2 sm:order-none sm:flex-1 lg:col-start-3 lg:self-end lg:justify-end min-[1200px]:mr-4"
-          >
-            <chat-display
-              class="w-full sm:w-auto pointer-events-auto"
-            ></chat-display>
-            <events-display
-              class="w-full sm:w-auto pointer-events-auto"
-            ></events-display>
-          </div>
-        </div>
-
-        <div
-          class="flex flex-col items-end fixed top-0 right-0 min-[1200px]:top-4 min-[1200px]:right-4 z-1000 gap-2"
-        >
-          <game-right-sidebar></game-right-sidebar>
-          <replay-panel></replay-panel>
-        </div>
-
-        <game-left-sidebar></game-left-sidebar>
-        <player-info-overlay></player-info-overlay>
-        <leader-board></leader-board>
-        <team-stats></team-stats>
+        <hud-game-shell>
+          <div id="app" slot="app" class="bg-slate-950"></div>
+          <attacks-display
+            slot="bottom-center-top"
+            class="w-full"
+          ></attacks-display>
+          <control-panel
+            slot="bottom-center-main"
+            class="w-full"
+          ></control-panel>
+          <unit-display
+            slot="bottom-center-main"
+            class="hidden lg:block w-full"
+          ></unit-display>
+          <chat-display
+            slot="bottom-side"
+            class="w-full sm:w-auto"
+          ></chat-display>
+          <events-display
+            slot="bottom-side"
+            class="w-full sm:w-auto"
+          ></events-display>
+          <game-right-sidebar slot="top-right"></game-right-sidebar>
+          <replay-panel slot="top-right"></replay-panel>
+          <game-left-sidebar></game-left-sidebar>
+          <player-info-overlay></player-info-overlay>
+          <leader-board></leader-board>
+          <team-stats></team-stats>
+        </hud-game-shell>
       </div>
     `;
   }

@@ -1,11 +1,12 @@
-import { LitElement, html } from "lit";
-import { customElement, query } from "lit/decorators.js";
+import { html } from "lit";
+import { customElement } from "lit/decorators.js";
 
 import { PlayerType } from "../../../core/game/Game";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 
 import quickChatData from "resources/QuickChat.json";
 import { EventBus } from "../../../core/EventBus";
+import { BaseModal, ModalConfig } from "../../components/BaseModal";
 import { CloseViewEvent } from "../../InputHandler";
 import { SendQuickChatEvent } from "../../Transport";
 import { translateText } from "../../Utils";
@@ -21,14 +22,14 @@ export type QuickChatPhrases = Record<string, QuickChatPhrase[]>;
 export const quickChatPhrases: QuickChatPhrases = quickChatData;
 
 @customElement("chat-modal")
-export class ChatModal extends LitElement {
-  @query("o-modal") private modalEl!: HTMLElement & {
-    open: () => void;
-    close: () => void;
-  };
-
-  createRenderRoot() {
-    return this;
+export class ChatModal extends BaseModal {
+  protected modalConfig(): ModalConfig {
+    return {
+      title: translateText("chat.title"),
+      hideHeader: false,
+      hideCloseButton: false,
+      maxWidth: "900px",
+    };
   }
 
   private players: PlayerView[] = [];
@@ -72,111 +73,105 @@ export class ChatModal extends LitElement {
     return quickChatPhrases[categoryId] ?? [];
   }
 
-  render() {
+  protected renderBody() {
     return html`
-      <o-modal title="${translateText("chat.title")}">
-        <div class="chat-columns">
-          <div class="chat-column">
-            <div class="column-title">${translateText("chat.category")}</div>
-            ${this.categories.map(
-              (category) => html`
-                <hud-button
-                  class="chat-option-button"
-                  variant=${this.selectedCategory === category.id
-                    ? "active"
-                    : "default"}
-                  style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
-                  @click=${() => this.selectCategory(category.id)}
-                >
-                  ${translateText(`chat.cat.${category.id}`)}
-                </hud-button>
-              `,
-            )}
-          </div>
+      <div class="chat-columns">
+        <div class="chat-column">
+          <div class="column-title">${translateText("chat.category")}</div>
+          ${this.categories.map(
+            (category) => html`
+              <hud-button
+                class="chat-option-button"
+                variant=${this.selectedCategory === category.id
+                  ? "active"
+                  : "default"}
+                style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
+                @click=${() => this.selectCategory(category.id)}
+              >
+                ${translateText(`chat.cat.${category.id}`)}
+              </hud-button>
+            `,
+          )}
+        </div>
 
-          ${this.selectedCategory
-            ? html`
-                <div class="chat-column">
-                  <div class="column-title">
-                    ${translateText("chat.phrase")}
-                  </div>
-                  <div class="phrase-scroll-area">
-                    ${this.getPhrasesForCategory(this.selectedCategory).map(
-                      (phrase) => html`
-                        <hud-button
-                          class="chat-option-button"
-                          variant=${this.selectedPhraseText ===
-                          translateText(
-                            `chat.${this.selectedCategory}.${phrase.key}`,
-                          )
-                            ? "active"
-                            : "default"}
-                          style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
-                          @click=${() => this.selectPhrase(phrase)}
-                        >
-                          ${this.renderPhrasePreview(phrase)}
-                        </hud-button>
-                      `,
-                    )}
-                  </div>
+        ${this.selectedCategory
+          ? html`
+              <div class="chat-column">
+                <div class="column-title">${translateText("chat.phrase")}</div>
+                <div class="phrase-scroll-area">
+                  ${this.getPhrasesForCategory(this.selectedCategory).map(
+                    (phrase) => html`
+                      <hud-button
+                        class="chat-option-button"
+                        variant=${this.selectedPhraseText ===
+                        translateText(
+                          `chat.${this.selectedCategory}.${phrase.key}`,
+                        )
+                          ? "active"
+                          : "default"}
+                        style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px;"
+                        @click=${() => this.selectPhrase(phrase)}
+                      >
+                        ${this.renderPhrasePreview(phrase)}
+                      </hud-button>
+                    `,
+                  )}
                 </div>
-              `
-            : null}
-          ${this.requiresPlayerSelection || this.selectedPlayer
-            ? html`
-                <div class="chat-column">
-                  <div class="column-title">
-                    ${translateText("chat.player")}
-                  </div>
+              </div>
+            `
+          : null}
+        ${this.requiresPlayerSelection || this.selectedPlayer
+          ? html`
+              <div class="chat-column">
+                <div class="column-title">${translateText("chat.player")}</div>
 
-                  <hud-input
-                    class="player-search-input"
-                    type="text"
-                    placeholder="${translateText("chat.search")}"
-                    .value=${this.playerSearchQuery}
-                    @input=${this.onPlayerSearchInput}
-                  ></hud-input>
+                <hud-input
+                  class="player-search-input"
+                  type="text"
+                  placeholder="${translateText("chat.search")}"
+                  .value=${this.playerSearchQuery}
+                  @input=${this.onPlayerSearchInput}
+                ></hud-input>
 
-                  <div class="player-scroll-area">
-                    ${this.getSortedFilteredPlayers().map(
-                      (player) => html`
-                        <hud-button
-                          class="chat-option-button"
-                          variant=${this.selectedPlayer === player
-                            ? "active"
-                            : "default"}
-                          style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px; --hud-button-border-color: ${player
-                            .territoryColor()
-                            .toHex()};"
-                          @click=${() => this.selectPlayer(player)}
-                        >
-                          ${player.displayName()}
-                        </hud-button>
-                      `,
-                    )}
-                  </div>
+                <div class="player-scroll-area">
+                  ${this.getSortedFilteredPlayers().map(
+                    (player) => html`
+                      <hud-button
+                        class="chat-option-button"
+                        variant=${this.selectedPlayer === player
+                          ? "active"
+                          : "default"}
+                        style="display: block; --hud-button-width: 100%; --hud-button-min-height: 34px; --hud-button-radius: 4px; --hud-button-padding: 8px 12px; --hud-button-border-color: ${player
+                          .territoryColor()
+                          .toHex()};"
+                        @click=${() => this.selectPlayer(player)}
+                      >
+                        ${player.displayName()}
+                      </hud-button>
+                    `,
+                  )}
                 </div>
-              `
-            : null}
-        </div>
+              </div>
+            `
+          : null}
+      </div>
 
-        <div class="chat-preview">
-          ${this.previewText
-            ? translateText(this.previewText)
-            : translateText("chat.build")}
-        </div>
-        <div class="chat-send">
-          <hud-button
-            class="chat-send-button"
-            variant="active"
-            @click=${this.sendChatMessage}
-            ?disabled=${!this.previewText ||
-            (this.requiresPlayerSelection && !this.selectedPlayer)}
-          >
-            ${translateText("chat.send")}
-          </hud-button>
-        </div>
-      </o-modal>
+      <div class="chat-preview">
+        ${this.previewText
+          ? translateText(this.previewText)
+          : translateText("chat.build")}
+      </div>
+      <div class="chat-send">
+        <hud-button
+          class="chat-send-button"
+          variant="active"
+          @click=${this.sendChatMessage}
+          ?disabled=${!this.previewText ||
+          (this.requiresPlayerSelection && !this.selectedPlayer)}
+        >
+          ${translateText("chat.send")}
+        </hud-button>
+      </div>
     `;
   }
 
@@ -275,7 +270,16 @@ export class ChatModal extends LitElement {
     return `${category}.${phraseKey}`;
   }
 
-  public open(sender?: PlayerView, recipient?: PlayerView) {
+  public open(args?: Record<string, unknown>): void;
+  public open(sender?: PlayerView, recipient?: PlayerView): void;
+  public open(
+    senderOrArgs?: PlayerView | Record<string, unknown>,
+    recipient?: PlayerView,
+  ) {
+    const sender =
+      senderOrArgs && "displayName" in senderOrArgs
+        ? (senderOrArgs as PlayerView)
+        : undefined;
     if (sender && recipient) {
       console.log("Sent message:", recipient);
       console.log("Sent message:", sender);
@@ -287,7 +291,7 @@ export class ChatModal extends LitElement {
       this.sender = sender;
     }
     this.requestUpdate();
-    this.modalEl?.open();
+    super.open();
   }
 
   public close() {
@@ -295,7 +299,7 @@ export class ChatModal extends LitElement {
     this.selectedPhraseText = null;
     this.previewText = null;
     this.requiresPlayerSelection = false;
-    this.modalEl?.close();
+    super.close();
   }
 
   public setRecipient(value: PlayerView) {
@@ -332,6 +336,6 @@ export class ChatModal extends LitElement {
     }
 
     this.requestUpdate();
-    this.modalEl?.open();
+    super.open();
   }
 }

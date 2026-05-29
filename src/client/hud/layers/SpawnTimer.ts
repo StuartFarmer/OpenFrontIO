@@ -5,6 +5,7 @@ import { GameMode, GameType, Team } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import { Controller } from "../../Controller";
 import { TransformHandler } from "../../TransformHandler";
+import "../ui";
 
 export class SpawnBarVisibleEvent implements GameEvent {
   constructor(public readonly visible: boolean) {}
@@ -112,17 +113,14 @@ export class SpawnTimer extends LitElement implements Controller {
     }
 
     return html`
-      <div class="w-full h-full flex z-999">
-        ${this.ratios.map((ratio, i) => {
-          const color = this.colors[i] || "rgba(0, 0, 0, 0.5)";
-          return html`
-            <div
-              class="h-full transition-all duration-100 ease-in-out w-(--width) bg-(--bg)"
-              style="--width: ${ratio * 100}%; --bg: ${color};"
-            ></div>
-          `;
-        })}
-      </div>
+      <hud-meter
+        variant="mini"
+        .segments=${this.ratios.map((ratio, i) => ({
+          width: ratio * 100,
+          color: this.colors[i] || "rgba(0, 0, 0, 0.5)",
+        }))}
+        style="--hud-meter-min-height: 7px; --hud-meter-mini-height: 7px; --hud-meter-border: 0; --hud-meter-radius: 0; --hud-meter-background: transparent;"
+      ></hud-meter>
     `;
   }
 }

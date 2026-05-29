@@ -1386,15 +1386,15 @@ export class HudMeter extends HudScopedElement {
 
       .meter {
         position: relative;
-        min-height: 20px;
+        min-height: var(--hud-meter-min-height, 20px);
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
-        background: rgba(15, 23, 42, 0.7);
+        border: var(--hud-meter-border, 1px solid rgba(255, 255, 255, 0.2));
+        border-radius: var(--hud-meter-radius, 3px);
+        background: var(--hud-meter-background, rgba(15, 23, 42, 0.7));
       }
 
       .meter.mini {
-        height: 20px;
+        height: var(--hud-meter-mini-height, 20px);
       }
 
       .stack {
@@ -3122,6 +3122,10 @@ export class HudGrid extends HudScopedElement {
         gap: var(--hud-grid-gap, 8px);
       }
 
+      slot {
+        display: contents;
+      }
+
       @media (max-width: 560px) {
         .grid {
           grid-template-columns: 1fr;
@@ -3192,6 +3196,205 @@ export class HudSafeArea extends HudScopedElement {
 
   render() {
     return html`<slot></slot>`;
+  }
+}
+
+@customElement("hud-game-shell")
+export class HudGameShell extends HudScopedElement {
+  static styles = [
+    hudScopedStyles,
+    css`
+      :host {
+        display: block;
+        pointer-events: none;
+      }
+
+      :host([inline]) {
+        position: relative;
+        min-height: var(--hud-game-shell-height, 320px);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--hud-radius, 3px);
+        background: #0f172a;
+      }
+
+      ::slotted([slot="app"]) {
+        position: fixed;
+        inset: 0;
+        pointer-events: auto;
+      }
+
+      :host([inline]) ::slotted([slot="app"]) {
+        position: absolute;
+      }
+
+      .bottom {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 200;
+        display: flex;
+        width: 100%;
+        flex-direction: column;
+        pointer-events: none;
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+
+      :host([inline]) .bottom,
+      :host([inline]) .top-right {
+        position: absolute;
+      }
+
+      .center {
+        display: contents;
+        width: 100%;
+      }
+
+      .center-top {
+        width: 100%;
+        order: 1;
+        pointer-events: auto;
+      }
+
+      .center-main {
+        order: 3;
+        width: 100%;
+        border-radius: var(--hud-radius, 3px);
+        background: rgba(31, 41, 55, 0.88);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.24);
+        color: #fff;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-variant-numeric: tabular-nums;
+        pointer-events: auto;
+        backdrop-filter: blur(4px);
+      }
+
+      .side {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        order: 2;
+        width: 100%;
+        pointer-events: none;
+      }
+
+      .side slot,
+      .center-top slot,
+      .center-main slot,
+      .top-right slot,
+      .overlays slot {
+        display: contents;
+      }
+
+      ::slotted([slot="bottom-side"]),
+      ::slotted([slot="bottom-center-top"]),
+      ::slotted([slot="bottom-center-main"]),
+      ::slotted([slot="top-right"]) {
+        pointer-events: auto;
+      }
+
+      .top-right {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      @media (min-width: 640px) {
+        .bottom {
+          flex-direction: row;
+          align-items: flex-end;
+        }
+
+        .center {
+          z-index: 10;
+          display: flex;
+          width: 500px;
+          flex-direction: column;
+          pointer-events: none;
+        }
+
+        .center-top,
+        .center-main {
+          order: initial;
+        }
+
+        .side {
+          flex: 1;
+          order: initial;
+          width: auto;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .bottom {
+          display: grid;
+          grid-template-columns: 1fr 500px 1fr;
+          align-items: end;
+        }
+
+        .center {
+          grid-column-start: 2;
+        }
+
+        .side {
+          grid-column-start: 3;
+          align-self: end;
+          justify-content: flex-end;
+        }
+      }
+
+      @media (min-width: 1200px) {
+        .bottom {
+          padding-left: max(env(safe-area-inset-left), 1rem);
+          padding-right: max(env(safe-area-inset-right), 1rem);
+        }
+
+        .side {
+          margin-right: 1rem;
+        }
+
+        .top-right {
+          top: 1rem;
+          right: 1rem;
+        }
+      }
+    `,
+  ];
+
+  render() {
+    return html`
+      <slot name="app"></slot>
+      <div class="bottom" part="bottom">
+        <div class="center" part="bottom-center">
+          <div class="center-top" part="bottom-center-top">
+            <slot name="bottom-center-top"></slot>
+          </div>
+          <div class="center-main" part="bottom-center-main">
+            <slot name="bottom-center-main"></slot>
+          </div>
+        </div>
+        <div class="side" part="bottom-side">
+          <slot name="bottom-side"></slot>
+        </div>
+      </div>
+      <div class="top-right" part="top-right">
+        <slot name="top-right"></slot>
+      </div>
+      <div class="overlays" part="overlays">
+        <slot></slot>
+        <slot name="overlays"></slot>
+      </div>
+    `;
   }
 }
 
@@ -3533,6 +3736,8 @@ export class HudModalShell extends HudScopedElement {
       }
 
       .dialog {
+        display: flex;
+        flex-direction: column;
         width: min(var(--hud-modal-width, 420px), 100%);
         max-height: min(90vh, var(--hud-modal-max-height, 720px));
         overflow: hidden;
@@ -4041,6 +4246,7 @@ declare global {
     "hud-split": HudSplit;
     "hud-scroll-area": HudScrollArea;
     "hud-safe-area": HudSafeArea;
+    "hud-game-shell": HudGameShell;
     "hud-list-row": HudListRow;
     "hud-command-choice": HudCommandChoice;
     "hud-tabs": HudTabs;

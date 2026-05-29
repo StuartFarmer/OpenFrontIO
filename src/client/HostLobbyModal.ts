@@ -467,11 +467,6 @@ export class HostLobbyModal extends BaseModal {
         // Clear clipboard so the host doesn't accidentally share a dead link
         void navigator.clipboard.writeText("").catch(() => {});
       });
-    if (this.modalEl) {
-      this.modalEl.onClose = () => {
-        this.close();
-      };
-    }
     this.loadNationCount();
   }
 

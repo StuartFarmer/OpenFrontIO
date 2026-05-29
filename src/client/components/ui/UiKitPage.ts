@@ -409,6 +409,53 @@ export class HudUiReviewPage extends LitElement {
           `,
         )}
         ${this.renderSection(
+          "Game Shell",
+          "Shared runtime shell for map, bottom-center HUD, side HUD, top-right HUD, and overlays.",
+          html`
+            <hud-game-shell inline style="--hud-game-shell-height: 360px;">
+              <div
+                slot="app"
+                style="background:
+                  radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.18), transparent 28%),
+                  radial-gradient(circle at 70% 60%, rgba(34, 197, 94, 0.16), transparent 24%),
+                  #020617;"
+              ></div>
+              <hud-alert slot="bottom-center-top" tone="default"
+                >Attack rows</hud-alert
+              >
+              <hud-control-panel slot="bottom-center-main">
+                <hud-stack style="--hud-stack-gap: 4px; padding: 6px;">
+                  <hud-row justify="between">
+                    <hud-pill tone="green">Troops</hud-pill>
+                    <hud-pill tone="gold">Gold</hud-pill>
+                  </hud-row>
+                  <hud-meter
+                    value="66"
+                    label="Population"
+                    label-align="center"
+                  ></hud-meter>
+                </hud-stack>
+              </hud-control-panel>
+              <hud-surface slot="bottom-side" style="width: 220px;">
+                <hud-surface-header><h3>Events</h3></hud-surface-header>
+                <hud-list-row>
+                  <span>Border skirmish</span>
+                  <hud-pill tone="red">war</hud-pill>
+                </hud-list-row>
+              </hud-surface>
+              <hud-surface slot="top-right" style="width: 160px;">
+                <hud-surface-body>
+                  <hud-stack density="compact">
+                    <hud-button>Settings</hud-button>
+                    <hud-button>Replay</hud-button>
+                  </hud-stack>
+                </hud-surface-body>
+              </hud-surface>
+              <hud-toast slot="overlays" tone="green">Overlay slot</hud-toast>
+            </hud-game-shell>
+          `,
+        )}
+        ${this.renderSection(
           "Buttons And Actions",
           "Button variants, icon buttons, grouped actions, and compatibility action helper.",
           html`

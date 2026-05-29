@@ -1,17 +1,18 @@
 import { html, LitElement, TemplateResult } from "lit";
 import { property, query, state } from "lit/decorators.js";
 import { modalRouter } from "../ModalRouter";
-import "./baseComponents/Modal";
-import type { OModalTab } from "./baseComponents/Modal";
+import "../hud/ui";
+
+export type ModalTab = { key: string; label: string };
 
 /**
- * Static-ish configuration for the <o-modal> shell.
+ * Static-ish configuration for the HUD modal shell.
  * Subclasses return a fresh object from modalConfig(); avoid heavy work — it's
  * read on every render() and during open()/setActiveTab().
  */
 export interface ModalConfig {
   title?: string;
-  tabs?: OModalTab[];
+  tabs?: ModalTab[];
   hideHeader?: boolean;
   hideCloseButton?: boolean;
   alwaysMaximized?: boolean;
@@ -21,7 +22,7 @@ export interface ModalConfig {
 /**
  * Base class for modal components.
  *
- * BaseModal renders the <o-modal> shell itself — subclasses provide content
+ * BaseModal renders the HUD modal shell itself — subclasses provide content
  * via renderContent() (or renderTab() for tabbed modals) and declare
  * configuration via modalConfig().
  *
@@ -39,19 +40,17 @@ export abstract class BaseModal extends LitElement {
   @state() protected activeTab = "";
   @property({ type: Boolean }) inline = false;
 
+  private static openCount = 0;
+
   // Re-entrancy guard: showPage() (for inline modals) re-invokes .open()
   // with no args after we call it. We must not re-run onOpen(undefined)
   // from that nested call, which would clobber state set by the outer call.
   private opening = false;
 
-  @query("o-modal") protected modalEl?: HTMLElement & {
-    open: () => void;
-    close: () => void;
-    onClose?: () => void;
-  };
+  @query("hud-modal-shell") protected modalEl?: HTMLElement;
 
   // ---- Subclass configuration ----
-  // Override modalConfig() to configure the rendered <o-modal>. Defaults match
+  // Override modalConfig() to configure the rendered HUD modal. Defaults match
   // the most common shape (custom in-content header, no built-in close button).
 
   protected modalConfig(): ModalConfig {
@@ -117,22 +116,47 @@ export abstract class BaseModal extends LitElement {
     const tabs = cfg.tabs ?? [];
     const body = this.renderBody(this.activeTab);
     const headerSlot = this.renderHeaderSlot();
+    const title = cfg.title ?? "";
+    const hideHeader = cfg.hideHeader ?? true;
+    const hideCloseButton = cfg.hideCloseButton ?? true;
+    const maxWidth = cfg.maxWidth || "900px";
+    const shellStyle = cfg.alwaysMaximized
+      ? "--hud-modal-max-height: calc(100vh - 2rem);"
+      : "";
 
     return html`
-      <o-modal
-        title=${cfg.title ?? ""}
+      <hud-modal-shell
+        label=${title}
         ?inline=${this.inline}
-        ?hideHeader=${cfg.hideHeader ?? true}
-        ?hideCloseButton=${cfg.hideCloseButton ?? true}
-        ?alwaysMaximized=${cfg.alwaysMaximized ?? false}
-        maxWidth=${cfg.maxWidth ?? ""}
-        .tabs=${tabs}
-        .activeTab=${this.activeTab}
-        .onTabChange=${(key: string) => this.setActiveTab(key)}
+        ?open=${this.isModalOpen}
+        ?hideCloseButton=${hideCloseButton}
+        maxWidth=${maxWidth}
+        style=${shellStyle}
+        @dismiss=${this.handleModalDismiss}
       >
-        ${headerSlot ? html`<div slot="header">${headerSlot}</div>` : null}
-        ${body}
-      </o-modal>
+        ${!hideHeader && title
+          ? html`<hud-modal-header>
+              <hud-label>${title}</hud-label>
+            </hud-modal-header>`
+          : null}
+        ${headerSlot}
+        ${tabs.length
+          ? html`<hud-tabs
+              .items=${tabs.map((tab) => ({
+                id: tab.key,
+                label: tab.label,
+              }))}
+              .selected=${this.activeTab}
+              @selection-change=${(event: CustomEvent<{ id: string }>) =>
+                this.setActiveTab(event.detail.id)}
+            ></hud-tabs>`
+          : null}
+        <hud-modal-body
+          style="flex: 1; min-height: 0; overflow: auto; --hud-surface-body-padding: 0;"
+        >
+          ${body}
+        </hud-modal-body>
+      </hud-modal-shell>
     `;
   }
 
@@ -187,7 +211,7 @@ export abstract class BaseModal extends LitElement {
         }
         this.style.pointerEvents = "auto";
       } else {
-        this.modalEl?.open();
+        this.requestUpdate();
       }
 
       if (this.routerName) {
@@ -208,7 +232,7 @@ export abstract class BaseModal extends LitElement {
         window.showPage?.("page-play");
       }
     } else {
-      this.modalEl?.close();
+      this.requestUpdate();
     }
 
     if (this.routerName) {
@@ -232,25 +256,16 @@ export abstract class BaseModal extends LitElement {
 
   // ---- Internals ----
 
-  protected firstUpdated(): void {
-    if (this.modalEl) {
-      this.modalEl.onClose = () => {
-        if (this.isModalOpen) {
-          if (!this.confirmBeforeClose()) {
-            // Re-open the underlying o-modal since it already closed itself
-            this.modalEl?.open();
-            return;
-          }
-          this.close();
-        }
-      };
-    }
-  }
-
   disconnectedCallback() {
     this.unregisterEscapeHandler();
     super.disconnectedCallback();
   }
+
+  private handleModalDismiss = () => {
+    if (!this.isModalOpen) return;
+    if (!this.confirmBeforeClose()) return;
+    this.close();
+  };
 
   private handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this.isModalOpen) {
@@ -263,13 +278,25 @@ export abstract class BaseModal extends LitElement {
   };
 
   protected registerEscapeHandler() {
-    this.isModalOpen = true;
-    window.addEventListener("keydown", this.handleKeyDown);
+    if (!this.isModalOpen) {
+      this.isModalOpen = true;
+      if (!this.inline) {
+        BaseModal.openCount = BaseModal.openCount + 1;
+        if (BaseModal.openCount === 1) document.body.style.overflow = "hidden";
+      }
+      window.addEventListener("keydown", this.handleKeyDown);
+    }
   }
 
   protected unregisterEscapeHandler() {
-    this.isModalOpen = false;
-    window.removeEventListener("keydown", this.handleKeyDown);
+    if (this.isModalOpen) {
+      this.isModalOpen = false;
+      if (!this.inline) {
+        BaseModal.openCount = Math.max(0, BaseModal.openCount - 1);
+        if (BaseModal.openCount === 0) document.body.style.overflow = "";
+      }
+      window.removeEventListener("keydown", this.handleKeyDown);
+    }
   }
 
   protected renderLoadingSpinner(

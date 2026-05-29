@@ -221,7 +221,7 @@ export class TroubleshootingModal extends BaseModal {
       this.style.pointerEvents = "none";
       window.showPage?.("page-help");
     } else {
-      this.modalEl?.close();
+      this.requestUpdate();
     }
   }
 }
