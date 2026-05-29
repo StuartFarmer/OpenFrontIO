@@ -744,6 +744,10 @@ export interface Player {
     options?: AddResourcesOptions,
   ): ResourceStockpile;
   canAffordResources(cost: ResourceStockpile): boolean;
+  foodAllocationToPopulation(): number | undefined;
+  setFoodAllocationToPopulation(foodAllocationToPopulation: number): void;
+  nutritionHealth(): number;
+  setNutritionHealth(nutritionHealth: number): void;
   troops(): number;
   setTroops(troops: number): void;
   addTroops(troops: number): void;

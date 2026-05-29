@@ -32,12 +32,11 @@ export const noopEventBus = {
 
 export const uiState: UIState = {
   attackRatio: 0.25,
+  foodAllocationToPopulation: 0.5,
   ghostStructure: null,
   overlappingRailroads: [],
   ghostRailPaths: [],
   rocketDirectionUp: true,
-  resourceImportBlend: { food: 34, energy: 33, materials: 33 },
-  resourceExportBlend: { food: 34, energy: 33, materials: 33 },
 };
 
 export const resourceCost = {

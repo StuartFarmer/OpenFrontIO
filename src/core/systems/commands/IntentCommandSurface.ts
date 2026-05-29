@@ -17,6 +17,7 @@ import { NoOpExecution } from "../../execution/NoOpExecution";
 import { PauseExecution } from "../../execution/PauseExecution";
 import { QuickChatExecution } from "../../execution/QuickChatExecution";
 import { RetreatExecution } from "../../execution/RetreatExecution";
+import { SetFoodAllocationExecution } from "../../execution/SetFoodAllocationExecution";
 import { SpawnExecution } from "../../execution/SpawnExecution";
 import { TargetPlayerExecution } from "../../execution/TargetPlayerExecution";
 import { TransportShipExecution } from "../../execution/TransportShipExecution";
@@ -53,6 +54,11 @@ export class IntentCommandSurface {
         );
       case "cancel_attack":
         return new RetreatExecution(player, intent.attackID);
+      case "set_food_allocation":
+        return new SetFoodAllocationExecution(
+          player,
+          intent.foodAllocationToPopulation,
+        );
       case "cancel_boat":
         return new BoatRetreatExecution(player, intent.unitID);
       case "move_warship":

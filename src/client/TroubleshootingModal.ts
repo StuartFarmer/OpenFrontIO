@@ -4,6 +4,7 @@ import { assetUrl } from "../core/AssetUrls";
 import { translateText } from "./Utils";
 import { BaseModal } from "./components/BaseModal";
 import { modalHeader } from "./components/ui/ModalHeader";
+import "./hud/ui";
 import {
   collectGraphicsDiagnostics,
   GraphicsDiagnostics,
@@ -45,12 +46,9 @@ export class TroubleshootingModal extends BaseModal {
           >
           / ${translateText("troubleshooting.title")}
         </span>
-        <o-button
-          variant="active"
-          size="sm"
-          translationKey="common.copy"
-          @click=${this.copyDiagnostics}
-        ></o-button>
+        <hud-button variant="active" @click=${this.copyDiagnostics}>
+          ${translateText("common.copy")}
+        </hud-button>
       </div>`,
       onBack: () => this.close(),
       ariaLabel: translateText("common.back"),

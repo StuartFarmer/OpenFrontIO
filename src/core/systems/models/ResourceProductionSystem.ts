@@ -21,6 +21,7 @@ export interface ResourceProductionSystemInputs {
 
 export interface ResourceProductionSystemResult {
   readonly capacity: ResourceStockpile;
+  readonly production: ResourceStockpile;
   readonly delta: ResourceStockpile;
 }
 
@@ -86,6 +87,15 @@ export function createResourceProductionSystemModel(
           passiveResourceRegenMultiplier: {
             value: mechanics.passiveResourceRegenMultiplier,
           },
+          foodProductionPerTile: {
+            value: mechanics.foodProductionPerTile,
+          },
+          foodTicksPerYear: {
+            value: mechanics.foodTicksPerYear,
+          },
+          foodProductionTechnologyMultiplier: {
+            value: mechanics.foodProductionTechnologyMultiplier,
+          },
         },
         outputs: {
           "resource.capacity.value": ({ getNumber, params }) => {
@@ -146,14 +156,17 @@ export function createResourceProductionSystemModel(
             getNumber("resource.equalRegen.food") +
             getNumber("resource.equalRegen.energy") +
             getNumber("resource.equalRegen.materials"),
-          "resource.production.food": ({ getNumber }) =>
+          "resource.production.food": ({ getNumber, params }) =>
+            agricultureFoodProductionPerTick(
+              getNumber("territory.tilesOwned"),
+              getNumber("player.resourceRegenMultiplier"),
+              params.foodProductionPerTile,
+              params.foodTicksPerYear,
+              params.foodProductionTechnologyMultiplier,
+            ),
+          "resource.storedFood": ({ getNumber }) =>
             clampPositiveDelta(
-              splitResourceProduction(
-                getNumber("resource.production.total"),
-                getNumber("terrain.foodWeight"),
-                getNumber("terrain.energyWeight"),
-                getNumber("terrain.materialsWeight"),
-              ).food,
+              getNumber("resource.production.food"),
               getNumber("resource.capacity.food") - getNumber("resource.food"),
             ),
           "resource.production.energy": ({ getNumber }) =>
@@ -182,7 +195,7 @@ export function createResourceProductionSystemModel(
         flows: {
           "resource.produceFood": {
             stock: "resource.food",
-            amount: ({ getNumber }) => getNumber("resource.production.food"),
+            amount: ({ getNumber }) => getNumber("resource.storedFood"),
           },
           "resource.produceEnergy": {
             stock: "resource.energy",
@@ -229,6 +242,17 @@ export function evaluateResourceProductionSystem(
 
   return {
     capacity,
+    production: {
+      food: BigInt(
+        Math.floor(result.outputs["resource.production.food"] as number),
+      ),
+      energy: BigInt(
+        Math.floor(result.outputs["resource.production.energy"] as number),
+      ),
+      materials: BigInt(
+        Math.floor(result.outputs["resource.production.materials"] as number),
+      ),
+    },
     delta: {
       food:
         BigInt(Math.floor(result.stocks["resource.food"])) -
@@ -241,6 +265,31 @@ export function evaluateResourceProductionSystem(
         inputs.resources.materials,
     },
   };
+}
+
+function agricultureFoodProductionPerTick(
+  tilesOwned: number,
+  resourceRegenMultiplier: number,
+  foodProductionPerTile: number,
+  ticksPerYear: number,
+  technologyMultiplier: number,
+): number {
+  if (
+    tilesOwned <= 0 ||
+    resourceRegenMultiplier <= 0 ||
+    foodProductionPerTile <= 0 ||
+    ticksPerYear <= 0
+  ) {
+    return 0;
+  }
+
+  return Math.floor(
+    (tilesOwned *
+      foodProductionPerTile *
+      Math.max(1, Math.min(10, technologyMultiplier)) *
+      resourceRegenMultiplier) /
+      ticksPerYear,
+  );
 }
 
 export function evaluateResourceCapacity(

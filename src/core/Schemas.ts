@@ -31,6 +31,7 @@ export type Intent =
   | SpawnIntent
   | AttackIntent
   | CancelAttackIntent
+  | SetFoodAllocationIntent
   | BoatAttackIntent
   | CancelBoatIntent
   | AllianceRequestIntent
@@ -56,6 +57,9 @@ export type Intent =
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
+export type SetFoodAllocationIntent = z.infer<
+  typeof SetFoodAllocationIntentSchema
+>;
 export type SpawnIntent = z.infer<typeof SpawnIntentSchema>;
 export type BoatAttackIntent = z.infer<typeof BoatAttackIntentSchema>;
 export type EmbargoAllIntent = z.infer<typeof EmbargoAllIntentSchema>;
@@ -414,6 +418,11 @@ export const CancelAttackIntentSchema = z.object({
   attackID: z.string(),
 });
 
+export const SetFoodAllocationIntentSchema = z.object({
+  type: z.literal("set_food_allocation"),
+  foodAllocationToPopulation: z.number().min(0).max(1),
+});
+
 export const CancelBoatIntentSchema = z.object({
   type: z.literal("cancel_boat"),
   unitID: z.number(),
@@ -465,6 +474,7 @@ export const StartGameIntentSchema = z.object({
 const IntentSchema = z.discriminatedUnion("type", [
   AttackIntentSchema,
   CancelAttackIntentSchema,
+  SetFoodAllocationIntentSchema,
   SpawnIntentSchema,
   MarkDisconnectedIntentSchema,
   BoatAttackIntentSchema,

@@ -193,6 +193,8 @@ export interface PlayerUpdate {
   gold?: Gold;
   resources?: ResourceStockpile;
   resourceCapacity?: ResourceStockpile;
+  foodAllocationToPopulation?: number;
+  nutritionHealth?: number;
   stockFlowDiagnostics?: StockFlowDiagnostics;
   effectiveTroopCapacity?: number;
   biomassSupportedTroopCapacity?: number;

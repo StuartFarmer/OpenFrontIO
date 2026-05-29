@@ -887,9 +887,19 @@ export class Config {
     });
   }
 
+  foodAllocationToPopulation(player: Player | PlayerView): number {
+    return (
+      player.foodAllocationToPopulation() ??
+      this.mechanics.populationResources.foodAllocationToPopulation
+    );
+  }
+
   troopIncreaseRate(player: Player, game: Game): number;
   troopIncreaseRate(player: Player | PlayerView): number;
   troopIncreaseRate(player: Player | PlayerView, game?: Game): number {
+    if (game !== undefined) {
+      return this.playerEconomyTick(game, player as Player).troopDelta;
+    }
     return evaluatePlayerPopulationGrowth(player, {
       mechanics: this.mechanics.populationResources,
       difficulty: this._gameConfig.difficulty,

@@ -31,6 +31,8 @@ function ps(overrides: Partial<PlayerState> = {}): PlayerState {
     gold: 0,
     resources: { food: 0, energy: 0, materials: 0 },
     resourceCapacity: { food: 0, energy: 0, materials: 0 },
+    foodAllocationToPopulation: 0.5,
+    nutritionHealth: 1,
     effectiveTroopCapacity: 1_000,
     biomassSupportedTroopCapacity: 1_000,
     troopIncreaseRate: 0,

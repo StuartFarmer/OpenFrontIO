@@ -594,8 +594,8 @@ export class HudUiReviewPage extends LitElement {
           `,
         )}
         ${this.renderSection(
-          "Modals And Compatibility",
-          "Modal shell primitives plus legacy wrappers that still compose shared controls.",
+          "Modals",
+          "Modal shell primitives composed from HUD controls.",
           html`
             <hud-row>
               <hud-button
@@ -604,7 +604,6 @@ export class HudUiReviewPage extends LitElement {
               >
                 Open Modal
               </hud-button>
-              <o-button title="Legacy o-button"></o-button>
               <hud-divider></hud-divider>
             </hud-row>
             <hud-kit-frame shell style="--hud-kit-frame-width: 320px">

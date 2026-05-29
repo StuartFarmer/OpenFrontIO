@@ -14,8 +14,10 @@ export interface FoodSystemResult {
   readonly stock: number;
   readonly produced: number;
   readonly allocatedAvailable: number;
+  readonly reservedSurplus: number;
   readonly needed: number;
   readonly consumed: number;
+  readonly satisfactionRatio: number;
   readonly shortageRatio: number;
   readonly surplus: number;
   readonly delta: number;
@@ -73,8 +75,13 @@ export function createFoodSystemModel(
           "food.available": ({ getNumber }) =>
             getNumber("food.stock") + getNumber("food.produced"),
           "food.allocatedAvailable": ({ getNumber, params }) =>
-            getNumber("food.available") *
+            getNumber("food.produced") *
             Math.max(0, Math.min(1, params.foodAllocationToPopulation)),
+          "food.reservedSurplus": ({ getNumber }) =>
+            Math.max(
+              0,
+              getNumber("food.produced") - getNumber("food.allocatedAvailable"),
+            ),
           "food.consumed": ({ getNumber }) =>
             Math.min(
               getNumber("food.allocatedAvailable"),
@@ -87,16 +94,26 @@ export function createFoodSystemModel(
             }
             return Math.max(0, 1 - getNumber("food.consumed") / needed);
           },
+          "food.satisfactionRatio": ({ getNumber }) => {
+            const needed = getNumber("food.needed");
+            if (needed <= 0) {
+              return 1;
+            }
+            return Math.max(
+              0,
+              Math.min(1, getNumber("food.consumed") / needed),
+            );
+          },
           "food.surplus": ({ getNumber }) =>
             Math.max(
               0,
-              getNumber("food.available") - getNumber("food.consumed"),
+              getNumber("food.stock") + getNumber("food.reservedSurplus"),
             ),
         },
         flows: {
           "food.consume": {
             stock: "resource.food",
-            amount: ({ getNumber }) => -getNumber("food.consumed"),
+            amount: () => 0,
           },
         },
       },
@@ -126,8 +143,10 @@ export function evaluateFoodSystem(
     stock: result.outputs["food.stock"] as number,
     produced: result.outputs["food.produced"] as number,
     allocatedAvailable: result.outputs["food.allocatedAvailable"] as number,
+    reservedSurplus: result.outputs["food.reservedSurplus"] as number,
     needed: result.outputs["food.needed"] as number,
     consumed: result.outputs["food.consumed"] as number,
+    satisfactionRatio: result.outputs["food.satisfactionRatio"] as number,
     shortageRatio: result.outputs["food.shortageRatio"] as number,
     surplus: result.outputs["food.surplus"] as number,
     delta,

@@ -85,7 +85,7 @@ export class MapDisplay extends LitElement {
         tabindex="0"
         aria-selected="${this.selected}"
         aria-label="${this.translation ?? this.mapName ?? this.mapKey}"
-        @keydown="${this.handleKeydown}"
+        @keydown=${this.handleKeydown}
         class="w-full h-full p-3 flex flex-col items-center justify-between rounded-xl border cursor-pointer transition-all duration-200 active:scale-95 gap-3 group ${this
           .selected
           ? "bg-malibu-blue/20 border-malibu-blue/50 shadow-[var(--shadow-malibu-blue-strong)]"

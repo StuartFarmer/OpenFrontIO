@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ControlPanel } from "../../../src/client/hud/layers/ControlPanel";
+import { SendFoodAllocationIntentEvent } from "../../../src/client/Transport";
+import { EventBus } from "../../../src/core/EventBus";
 import { GameUpdateType } from "../../../src/core/game/GameUpdates";
 import {
   makeEmptyGu,
@@ -92,6 +94,7 @@ describe("ControlPanel resources", () => {
       smallID: 1,
       resources: { food: 100n, energy: 200n, materials: 300n },
       resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
+      foodAllocationToPopulation: 0.4,
     });
     update.updates[GameUpdateType.Player] = [player];
     update.playerNameViewData[player.id] = makeNameViewData();
@@ -126,10 +129,74 @@ describe("ControlPanel resources", () => {
     );
     const text = collectText(panel);
     expect(text).toContain("3.00K");
-    expect(text).toContain("34%");
-    expect(text).toContain("33%");
+    expect(queryDeepAll(panel, "hud-blend-slider")).toHaveLength(0);
     expect(hasDeepIconSrc(panel, "/icons/biomass-icon.svg")).toBe(true);
     expect(hasDeepIconSrc(panel, "/icons/fuel-icon.svg")).toBe(true);
     expect(hasDeepIconSrc(panel, "/icons/metal-icon.svg")).toBe(true);
+  });
+
+  it("renders a single biomass allocation range when Biomass is selected", async () => {
+    const game = makeGameView({ myClientID: "client-a" });
+    const update = makeEmptyGu(1);
+    const player = makePlayerUpdate({
+      id: "player-a",
+      clientID: "client-a",
+      smallID: 1,
+      resources: { food: 100n, energy: 200n, materials: 300n },
+      resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
+    });
+    update.updates[GameUpdateType.Player] = [player];
+    update.playerNameViewData[player.id] = makeNameViewData();
+    game.update(update);
+
+    const panel = new ControlPanel();
+    panel.game = game;
+    panel.eventBus = new EventBus();
+    panel.uiState = {
+      attackRatio: 0.2,
+      foodAllocationToPopulation: 0.4,
+      ghostStructure: null,
+      overlappingRailroads: [],
+      ghostRailPaths: [],
+      rocketDirectionUp: true,
+    };
+    document.body.appendChild(panel);
+
+    panel.tick();
+    await panel.updateComplete;
+
+    queryDeepAll<HTMLElement>(panel, "hud-segmented-control")[0].dispatchEvent(
+      new CustomEvent("selection-change", {
+        detail: { id: "food" },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    await panel.updateComplete;
+
+    const ranges = queryDeepAll<HTMLElement>(
+      panel,
+      'hud-range[data-control="foodAllocationToPopulation"]',
+    );
+    expect(ranges).toHaveLength(1);
+    expect(queryDeepAll(panel, "hud-blend-slider")).toHaveLength(0);
+    expect(collectText(panel)).toContain("40% eat / 60% store");
+
+    const emitted: SendFoodAllocationIntentEvent[] = [];
+    panel.eventBus.on(SendFoodAllocationIntentEvent, (event) => {
+      emitted.push(event);
+    });
+    ranges[0].dispatchEvent(
+      new CustomEvent("value-change", {
+        detail: { value: 65 },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    await panel.updateComplete;
+
+    expect(panel.uiState.foodAllocationToPopulation).toBe(0.65);
+    expect(emitted[emitted.length - 1]?.foodAllocationToPopulation).toBe(0.65);
+    expect(collectText(panel)).toContain("65% eat / 35% store");
   });
 });

@@ -78,33 +78,36 @@ export class WinModal extends LitElement implements Controller {
             class="${this.showButtons ? "block" : "hidden"}"
             style="--hud-action-gap: 10px;"
           >
-            <o-button
+            <hud-button
               variant="active"
-              width="block"
               class="flex-1"
-              translationKey="win_modal.exit"
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
               @click=${this._handleExit}
-            ></o-button>
+            >
+              ${translateText("win_modal.exit")}
+            </hud-button>
             ${this.isRankedGame
               ? html`
-                  <o-button
+                  <hud-button
                     variant="active"
-                    width="block"
                     class="flex-1"
-                    translationKey="win_modal.requeue"
+                    style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
                     @click=${this._handleRequeue}
-                  ></o-button>
+                  >
+                    ${translateText("win_modal.requeue")}
+                  </hud-button>
                 `
               : null}
-            <o-button
+            <hud-button
               variant="active"
-              width="block"
               class="flex-1"
-              .title=${this.game?.myPlayer()?.isAlive()
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
+              @click=${this.hide}
+            >
+              ${this.game?.myPlayer()?.isAlive()
                 ? translateText("win_modal.keep")
                 : translateText("win_modal.spectate")}
-              @click=${this.hide}
-            ></o-button>
+            </hud-button>
           </hud-action-group>
         </hud-surface-body>
       </hud-surface>

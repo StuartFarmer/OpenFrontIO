@@ -345,13 +345,13 @@ export class SinglePlayerModal extends BaseModal {
                 </hud-alert>`
               : null
           }
-          <o-button
+          <hud-button
             variant="active"
-            width="block"
-            size="lg"
-            translationKey="single_modal.start"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 40px;"
             @click=${this.startGame}
-          ></o-button>
+          >
+            ${translateText("single_modal.start")}
+          </hud-button>
         </div>
       </div>
     `;

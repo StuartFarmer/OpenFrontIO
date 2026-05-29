@@ -1,6 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { translateText } from "../Utils";
+import "../hud/ui";
 
 @customElement("fluent-slider")
 export class FluentSlider extends LitElement {
@@ -19,7 +20,9 @@ export class FluentSlider extends LitElement {
 
   @state() private isEditing = false;
 
-  @query("input[type='number']") private numberInput!: HTMLInputElement;
+  @query("hud-input") private numberInput!: HTMLElement & {
+    shadowRoot: ShadowRoot | null;
+  };
 
   private dispatchValueChange() {
     this.dispatchEvent(
@@ -31,20 +34,27 @@ export class FluentSlider extends LitElement {
     );
   }
 
+  private readNumberControl(event: Event): number {
+    const target = event.target as HTMLElement & {
+      value?: string | number;
+      valueAsNumber?: number;
+    };
+    return typeof target.valueAsNumber === "number"
+      ? target.valueAsNumber
+      : Number(target.value ?? this.min);
+  }
+
   private handleSliderInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    this.value = target.valueAsNumber;
+    this.value = this.readNumberControl(e);
   }
 
   private handleSliderChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    this.value = target.valueAsNumber;
+    this.value = this.readNumberControl(e);
     this.dispatchValueChange();
   }
 
   private handleNumberInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    let val = target.valueAsNumber;
+    let val = this.readNumberControl(e);
     if (isNaN(val)) {
       val = this.min;
     }
@@ -68,7 +78,9 @@ export class FluentSlider extends LitElement {
 
   private enableEditing() {
     this.isEditing = true;
-    this.updateComplete.then(() => this.numberInput?.focus());
+    this.updateComplete.then(() =>
+      this.numberInput?.shadowRoot?.querySelector("input")?.focus(),
+    );
   }
 
   render() {
@@ -80,21 +92,16 @@ export class FluentSlider extends LitElement {
       <div
         class="flex flex-col items-center justify-center gap-1 w-full text-center"
       >
-        <input
-          type="range"
+        <hud-range
           .min=${this.min}
           .max=${this.max}
           .step=${this.step}
-          .valueAsNumber=${this.value}
-          style="background: linear-gradient(to right, var(--color-malibu-blue) 0%, var(--color-malibu-blue) ${percentage}%, rgba(255, 255, 255, 0.15) ${percentage}%, rgba(255, 255, 255, 0.15) 100%); background-size: 100% 6px; background-repeat: no-repeat; background-position: center; border-radius: 9999px;"
-          class="w-full h-6 p-0 m-0 bg-transparent appearance-none cursor-pointer focus:outline-none 
-                 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:h-[6px] [&::-webkit-slider-runnable-track]:cursor-pointer [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:transition-colors
-                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-malibu-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:-mt-[6px] [&::-webkit-slider-thumb]:shadow-[var(--shadow-malibu-blue-ring-sm)] [&::-webkit-slider-thumb]:transition-all active:[&::-webkit-slider-thumb]:scale-110 active:[&::-webkit-slider-thumb]:shadow-[var(--shadow-malibu-blue-ring-lg)]
-                 [&::-moz-range-track]:w-full [&::-moz-range-track]:h-[6px] [&::-moz-range-track]:cursor-pointer [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:rounded-full [&::-moz-range-track]:transition-colors
-                 [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-malibu-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-[var(--shadow-malibu-blue-ring-sm)] [&::-moz-range-thumb]:transition-all active:[&::-moz-range-thumb]:scale-110 active:[&::-moz-range-thumb]:shadow-[var(--shadow-malibu-blue-ring-lg)]"
+          .value=${this.value}
+          label=${this.labelKey ? translateText(this.labelKey) : "Value"}
+          style="--hud-range-fill-percent: ${percentage}%;"
           @input=${this.handleSliderInput}
           @change=${this.handleSliderChange}
-        />
+        ></hud-range>
         <div
           class="text-xs uppercase font-bold tracking-wider text-center w-full leading-tight mb-1 flex flex-col items-center ${this
             .value > 0
@@ -103,19 +110,20 @@ export class FluentSlider extends LitElement {
         >
           <span>${this.labelKey ? translateText(this.labelKey) : ""}</span>
           ${this.isEditing
-            ? html`<input
+            ? html`<hud-input
                 type="number"
                 .min=${this.min}
                 .max=${this.max}
-                .valueAsNumber=${this.value}
-                class="w-[60px] bg-black/60 text-white border border-white/20 text-center rounded text-sm p-1 leading-none font-bold font-inherit mt-1 focus:outline-none focus:border-blue-500"
+                .value=${String(this.value)}
+                class="w-[60px] mt-1"
+                style="--hud-input-height: 28px; --hud-input-font-size: 14px; --hud-input-text-align: center; --hud-input-background: rgba(0,0,0,0.6); --hud-input-border-color: rgba(255,255,255,0.2);"
                 @input=${this.handleNumberInput}
-                @blur=${() => {
+                @change=${() => {
                   this.isEditing = false;
                   this.handleNumberComplete();
                 }}
                 @keydown=${this.handleNumberKeyDown}
-              />`
+              ></hud-input>`
             : html`<span
                 class="cursor-pointer min-w-[60px] inline-block text-center text-sm font-bold select-none hover:text-white transition-colors mt-1 ${this
                   .value > 0

@@ -66,7 +66,7 @@ describe("sandbox-balancer", () => {
       reloadedEvents[0].detail.gameStartInfo.config.mechanics
         .populationResources.populationGrowthRate;
 
-    expect(initialGrowth).toBe(0.016);
+    expect(initialGrowth).toBe(0.0015);
     expect(refreshedGrowth).toBe(0.025);
   });
 

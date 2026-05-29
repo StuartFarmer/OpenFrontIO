@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
 import type { PlayerState } from "../../../src/client/render/types";
-import { Executor } from "../../../src/core/execution/ExecutionManager";
 import { AttackExecution } from "../../../src/core/execution/AttackExecution";
-import { GameRunner } from "../../../src/core/GameRunner";
+import { Executor } from "../../../src/core/execution/ExecutionManager";
 import { PlayerInfo, PlayerType } from "../../../src/core/game/Game";
-import { applyStateUpdate } from "../../../src/core/game/GameUpdateUtils";
 import {
   ErrorUpdate,
   GameUpdateViewData,
 } from "../../../src/core/game/GameUpdates";
+import { applyStateUpdate } from "../../../src/core/game/GameUpdateUtils";
+import { GameRunner } from "../../../src/core/GameRunner";
 import {
   captureParitySnapshot,
   normalizeForParity,
@@ -173,6 +173,8 @@ function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
     gold: 0,
     resources: { food: 0, energy: 0, materials: 0 },
     resourceCapacity: { food: 0, energy: 0, materials: 0 },
+    foodAllocationToPopulation: 0.5,
+    nutritionHealth: 1,
     effectiveTroopCapacity: 1_000,
     biomassSupportedTroopCapacity: 1_000,
     troopIncreaseRate: 0,

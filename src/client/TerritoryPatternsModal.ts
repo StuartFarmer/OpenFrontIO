@@ -154,16 +154,16 @@ export class TerritoryPatternsModal extends BaseModal {
   protected renderBody() {
     return html`
       <div class="flex justify-center py-3 shrink-0">
-        <o-button
+        <hud-button
           class="no-crazygames"
           variant="active"
-          size="sm"
-          translationKey="main.store"
           @click=${() => {
             this.close();
             window.showPage?.("page-item-store");
           }}
-        ></o-button>
+        >
+          ${translateText("main.store")}
+        </hud-button>
       </div>
       <div class="px-3 pb-3">${this.renderPatternGrid()}</div>
     `;

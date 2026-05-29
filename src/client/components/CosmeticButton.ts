@@ -7,6 +7,7 @@ import {
   ResolvedCosmetic,
   translateCosmetic,
 } from "../Cosmetics";
+import "../hud/ui";
 import { translateText } from "../Utils";
 import "./CapIcon";
 import "./CosmeticContainer";
@@ -190,10 +191,11 @@ export class CosmeticButton extends LitElement {
           : undefined}
         .name=${this.displayName}
       >
-        <button
+        <hud-button
           class="group relative flex flex-col items-center w-full ${isPattern
             ? "gap-2"
             : "gap-1"} rounded-lg cursor-pointer transition-all duration-200 flex-1"
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 100%; --hud-button-padding: 0; --hud-button-direction: column; --hud-button-background: transparent; --hud-button-hover-background: transparent; --hud-button-border-color: transparent;"
           @click=${() => this.handleClick()}
         >
           ${(c?.product ?? priceHard ?? priceSoft)
@@ -210,7 +212,7 @@ export class CosmeticButton extends LitElement {
           >
             ${this.renderPreview()}
           </div>
-        </button>
+        </hud-button>
         ${isOwnedSubscription
           ? html`<div
               class="w-full mt-2 px-4 py-2 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold uppercase tracking-wider text-center"

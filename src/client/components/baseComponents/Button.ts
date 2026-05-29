@@ -8,8 +8,8 @@ type ButtonSize = "xs" | "sm" | "md" | "lg";
 type ButtonWidth = "auto" | "block" | "blockDesktop" | "fill";
 type IconPosition = "left" | "right" | "only";
 
-// Compatibility wrapper for legacy <o-button> call sites. New UI should prefer
-// <hud-button> / <hud-icon-button> directly unless it needs translationKey support.
+// Compatibility wrapper for older button call sites. New UI should prefer
+// HUD button primitives directly unless it needs translationKey support.
 @customElement("o-button")
 export class OButton extends LitElement {
   @property() title = "";

@@ -145,13 +145,16 @@ describe("PopulationSystem", () => {
     expect(result.growth).toBeCloseTo(0.032 * 5_000 * 0.5, 5);
   });
 
-  test("food shortage can reduce births and add famine deaths", () => {
+  test("food satisfaction controls births, deaths, and nutrition health", () => {
     const mechanics = resolveMechanicsConfig({
       populationResources: {
         populationGrowthRate: 0.02,
         maxPopulationPerTile: 10_000,
-        foodShortageBirthPenalty: 1,
-        famineDeathRate: 0.01,
+        birthNutritionThreshold: 0.8,
+        survivalNutritionThreshold: 0.5,
+        starvationDamageRate: 0.01,
+        nutritionRecoveryRate: 0.02,
+        starvationMortalityScale: 0.01,
       },
     }).populationResources;
 
@@ -161,7 +164,8 @@ describe("PopulationSystem", () => {
       maxPopulationOverride: 0,
       capacityMultiplier: 1,
       growthMultiplier: 1,
-      foodShortageRatio: 0,
+      foodSatisfactionRatio: 1,
+      nutritionHealth: 1,
     });
     const shortage = evaluatePopulationSystem(mechanics, {
       population: 5_000,
@@ -169,12 +173,19 @@ describe("PopulationSystem", () => {
       maxPopulationOverride: 0,
       capacityMultiplier: 1,
       growthMultiplier: 1,
-      foodShortageRatio: 0.5,
+      foodSatisfactionRatio: 0,
+      nutritionHealth: 0.5,
     });
 
     expect(fullFood.growth).toBeCloseTo(50, 5);
+    expect(fullFood.births).toBeCloseTo(50, 5);
+    expect(fullFood.deaths).toBe(0);
+    expect(fullFood.nutritionHealth).toBe(1);
     expect(shortage.growth).toBeLessThan(fullFood.growth);
-    expect(shortage.growth).toBeCloseTo(0, 5);
+    expect(shortage.births).toBe(0);
+    expect(shortage.deaths).toBeCloseTo(25, 5);
+    expect(shortage.growth).toBeCloseTo(-25, 5);
+    expect(shortage.nutritionHealth).toBeCloseTo(0.49, 5);
   });
 
   test("effective capacity override can make food the hard population cap", () => {
@@ -192,10 +203,31 @@ describe("PopulationSystem", () => {
       effectiveCapacityOverride: 2_000,
       capacityMultiplier: 1,
       growthMultiplier: 1,
-      foodShortageRatio: 0,
+      foodSatisfactionRatio: 1,
     });
 
     expect(result.capacity).toBe(2_000);
     expect(result.growth).toBe(-3_000);
+  });
+
+  test("over-cap population shrinks to capacity without overshooting below zero", () => {
+    const mechanics = resolveMechanicsConfig({
+      populationResources: {
+        populationGrowthRate: 0.02,
+        maxPopulationPerTile: 250,
+      },
+    }).populationResources;
+
+    const result = evaluatePopulationSystem(mechanics, {
+      population: 25_000,
+      tilesOwned: 1,
+      maxPopulationOverride: 0,
+      capacityMultiplier: 1,
+      growthMultiplier: 1,
+      foodSatisfactionRatio: 1,
+    });
+
+    expect(result.capacity).toBe(250);
+    expect(result.growth).toBe(-24_750);
   });
 });

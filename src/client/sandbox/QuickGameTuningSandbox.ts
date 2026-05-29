@@ -14,8 +14,10 @@ import type { JoinLobbyEvent } from "../Main";
 import { createQuickGameStartInfo } from "../utilities/QuickGame";
 import {
   DEFAULT_QUICK_GAME_PARAMETER_IDS,
+  NumberParameterDescriptor,
   ParameterDescriptor,
   QUICK_GAME_PARAMETER_DESCRIPTORS,
+  SelectParameterDescriptor,
 } from "./QuickGameTuningParameters";
 
 interface TuningSettings {
@@ -26,7 +28,7 @@ interface TuningSettings {
   selectedParameterIds: string[];
 }
 
-const STORAGE_KEY = "openfront.quick-game-tuning.v1";
+const STORAGE_KEY = "openfront.quick-game-tuning.v2";
 const difficultyOptions = Object.values(Difficulty).map((difficulty) => ({
   label: difficulty,
   value: difficulty,
@@ -124,6 +126,10 @@ export class QuickGameTuningSandbox extends LitElement {
 
     hud-select.setting-select {
       width: 118px;
+    }
+
+    hud-select.parameter-select {
+      width: 132px;
     }
 
     hud-icon-button.remove-button {
@@ -259,17 +265,7 @@ export class QuickGameTuningSandbox extends LitElement {
           </hud-label>
         </hud-table-cell>
         <hud-table-cell class="value-cell">
-          <hud-input
-            class="parameter-input"
-            data-parameter-input=${descriptor.id}
-            type="number"
-            min=${String(descriptor.min)}
-            max=${String(descriptor.max)}
-            step=${String(descriptor.step)}
-            .value=${String(value)}
-            @value-change=${(event: CustomEvent<{ value: string }>) =>
-              this.handleParameterValueChange(descriptor, event.detail.value)}
-          ></hud-input>
+          ${this.renderParameterValueControl(descriptor, value)}
         </hud-table-cell>
         <hud-table-cell class="remove-cell">
           <hud-icon-button
@@ -282,6 +278,49 @@ export class QuickGameTuningSandbox extends LitElement {
           >
         </hud-table-cell>
       </hud-table-row>
+      ${isNumberParameter(descriptor)
+        ? this.renderParameterSliderRow(descriptor, Number(value))
+        : null}
+    `;
+  }
+
+  private renderParameterValueControl(
+    descriptor: ParameterDescriptor,
+    value: string | number,
+  ) {
+    if (isSelectParameter(descriptor)) {
+      return html`
+        <hud-select
+          class="parameter-select"
+          data-parameter-select=${descriptor.id}
+          .options=${descriptor.options}
+          .value=${String(value)}
+          @value-change=${(event: CustomEvent<{ value: string }>) =>
+            this.handleParameterValueChange(descriptor, event.detail.value)}
+        ></hud-select>
+      `;
+    }
+
+    return html`
+      <hud-input
+        class="parameter-input"
+        data-parameter-input=${descriptor.id}
+        type="number"
+        min=${String(descriptor.min)}
+        max=${String(descriptor.max)}
+        step=${String(descriptor.step)}
+        .value=${String(value)}
+        @value-change=${(event: CustomEvent<{ value: string }>) =>
+          this.handleParameterValueChange(descriptor, event.detail.value)}
+      ></hud-input>
+    `;
+  }
+
+  private renderParameterSliderRow(
+    descriptor: NumberParameterDescriptor,
+    value: number,
+  ) {
+    return html`
       <hud-table-row>
         <hud-table-cell class="slider-cell" align="left">
           <hud-range
@@ -324,7 +363,10 @@ export class QuickGameTuningSandbox extends LitElement {
     const descriptor = QUICK_GAME_PARAMETER_DESCRIPTORS.find(
       (candidate) => candidate.id === event.detail.value,
     );
-    if (!descriptor || this.settings.selectedParameterIds.includes(descriptor.id)) {
+    if (
+      !descriptor ||
+      this.settings.selectedParameterIds.includes(descriptor.id)
+    ) {
       return;
     }
     const next = cloneSettings(this.settings);
@@ -348,11 +390,19 @@ export class QuickGameTuningSandbox extends LitElement {
     rawValue: string | number,
   ) {
     const next = cloneSettings(this.settings);
-    setParameterValue(
-      next.mechanics,
-      descriptor,
-      clamp(Number(rawValue), descriptor.min, descriptor.max),
-    );
+    if (isSelectParameter(descriptor)) {
+      const nextValue = String(rawValue);
+      if (!descriptor.options.some((option) => option.value === nextValue)) {
+        return;
+      }
+      setParameterValue(next.mechanics, descriptor, nextValue);
+    } else {
+      setParameterValue(
+        next.mechanics,
+        descriptor,
+        clamp(Number(rawValue), descriptor.min, descriptor.max),
+      );
+    }
     this.setSettings(next);
   }
 
@@ -450,13 +500,8 @@ export class QuickGameTuningSandbox extends LitElement {
     return options;
   }
 
-  private parameterValue(descriptor: ParameterDescriptor): number {
-    const [section, key] = descriptor.path;
-    const sectionValue = this.settings.mechanics[section] as Record<
-      string,
-      number
-    >;
-    return Number(sectionValue[key]);
+  private parameterValue(descriptor: ParameterDescriptor): string | number {
+    return getParameterValue(this.settings.mechanics, descriptor);
   }
 }
 
@@ -538,11 +583,41 @@ function validSelectedParameterIds(value: unknown): string[] {
 function setParameterValue(
   mechanics: MechanicsConfig,
   descriptor: ParameterDescriptor,
-  value: number,
+  value: number | string,
 ) {
-  const [section, key] = descriptor.path;
-  const sectionValue = mechanics[section] as Record<string, number>;
-  sectionValue[key] = value;
+  const container = resolveParameterContainer(mechanics, descriptor);
+  container[descriptor.path[descriptor.path.length - 1]] = value;
+}
+
+function getParameterValue(
+  mechanics: MechanicsConfig,
+  descriptor: ParameterDescriptor,
+): string | number {
+  const container = resolveParameterContainer(mechanics, descriptor);
+  return container[descriptor.path[descriptor.path.length - 1]];
+}
+
+function resolveParameterContainer(
+  mechanics: MechanicsConfig,
+  descriptor: ParameterDescriptor,
+): Record<string, number | string> {
+  let current: unknown = mechanics;
+  for (const segment of descriptor.path.slice(0, -1)) {
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current as Record<string, number | string>;
+}
+
+function isNumberParameter(
+  descriptor: ParameterDescriptor,
+): descriptor is NumberParameterDescriptor {
+  return descriptor.type !== "select";
+}
+
+function isSelectParameter(
+  descriptor: ParameterDescriptor,
+): descriptor is SelectParameterDescriptor {
+  return descriptor.type === "select";
 }
 
 declare global {

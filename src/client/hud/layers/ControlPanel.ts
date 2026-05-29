@@ -2,7 +2,7 @@ import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { assetUrl } from "../../../core/AssetUrls";
 import { EventBus } from "../../../core/EventBus";
-import { TerrainType, type Gold } from "../../../core/game/Game";
+import { type Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import type {
   ResourceKind,
@@ -13,6 +13,7 @@ import { UserSettings } from "../../../core/game/UserSettings";
 import { ClientID } from "../../../core/Schemas";
 import { Controller } from "../../Controller";
 import { AttackRatioEvent } from "../../InputHandler";
+import { SendFoodAllocationIntentEvent } from "../../Transport";
 import { UIState } from "../../UIState";
 import { renderNumber, renderTroops } from "../../Utils";
 import "../ui/HudComponents";
@@ -24,13 +25,6 @@ const fuelIcon = assetUrl("icons/fuel-icon.svg");
 const metalIcon = assetUrl("icons/metal-icon.svg");
 
 type MetricKey = "troops" | ResourceKind;
-type BlendKind = "import" | "export";
-
-interface ResourceBlendPercents {
-  food: number;
-  energy: number;
-  materials: number;
-}
 
 interface MetricView {
   key: MetricKey;
@@ -84,29 +78,16 @@ export class ControlPanel extends LitElement implements Controller {
   private _selectedMetric: MetricKey = "troops";
 
   @state()
-  private _importBlendFirst = 34;
+  private foodAllocationToPopulation = 0.5;
 
   @state()
-  private _importBlendSecond = 67;
+  private nutritionHealth = 1;
 
-  @state()
-  private _exportBlendFirst = 34;
-
-  @state()
-  private _exportBlendSecond = 67;
-
-  @state()
-  private _productionBlend: ResourceBlendPercents = {
-    food: 34,
-    energy: 33,
-    materials: 33,
-  };
+  private _hasSyncedFoodAllocation = false;
 
   private _troopRateIsIncreasing: boolean = true;
 
   private _lastTroopIncreaseRate: number = 0;
-
-  private _lastProductionBlendSampleAt = -Infinity;
 
   private _resourceRates: Record<ResourceKind, number> = {
     food: 0,
@@ -123,8 +104,9 @@ export class ControlPanel extends LitElement implements Controller {
   init() {
     this.attackRatio = new UserSettings().attackRatio();
     this.uiState.attackRatio = this.attackRatio;
-    this.updateResourceImportBlend();
-    this.updateResourceExportBlend();
+    if (this.uiState.foodAllocationToPopulation !== undefined) {
+      this.foodAllocationToPopulation = this.uiState.foodAllocationToPopulation;
+    }
     this.eventBus.on(AttackRatioEvent, (event) => {
       let newAttackRatio = this.attackRatio + event.attackRatio / 100;
 
@@ -156,6 +138,17 @@ export class ControlPanel extends LitElement implements Controller {
       this.setVisibile(false);
       return;
     }
+    if (!this._hasSyncedFoodAllocation) {
+      this.foodAllocationToPopulation =
+        this.uiState?.foodAllocationToPopulation ??
+        player.foodAllocationToPopulation() ??
+        this.foodAllocationToPopulation;
+      if (this.uiState !== undefined) {
+        this.uiState.foodAllocationToPopulation =
+          this.foodAllocationToPopulation;
+      }
+      this._hasSyncedFoodAllocation = true;
+    }
 
     this.updateTroopIncrease();
 
@@ -165,8 +158,8 @@ export class ControlPanel extends LitElement implements Controller {
     this.updateResourceRates(nextResources);
     this._resources = nextResources;
     this._resourceCapacity = player.resourceCapacity();
+    this.nutritionHealth = player.nutritionHealth();
     this._troops = player.troops();
-    this.updateProductionBlend();
     this._attackingTroops = player
       .outgoingAttacks()
       .map((a) => a.troops)
@@ -210,64 +203,10 @@ export class ControlPanel extends LitElement implements Controller {
     this.uiState.attackRatio = newRatio;
   }
 
-  private updateResourceImportBlend() {
+  private onFoodAllocationChange(newRatio: number) {
     if (this.uiState === undefined) return;
-    this.uiState.resourceImportBlend = {
-      food: this._importBlendFirst,
-      energy: this._importBlendSecond - this._importBlendFirst,
-      materials: 100 - this._importBlendSecond,
-    };
-  }
-
-  private updateResourceExportBlend() {
-    if (this.uiState === undefined) return;
-    this.uiState.resourceExportBlend = {
-      food: this._exportBlendFirst,
-      energy: this._exportBlendSecond - this._exportBlendFirst,
-      materials: 100 - this._exportBlendSecond,
-    };
-  }
-
-  private updateProductionBlend() {
-    const now = performance.now();
-    if (now - this._lastProductionBlendSampleAt < 1000) return;
-    this._lastProductionBlendSampleAt = now;
-
-    const player = this.game?.myPlayer();
-    if (player === null || player === undefined) return;
-
-    const weights = {
-      food: 0,
-      energy: 0,
-      materials: 0,
-    };
-    const playerID = player.smallID();
-    const totalTiles = this.game.width() * this.game.height();
-
-    for (let tile = 0; tile < totalTiles; tile++) {
-      if (this.game.ownerID(tile) !== playerID) continue;
-      switch (this.game.terrainType(tile)) {
-        case TerrainType.Plains:
-          weights.food += 1;
-          weights.energy += 2;
-          weights.materials += 1;
-          break;
-        case TerrainType.Highland:
-          weights.food += 2;
-          weights.energy += 1;
-          weights.materials += 1;
-          break;
-        case TerrainType.Mountain:
-          weights.food += 1;
-          weights.energy += 1;
-          weights.materials += 2;
-          break;
-        default:
-          break;
-      }
-    }
-
-    this._productionBlend = normalizeBlend(weights);
+    this.uiState.foodAllocationToPopulation = newRatio;
+    this.eventBus?.emit(new SendFoodAllocationIntentEvent(newRatio));
   }
 
   setVisibile(visible: boolean) {
@@ -279,6 +218,14 @@ export class ControlPanel extends LitElement implements Controller {
     const value = event.detail.value;
     this.attackRatio = value / 100;
     this.onAttackRatioChange(this.attackRatio);
+  }
+
+  private handleBiomassAllocationSliderChange(
+    event: CustomEvent<{ value: number }>,
+  ) {
+    const value = Math.max(0, Math.min(100, event.detail.value));
+    this.foodAllocationToPopulation = value / 100;
+    this.onFoodAllocationChange(this.foodAllocationToPopulation);
   }
 
   private calculateMetricBar(metric: MetricView): {
@@ -474,148 +421,43 @@ export class ControlPanel extends LitElement implements Controller {
     `;
   }
 
-  private renderResourceBlendControl() {
+  private renderBiomassAllocationControl() {
+    const feedPercent = Math.round(this.foodAllocationToPopulation * 100);
+    const surplusPercent = Math.max(0, 100 - feedPercent);
+    const nutritionPercent = Math.round(this.nutritionHealth * 100);
     return html`
-      <hud-stack slot="action" density="compact" translate="no">
-        ${this.renderBlendRow("Production Blend", this._productionBlend, null)}
-        ${this.renderBlendRow(
-          "Import Blend",
-          {
-            food: this._importBlendFirst,
-            energy: this._importBlendSecond - this._importBlendFirst,
-            materials: 100 - this._importBlendSecond,
-          },
-          {
-            kind: "import",
-            first: this._importBlendFirst,
-            second: this._importBlendSecond,
-          },
-        )}
-        ${this.renderBlendRow(
-          "Export Blend",
-          {
-            food: this._exportBlendFirst,
-            energy: this._exportBlendSecond - this._exportBlendFirst,
-            materials: 100 - this._exportBlendSecond,
-          },
-          {
-            kind: "export",
-            first: this._exportBlendFirst,
-            second: this._exportBlendSecond,
-          },
-        )}
-      </hud-stack>
-    `;
-  }
-
-  private renderBlendRow(
-    label: string,
-    blend: ResourceBlendPercents,
-    handles: { kind: BlendKind; first: number; second: number } | null,
-  ) {
-    return html`
-      <hud-form-row style="--hud-form-label-width: 7.75rem">
-        <hud-field-label>${label}</hud-field-label>
-        ${this.renderBlendBar(blend, handles)}
+      <hud-form-row
+        slot="action"
+        style="--hud-form-label-width: 8rem"
+        translate="no"
+      >
+        <hud-pill
+          tone="green"
+          .value=${`${feedPercent}% eat / ${surplusPercent}% store · Health ${nutritionPercent}%`}
+        >
+          <hud-mask-icon slot="icon" .src=${biomassIcon} size="h-3 w-3">
+          </hud-mask-icon>
+        </hud-pill>
+        <hud-range
+          data-control="foodAllocationToPopulation"
+          min="0"
+          max="100"
+          .value=${feedPercent}
+          label="Biomass eat/store"
+          @value-change=${this.handleBiomassAllocationSliderChange}
+        ></hud-range>
       </hud-form-row>
     `;
   }
 
-  private renderBlendBar(
-    blend: ResourceBlendPercents,
-    handles: { kind: BlendKind; first: number; second: number } | null,
-  ) {
-    const interactive = handles !== null;
-    if (interactive) {
-      return this.renderBlendDualRange(blend, handles);
-    }
-
-    return html`<hud-blend-slider
-      class="flex-1 pointer-events-none opacity-90"
-      readonly
-      role="meter"
-      aria-label="Production resource blend"
-      aria-valuetext="Biomass ${blend.food}%, Fuels ${blend.energy}%, Metals ${blend.materials}%"
-      .segments=${this.blendSegments(blend)}
-    ></hud-blend-slider>`;
-  }
-
-  private renderBlendDualRange(
-    blend: ResourceBlendPercents,
-    handles: { kind: BlendKind; first: number; second: number },
-  ) {
-    return html`<hud-blend-slider
-      class="flex-1"
-      .first=${handles.first}
-      .second=${handles.second}
-      .segments=${this.blendSegments(blend)}
-      @blend-change=${(
-        event: CustomEvent<{
-          first: number;
-          second: number;
-          changed: "first" | "second";
-        }>,
-      ) =>
-        this.handleBlendRangeInput(
-          handles.kind,
-          event.detail.changed,
-          event.detail.changed === "first"
-            ? event.detail.first
-            : event.detail.second,
-        )}
-    ></hud-blend-slider>`;
-  }
-
-  private blendSegments(blend: ResourceBlendPercents) {
-    return [
-      {
-        tone: "food",
-        width: blend.food,
-        iconSrc: biomassIcon,
-        label: `${blend.food}%`,
-      },
-      {
-        tone: "energy",
-        width: blend.energy,
-        iconSrc: fuelIcon,
-        label: `${blend.energy}%`,
-      },
-      {
-        tone: "materials",
-        width: blend.materials,
-        iconSrc: metalIcon,
-        label: `${blend.materials}%`,
-      },
-    ];
-  }
-
-  private handleBlendRangeInput(
-    kind: BlendKind,
-    handle: "first" | "second",
-    value: number,
-  ) {
-    if (kind === "import") {
-      if (handle === "first") {
-        this._importBlendFirst = Math.min(value, this._importBlendSecond - 1);
-      } else {
-        this._importBlendSecond = Math.max(value, this._importBlendFirst + 1);
-      }
-      this.updateResourceImportBlend();
-      return;
-    }
-
-    if (handle === "first") {
-      this._exportBlendFirst = Math.min(value, this._exportBlendSecond - 1);
-    } else {
-      this._exportBlendSecond = Math.max(value, this._exportBlendFirst + 1);
-    }
-    this.updateResourceExportBlend();
-  }
-
   private renderSelectedActionControl() {
-    return this._selectedMetric === "troops"
-      ? this.renderAttackRatioControl()
-      : this.renderResourceBlendControl();
+    if (this._selectedMetric === "troops") {
+      return this.renderAttackRatioControl();
+    }
+    if (this._selectedMetric === "food") {
+      return this.renderBiomassAllocationControl();
+    }
+    return "";
   }
 
   render() {
@@ -643,19 +485,4 @@ export class ControlPanel extends LitElement implements Controller {
       </hud-player-control-panel>
     `;
   }
-}
-
-function normalizeBlend(weights: ResourceBlendPercents): ResourceBlendPercents {
-  const total = weights.food + weights.energy + weights.materials;
-  if (total <= 0) {
-    return { food: 34, energy: 33, materials: 33 };
-  }
-
-  const food = Math.round((weights.food / total) * 100);
-  const energy = Math.round((weights.energy / total) * 100);
-  return {
-    food,
-    energy,
-    materials: Math.max(0, 100 - food - energy),
-  };
 }

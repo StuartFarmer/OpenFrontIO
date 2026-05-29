@@ -37,13 +37,14 @@ export function evaluatePlayerPopulationCapacity(
   player: Player | PlayerView,
   options: PopulationEvaluationOptions,
 ): number {
-  return evaluatePopulationSystem(options.mechanics, {
+  const mechanics = mechanicsForPlayerFoodAllocation(player, options.mechanics);
+  return evaluatePopulationSystem(mechanics, {
     population: player.troops(),
     tilesOwned: player.numTilesOwned(),
     maxPopulationOverride: options.hasInfiniteTroops ? 1_000_000_000 : 0,
     capacityMultiplier: capacityMultiplierForPlayerType(
       player.type(),
-      options.mechanics,
+      mechanics,
       options.difficulty,
     ),
     growthMultiplier: 1,
@@ -54,18 +55,19 @@ export function evaluatePlayerPopulationGrowth(
   player: Player | PlayerView,
   options: PopulationEvaluationOptions,
 ): number {
-  return evaluatePopulationSystem(options.mechanics, {
+  const mechanics = mechanicsForPlayerFoodAllocation(player, options.mechanics);
+  return evaluatePopulationSystem(mechanics, {
     population: player.troops(),
     tilesOwned: player.numTilesOwned(),
     maxPopulationOverride: options.hasInfiniteTroops ? 1_000_000_000 : 0,
     capacityMultiplier: capacityMultiplierForPlayerType(
       player.type(),
-      options.mechanics,
+      mechanics,
       options.difficulty,
     ),
     growthMultiplier: growthMultiplierForPlayerType(
       player.type(),
-      options.mechanics,
+      mechanics,
       options.difficulty,
     ),
   }).growth;
@@ -119,14 +121,16 @@ export function evaluatePlayerEconomy(
   player: Player,
   options: PopulationEvaluationOptions & ResourceEvaluationOptions,
 ): PlayerEconomyModelResult {
+  const mechanics = mechanicsForPlayerFoodAllocation(player, options.mechanics);
   const capacityMultiplier = capacityMultiplierForPlayerType(
     player.type(),
-    options.mechanics,
+    mechanics,
     options.difficulty,
   );
   return evaluatePlayerEconomyModel({
-    mechanics: options.mechanics,
+    mechanics,
     playerType: player.type(),
+    nutritionHealth: player.nutritionHealth(),
     population: {
       population: player.troops(),
       tilesOwned: player.numTilesOwned(),
@@ -134,7 +138,7 @@ export function evaluatePlayerEconomy(
       capacityMultiplier,
       growthMultiplier: growthMultiplierForPlayerType(
         player.type(),
-        options.mechanics,
+        mechanics,
         options.difficulty,
       ),
     },
@@ -144,24 +148,37 @@ export function evaluatePlayerEconomy(
       siloLevels: completedSiloLevels(player),
       capacityMultiplier: resourceCapacityMultiplierForPlayerType(
         player.type(),
-        options.mechanics,
+        mechanics,
         options.difficulty,
       ),
       regenMultiplier: resourceRegenMultiplierForPlayerType(
         player.type(),
-        options.mechanics,
+        mechanics,
         options.difficulty,
       ),
-      terrainWeights: terrainResourceProductionSplit(
-        game,
-        player,
-        options.mechanics,
-      ),
+      terrainWeights: terrainResourceProductionSplit(game, player, mechanics),
     },
     war: {
       mobilizedPopulation: mobilizedPopulation(player),
     },
   });
+}
+
+export function mechanicsForPlayerFoodAllocation(
+  player: Pick<Player, "foodAllocationToPopulation"> | PlayerView,
+  mechanics: PopulationResourceMechanicsConfig,
+): PopulationResourceMechanicsConfig {
+  const foodAllocationToPopulation = player.foodAllocationToPopulation();
+  if (foodAllocationToPopulation === undefined) {
+    return mechanics;
+  }
+  return {
+    ...mechanics,
+    foodAllocationToPopulation: Math.max(
+      0,
+      Math.min(1, foodAllocationToPopulation),
+    ),
+  };
 }
 
 export function terrainResourceProductionSplit(

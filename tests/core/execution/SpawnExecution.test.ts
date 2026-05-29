@@ -103,4 +103,25 @@ describe("Spawn execution", () => {
     // Previous territory from first spawn should be relinquished
     expect(game.owner(10).isPlayer()).toBe(false);
   });
+
+  test("spawned players start at the population capacity of their spawn footprint", async () => {
+    const playerInfo = new PlayerInfo(
+      `player`,
+      PlayerType.Human,
+      `client_id`,
+      `player_id`,
+    );
+    const game = await setup("plains", {}, [playerInfo]);
+
+    game.addExecution(new SpawnExecution("game_id", playerInfo));
+    game.executeNextTick();
+    game.executeNextTick();
+
+    const player = game.player("player_id");
+    expect(player.numTilesOwned()).toBeGreaterThan(1);
+    expect(player.troops()).toBe(game.config().maxTroops(player));
+    expect(player.troops()).toBeGreaterThan(
+      game.config().startManpower(playerInfo),
+    );
+  });
 });

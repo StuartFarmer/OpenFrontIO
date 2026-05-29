@@ -30,8 +30,14 @@ export type PopulationResourceMechanicsConfig = {
   foodConsumptionPerPopulation: number;
   foodConsumptionPerMobilizedPopulation: number;
   wartimeFoodConsumptionMultiplier: number;
-  foodShortageBirthPenalty: number;
-  famineDeathRate: number;
+  foodProductionPerTile: number;
+  foodTicksPerYear: number;
+  foodProductionTechnologyMultiplier: number;
+  birthNutritionThreshold: number;
+  survivalNutritionThreshold: number;
+  starvationDamageRate: number;
+  nutritionRecoveryRate: number;
+  starvationMortalityScale: number;
   baselineBiomassProductionShare: number;
   minBaseResourceCapacity: number;
   resourceCapacityTerritoryDivisor: number;
@@ -67,6 +73,7 @@ const finiteNonNegative = z.number().finite().min(0);
 const finiteUnit = z.number().finite().min(0).max(1);
 const finitePositive = z.number().finite().positive();
 const finiteNonNegativeInteger = z.number().int().finite().min(0);
+const finiteTechnologyMultiplier = z.number().finite().min(1).max(10);
 
 const ResourceWeightConfigSchema = z.object({
   food: finiteNonNegativeInteger.optional(),
@@ -98,8 +105,14 @@ const PopulationResourceMechanicsConfigSchema = z.object({
   foodConsumptionPerPopulation: finiteNonNegative.optional(),
   foodConsumptionPerMobilizedPopulation: finiteNonNegative.optional(),
   wartimeFoodConsumptionMultiplier: finiteNonNegative.optional(),
-  foodShortageBirthPenalty: finiteNonNegative.optional(),
-  famineDeathRate: finiteNonNegative.optional(),
+  foodProductionPerTile: finiteNonNegative.optional(),
+  foodTicksPerYear: finitePositive.optional(),
+  foodProductionTechnologyMultiplier: finiteTechnologyMultiplier.optional(),
+  birthNutritionThreshold: finiteUnit.optional(),
+  survivalNutritionThreshold: finiteUnit.optional(),
+  starvationDamageRate: finiteNonNegative.optional(),
+  nutritionRecoveryRate: finiteNonNegative.optional(),
+  starvationMortalityScale: finiteNonNegative.optional(),
   // Legacy aliases accepted so older sandbox JSON/localStorage can migrate.
   troopLogisticGrowthRate: finiteNonNegative.optional(),
   maxPopulationBase: finiteNonNegative.optional(),
@@ -150,18 +163,24 @@ export type MechanicsConfigInput = z.infer<typeof MechanicsConfigSchema>;
 export const DEFAULT_MECHANICS_CONFIG: MechanicsConfig = {
   version: 1,
   populationResources: {
-    populationGrowthRate: 0.016,
-    initialPopulation: 25_000,
-    maxPopulationPerTile: 100_000,
-    populationFoodConstraintMode: "hard-min-cap",
-    foodAllocationToPopulation: 1,
-    foodConsumptionPerPopulation: 0,
-    foodConsumptionPerMobilizedPopulation: 0,
-    wartimeFoodConsumptionMultiplier: 1,
-    foodShortageBirthPenalty: 1,
-    famineDeathRate: 0,
+    populationGrowthRate: 0.0015,
+    initialPopulation: 250,
+    maxPopulationPerTile: 3_000,
+    populationFoodConstraintMode: "dynamic-shortage",
+    foodAllocationToPopulation: 0.5,
+    foodConsumptionPerPopulation: 10 * (365 / 600),
+    foodConsumptionPerMobilizedPopulation: 30 * (365 / 600),
+    wartimeFoodConsumptionMultiplier: 3,
+    foodProductionPerTile: 50_000_000,
+    foodTicksPerYear: 600,
+    foodProductionTechnologyMultiplier: 1,
+    birthNutritionThreshold: 0.8,
+    survivalNutritionThreshold: 0.5,
+    starvationDamageRate: 0.005,
+    nutritionRecoveryRate: 0.01,
+    starvationMortalityScale: 0.002,
     baselineBiomassProductionShare: 0.25,
-    minBaseResourceCapacity: 75_000,
+    minBaseResourceCapacity: 25_000,
     resourceCapacityTerritoryDivisor: 3,
     siloResourceCapacityIncrease: 250_000,
     resourceRegenBase: 10,
@@ -210,9 +229,9 @@ export const DEFAULT_MECHANICS_CONFIG: MechanicsConfig = {
   expansionCombat: {
     humanAttackTroopFraction: 1 / 5,
     botAttackTroopFraction: 1 / 20,
-    wildernessAttackerLossMultiplier: 1,
+    wildernessAttackerLossMultiplier: 5,
     wildernessBotAttackerLossMultiplier: 1,
-    wildernessTilesPerTickMultiplier: 2,
+    wildernessTilesPerTickMultiplier: 0.5,
   },
 };
 
@@ -275,6 +294,9 @@ export function resolveMechanicsConfig(
         legacyPopulationResources?.populationCarryingCapacityTerritoryScale ??
         legacyPopulationResources?.troopCapacityTerritoryScale ??
         defaults.maxPopulationPerTile,
+      foodProductionPerTile:
+        populationResources?.foodProductionPerTile ??
+        defaults.foodProductionPerTile,
       terrainWeights: {
         plains: {
           ...defaults.terrainWeights.plains,

@@ -63,6 +63,13 @@ export class SpawnExecution implements Execution {
     spawn.tiles.forEach((t) => {
       player.conquer(t);
     });
+    player.setTroops(
+      Math.max(
+        player.troops(),
+        this.mg.config().startManpower(this.playerInfo),
+        this.mg.config().maxTroops(player),
+      ),
+    );
 
     if (!player.hasSpawned()) {
       this.mg.addExecution(new PlayerExecution(player));

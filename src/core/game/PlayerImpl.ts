@@ -82,6 +82,8 @@ export class PlayerImpl implements Player {
   private _gold: bigint;
   private _resources: ResourceStockpile;
   private _troops: bigint;
+  private _foodAllocationToPopulation: number | undefined;
+  private _nutritionHealth = 1;
 
   markedTraitorTick = -1;
   private _betrayalCount: number = 0;
@@ -174,6 +176,10 @@ export class PlayerImpl implements Player {
       gold: this._gold,
       resources: this.resources(),
       resourceCapacity: this.mg.config().maxResources(this),
+      foodAllocationToPopulation: this.mg
+        .config()
+        .foodAllocationToPopulation(this),
+      nutritionHealth: this.nutritionHealth(),
       effectiveTroopCapacity: this.mg
         .config()
         .effectiveTroopCapacity(this.mg, this),
@@ -1114,6 +1120,25 @@ export class PlayerImpl implements Player {
       this._resources.energy >= cost.energy &&
       this._resources.materials >= cost.materials
     );
+  }
+
+  foodAllocationToPopulation(): number | undefined {
+    return this._foodAllocationToPopulation;
+  }
+
+  setFoodAllocationToPopulation(foodAllocationToPopulation: number): void {
+    this._foodAllocationToPopulation = Math.max(
+      0,
+      Math.min(1, foodAllocationToPopulation),
+    );
+  }
+
+  nutritionHealth(): number {
+    return this._nutritionHealth;
+  }
+
+  setNutritionHealth(nutritionHealth: number): void {
+    this._nutritionHealth = Math.max(0, Math.min(1, nutritionHealth));
   }
 
   private legacyResourceEventGold(resources: ResourceStockpile): Gold {

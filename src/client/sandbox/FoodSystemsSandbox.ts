@@ -23,8 +23,11 @@ type ControlKey =
   | "foodConsumptionPerPopulation"
   | "populationGrowthRate"
   | "maxPopulationPerTile"
-  | "foodShortageBirthPenalty"
-  | "famineDeathRate";
+  | "birthNutritionThreshold"
+  | "survivalNutritionThreshold"
+  | "starvationDamageRate"
+  | "nutritionRecoveryRate"
+  | "starvationMortalityScale";
 
 interface SimulatorState {
   temperature: number;
@@ -40,8 +43,12 @@ interface SimulatorState {
   foodConsumptionPerPopulation: number;
   populationGrowthRate: number;
   maxPopulationPerTile: number;
-  foodShortageBirthPenalty: number;
-  famineDeathRate: number;
+  nutritionHealth: number;
+  birthNutritionThreshold: number;
+  survivalNutritionThreshold: number;
+  starvationDamageRate: number;
+  nutritionRecoveryRate: number;
+  starvationMortalityScale: number;
 }
 
 interface SimulatorFrame {
@@ -53,6 +60,7 @@ interface SimulatorFrame {
   foodNeeded: number;
   foodConsumed: number;
   foodShortageRatio: number;
+  nutritionHealth: number;
   food: number;
   population: number;
   populationGrowth: number;
@@ -93,12 +101,16 @@ const DEFAULT_STATE: SimulatorState = {
   coldSensitivity: DEFAULT_AGRICULTURE_SYSTEM_PARAMS.coldSensitivity,
   heatSensitivity: DEFAULT_AGRICULTURE_SYSTEM_PARAMS.heatSensitivity,
   technologyMultiplier: DEFAULT_AGRICULTURE_SYSTEM_PARAMS.technologyMultiplier,
-  foodAllocationToPopulation: 1,
+  foodAllocationToPopulation: 0.5,
   foodConsumptionPerPopulation: 0.01,
   populationGrowthRate: 0.04,
   maxPopulationPerTile: 250,
-  foodShortageBirthPenalty: 1,
-  famineDeathRate: 0.02,
+  nutritionHealth: 1,
+  birthNutritionThreshold: 0.8,
+  survivalNutritionThreshold: 0.5,
+  starvationDamageRate: 0.005,
+  nutritionRecoveryRate: 0.01,
+  starvationMortalityScale: 0.002,
 };
 
 const controls: NumberControl[] = [
@@ -233,24 +245,51 @@ const controls: NumberControl[] = [
     step: 1,
   },
   {
-    key: "foodShortageBirthPenalty",
+    key: "birthNutritionThreshold",
     section: "population",
-    label: "Shortage birth penalty",
+    label: "Birth nutrition threshold",
     description:
-      "How strongly food shortage suppresses births before famine deaths are applied.",
+      "Minimum food satisfaction needed before population can reproduce.",
     min: 0,
-    max: 3,
+    max: 1,
     step: 0.01,
   },
   {
-    key: "famineDeathRate",
+    key: "survivalNutritionThreshold",
     section: "population",
-    label: "Famine death rate",
+    label: "Survival nutrition threshold",
     description:
-      "Per-tick death rate at full food shortage. Higher values make collapses faster.",
+      "Food satisfaction below this value starts applying starvation death pressure.",
     min: 0,
-    max: 0.2,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: "starvationDamageRate",
+    section: "population",
+    label: "Starvation damage",
+    description: "How quickly nutrition health falls while underfed.",
+    min: 0,
+    max: 0.1,
     step: 0.001,
+  },
+  {
+    key: "nutritionRecoveryRate",
+    section: "population",
+    label: "Nutrition recovery",
+    description: "How quickly nutrition health recovers when fully fed.",
+    min: 0,
+    max: 0.1,
+    step: 0.001,
+  },
+  {
+    key: "starvationMortalityScale",
+    section: "population",
+    label: "Starvation mortality",
+    description: "Maximum death pressure once nutrition health is depleted.",
+    min: 0,
+    max: 0.02,
+    step: 0.0001,
   },
 ];
 
@@ -870,6 +909,7 @@ export class FoodSystemsSandbox extends LitElement {
         0,
         this.simulator.population + frame.populationGrowth,
       ),
+      nutritionHealth: frame.nutritionHealth,
     };
     this.simulator = nextState;
     this.tick += 1;
@@ -934,7 +974,8 @@ export class FoodSystemsSandbox extends LitElement {
       maxPopulationOverride: 0,
       capacityMultiplier: 1,
       growthMultiplier: 1,
-      foodShortageRatio: food.shortageRatio,
+      foodSatisfactionRatio: food.satisfactionRatio,
+      nutritionHealth: state.nutritionHealth,
     });
 
     return {
@@ -946,6 +987,7 @@ export class FoodSystemsSandbox extends LitElement {
       foodNeeded: food.needed,
       foodConsumed: food.consumed,
       foodShortageRatio: food.shortageRatio,
+      nutritionHealth: population.nutritionHealth,
       food: state.food,
       population: state.population,
       populationGrowth: population.growth,
@@ -975,8 +1017,11 @@ export class FoodSystemsSandbox extends LitElement {
       foodConsumptionPerPopulation: state.foodConsumptionPerPopulation,
       populationGrowthRate: state.populationGrowthRate,
       maxPopulationPerTile: state.maxPopulationPerTile,
-      foodShortageBirthPenalty: state.foodShortageBirthPenalty,
-      famineDeathRate: state.famineDeathRate,
+      birthNutritionThreshold: state.birthNutritionThreshold,
+      survivalNutritionThreshold: state.survivalNutritionThreshold,
+      starvationDamageRate: state.starvationDamageRate,
+      nutritionRecoveryRate: state.nutritionRecoveryRate,
+      starvationMortalityScale: state.starvationMortalityScale,
     };
   }
 }

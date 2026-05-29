@@ -20,14 +20,15 @@ describe("FoodSystem", () => {
 
     expect(result.stock).toBe(50);
     expect(result.produced).toBe(25);
-    expect(result.allocatedAvailable).toBe(75);
+    expect(result.allocatedAvailable).toBe(12.5);
+    expect(result.reservedSurplus).toBe(12.5);
     expect(result.needed).toBe(100);
-    expect(result.consumed).toBe(75);
-    expect(result.shortageRatio).toBe(0.25);
-    expect(result.delta).toBe(-75);
+    expect(result.consumed).toBe(12.5);
+    expect(result.shortageRatio).toBe(0.875);
+    expect(result.delta).toBe(0);
   });
 
-  test("reserves unallocated food instead of consuming the whole stock", () => {
+  test("reserves stockpiled food instead of feeding from the whole stock", () => {
     const mechanics = resolveMechanicsConfig({
       populationResources: {
         foodAllocationToPopulation: 0.5,
@@ -43,16 +44,19 @@ describe("FoodSystem", () => {
       warFoodConsumptionMultiplier: 1,
     });
 
-    expect(result.allocatedAvailable).toBe(60);
+    expect(result.allocatedAvailable).toBe(10);
+    expect(result.reservedSurplus).toBe(10);
     expect(result.needed).toBe(100);
-    expect(result.consumed).toBe(60);
-    expect(result.shortageRatio).toBe(0.4);
-    expect(result.delta).toBe(-60);
+    expect(result.consumed).toBe(10);
+    expect(result.shortageRatio).toBe(0.9);
+    expect(result.surplus).toBe(110);
+    expect(result.delta).toBe(0);
   });
 
-  test("does not consume more food than is available", () => {
+  test("does not consume more food than allocated production", () => {
     const mechanics = resolveMechanicsConfig({
       populationResources: {
+        foodAllocationToPopulation: 1,
         foodConsumptionPerPopulation: 1,
       },
     }).populationResources;
@@ -65,13 +69,14 @@ describe("FoodSystem", () => {
       warFoodConsumptionMultiplier: 1,
     });
 
-    expect(result.consumed).toBe(15);
-    expect(result.shortageRatio).toBe(0.85);
+    expect(result.consumed).toBe(5);
+    expect(result.shortageRatio).toBe(0.95);
   });
 
   test("wartime mobilized population increases food need", () => {
     const mechanics = resolveMechanicsConfig({
       populationResources: {
+        foodAllocationToPopulation: 1,
         foodConsumptionPerPopulation: 0.1,
         foodConsumptionPerMobilizedPopulation: 0.5,
       },
@@ -79,7 +84,7 @@ describe("FoodSystem", () => {
 
     const result = evaluateFoodSystem(mechanics, {
       stock: 500,
-      produced: 0,
+      produced: 500,
       population: 1_000,
       mobilizedPopulation: 200,
       warFoodConsumptionMultiplier: 2,
@@ -88,5 +93,7 @@ describe("FoodSystem", () => {
     expect(result.needed).toBe(400);
     expect(result.consumed).toBe(400);
     expect(result.shortageRatio).toBe(0);
+    expect(result.reservedSurplus).toBe(0);
+    expect(result.surplus).toBe(500);
   });
 });

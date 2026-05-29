@@ -88,6 +88,8 @@ function stateFromUpdate(pu: PlayerUpdate): PlayerState {
       energy: Number(pu.resourceCapacity!.energy),
       materials: Number(pu.resourceCapacity!.materials),
     },
+    foodAllocationToPopulation: pu.foodAllocationToPopulation!,
+    nutritionHealth: pu.nutritionHealth ?? 1,
     effectiveTroopCapacity: pu.effectiveTroopCapacity!,
     biomassSupportedTroopCapacity: pu.biomassSupportedTroopCapacity!,
     troopIncreaseRate: pu.troopIncreaseRate!,
@@ -464,6 +466,14 @@ export class PlayerView {
       energy: BigInt(this.state.resourceCapacity.energy),
       materials: BigInt(this.state.resourceCapacity.materials),
     };
+  }
+
+  foodAllocationToPopulation(): number {
+    return this.state.foodAllocationToPopulation;
+  }
+
+  nutritionHealth(): number {
+    return this.state.nutritionHealth;
   }
 
   effectiveTroopCapacity(): number {

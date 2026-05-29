@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { Platform } from "../Platform";
 import { translateText } from "../Utils";
+import "../hud/ui";
 
 const DISMISSED_KEY = "ios_a2hs_banner_dismissed";
 const LATER_KEY = "ios_a2hs_banner_later";
@@ -80,13 +81,14 @@ export class IOSAddToHomeScreenBanner extends LitElement {
               >
                 ${translateText("ios_banner.modal_title")}
               </h2>
-              <button
+              <hud-icon-button
                 class="text-slate-400 hover:text-white text-2xl leading-none"
                 @click=${this.closeGuide}
-                aria-label=${translateText("common.close")}
+                label=${translateText("common.close")}
+                style="--hud-icon-button-size: 28px; --hud-button-background: transparent; --hud-button-hover-background: transparent; --hud-button-border-color: transparent;"
               >
                 ×
-              </button>
+              </hud-icon-button>
             </div>
 
             <p class="text-slate-300 text-sm">
@@ -124,12 +126,14 @@ export class IOSAddToHomeScreenBanner extends LitElement {
               </li>
             </ol>
 
-            <button
-              class="w-full py-2.5 rounded-lg bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80 text-white font-semibold transition-colors"
+            <hud-button
+              class="w-full"
+              variant="primary"
+              style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 10px 12px; --hud-button-radius: 8px;"
               @click=${this.closeGuide}
             >
               ${translateText("ios_banner.got_it")}
-            </button>
+            </hud-button>
           </div>
         </div>
       </div>
@@ -170,24 +174,29 @@ export class IOSAddToHomeScreenBanner extends LitElement {
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <button
-            class="w-full py-1.5 rounded-lg bg-malibu-blue hover:bg-aquarius active:bg-malibu-blue/80 text-white font-semibold text-sm transition-colors"
+          <hud-button
+            class="w-full"
+            variant="primary"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 6px 12px; --hud-button-radius: 8px;"
             @click=${this.openGuide}
           >
             ${translateText("ios_banner.how")}
-          </button>
-          <button
-            class="w-full py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-slate-300 text-sm transition-colors"
+          </hud-button>
+          <hud-button
+            class="w-full"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 6px 12px; --hud-button-radius: 8px;"
             @click=${this.later_}
           >
             ${translateText("ios_banner.later")}
-          </button>
-          <button
-            class="w-full py-1.5 rounded-lg text-slate-500 hover:text-slate-400 text-xs transition-colors"
+          </hud-button>
+          <hud-button
+            class="w-full"
+            variant="ghost"
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 6px 12px; --hud-button-radius: 8px; --hud-button-background: transparent; --hud-button-hover-background: rgba(255,255,255,0.05); --hud-button-border-color: transparent; --hud-button-color: #64748b;"
             @click=${this.never}
           >
             ${translateText("ios_banner.never")}
-          </button>
+          </hud-button>
         </div>
       </div>
     `;

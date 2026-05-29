@@ -231,12 +231,9 @@ export class AccountModal extends BaseModal {
 
   private renderLogoutButton(): TemplateResult {
     return html`
-      <o-button
-        variant="danger"
-        size="md"
-        translationKey="account_modal.log_out"
-        @click=${this.handleLogout}
-      ></o-button>
+      <hud-button variant="danger" @click=${this.handleLogout}>
+        ${translateText("account_modal.log_out")}
+      </hud-button>
     `;
   }
 
@@ -273,12 +270,9 @@ export class AccountModal extends BaseModal {
             <div class="space-y-6">
               <!-- Discord Login Button -->
               <hud-button
-                @click="${this.handleDiscordLogin}"
-                width="block"
+                @click=${this.handleDiscordLogin}
                 variant="active"
-                size="lg"
-                label=${translateText("main.login_discord") ||
-                translateText("account_modal.link_discord")}
+                style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 40px;"
               >
                 <hud-icon
                   slot="icon"
@@ -310,26 +304,25 @@ export class AccountModal extends BaseModal {
                   type="email"
                   label=${translateText("account_modal.email_placeholder")}
                   .value="${this.email}"
-                  @input="${this.handleEmailInput}"
+                  @input=${this.handleEmailInput}
                   placeholder="${translateText(
                     "account_modal.email_placeholder",
                   )}"
                 ></hud-input>
-                <o-button
+                <hud-button
                   variant="active"
-                  width="block"
-                  size="md"
-                  translationKey="account_modal.get_magic_link"
+                  style="--hud-button-host-width: 100%; --hud-button-width: 100%;"
                   @click=${this.handleSubmit}
-                ></o-button>
+                >
+                  ${translateText("account_modal.get_magic_link")}
+                </hud-button>
               </div>
             </div>
 
             <div class="mt-8 text-center border-t border-white/10 pt-6">
               <hud-button
-                @click="${this.handleLogout}"
+                @click=${this.handleLogout}
                 variant="default"
-                size="xs"
                 label=${translateText("account_modal.clear_session")}
               ></hud-button>
             </div>

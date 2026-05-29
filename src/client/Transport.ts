@@ -75,6 +75,10 @@ export class SendAttackIntentEvent implements GameEvent {
   ) {}
 }
 
+export class SendFoodAllocationIntentEvent implements GameEvent {
+  constructor(public readonly foodAllocationToPopulation: number) {}
+}
+
 export class SendBoatAttackIntentEvent implements GameEvent {
   constructor(
     public readonly dst: TileRef,
@@ -215,6 +219,9 @@ export class Transport {
       this.onSendSpawnIntentEvent(e),
     );
     this.eventBus.on(SendAttackIntentEvent, (e) => this.onSendAttackIntent(e));
+    this.eventBus.on(SendFoodAllocationIntentEvent, (e) =>
+      this.onSendFoodAllocationIntent(e),
+    );
     this.eventBus.on(SendUpgradeStructureIntentEvent, (e) =>
       this.onSendUpgradeStructureIntent(e),
     );
@@ -481,6 +488,13 @@ export class Transport {
       type: "attack",
       targetID: event.targetID,
       troops: event.troops,
+    });
+  }
+
+  private onSendFoodAllocationIntent(event: SendFoodAllocationIntentEvent) {
+    this.sendIntent({
+      type: "set_food_allocation",
+      foodAllocationToPopulation: event.foodAllocationToPopulation,
     });
   }
 

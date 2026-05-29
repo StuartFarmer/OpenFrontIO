@@ -1,6 +1,7 @@
 import { html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { assetUrl } from "../../core/AssetUrls";
+import "../hud/ui";
 
 @customElement("mobile-nav-bar")
 export class MobileNavBar extends LitElement {
@@ -26,11 +27,12 @@ export class MobileNavBar extends LitElement {
             ></div>
           </div>
         </div>
-        <button
+        <hud-button
           class="nav-menu-item active block w-full text-left font-bold uppercase tracking-[0.05em] text-blue-600 transition-all duration-200 cursor-pointer text-[clamp(18px,2.8vh,32px)] py-[clamp(0.2rem,0.8vh,0.75rem)]"
           data-page="page-play"
           data-i18n="main.play"
-        ></button>
+          style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 0; --hud-button-background: transparent; --hud-button-hover-background: transparent; --hud-button-border-color: transparent; --hud-button-justify-content: flex-start;"
+        ></hud-button>
       </div>
     `;
   }

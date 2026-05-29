@@ -81,6 +81,8 @@ export interface PlayerState {
   gold: number;
   resources: ResourceState;
   resourceCapacity: ResourceState;
+  foodAllocationToPopulation: number;
+  nutritionHealth: number;
   stockFlowDiagnostics?: StockFlowDiagnosticsState;
   effectiveTroopCapacity: number;
   biomassSupportedTroopCapacity: number;

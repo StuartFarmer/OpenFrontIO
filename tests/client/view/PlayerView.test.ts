@@ -35,6 +35,7 @@ describe("PlayerView accessors", () => {
         gold: 999n,
         resources: { food: 100n, energy: 200n, materials: 300n },
         resourceCapacity: { food: 1000n, energy: 2000n, materials: 3000n },
+        nutritionHealth: 0.75,
         effectiveTroopCapacity: 800,
         biomassSupportedTroopCapacity: 900,
         troopIncreaseRate: -3.5,
@@ -63,6 +64,7 @@ describe("PlayerView accessors", () => {
       energy: 2000n,
       materials: 3000n,
     });
+    expect(p.nutritionHealth()).toBe(0.75);
     expect(p.effectiveTroopCapacity()).toBe(800);
     expect(p.biomassSupportedTroopCapacity()).toBe(900);
     expect(p.troopIncreaseRate()).toBe(-3.5);

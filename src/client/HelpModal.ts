@@ -60,6 +60,275 @@ export class HelpModal extends BaseModal {
     >`;
   }
 
+  private renderMouseLeftIcon(fillClass = "bg-red-500/80") {
+    return html`<div
+      class="w-5 h-8 border border-white/40 rounded-full relative"
+    >
+      <div
+        class="absolute top-0 left-0 w-1/2 h-1/2 ${fillClass} rounded-tl-full"
+      ></div>
+      <div
+        class="w-0.5 h-1.5 bg-white/40 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
+      ></div>
+    </div>`;
+  }
+
+  private renderMouseWheelIcon() {
+    return html`<div
+      class="w-5 h-8 border border-white/40 rounded-full relative"
+    >
+      <div
+        class="w-0.5 h-2 bg-red-400 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
+      ></div>
+    </div>`;
+  }
+
+  private renderHotkeyRow(shortcut: unknown, action: string) {
+    return html`<hud-table-row interactive>
+      <hud-table-cell align="left" style="width: 42%">
+        ${shortcut}
+      </hud-table-cell>
+      <hud-table-cell align="left" wrap style="width: 58%">
+        <span class="text-white/70">${action}</span>
+      </hud-table-cell>
+    </hud-table-row>`;
+  }
+
+  private renderHotkeysTable(keybinds: Record<string, string>) {
+    const rows = [
+      {
+        shortcut: this.renderKey("Escape"),
+        action: translateText("help_modal.action_esc"),
+      },
+      {
+        shortcut: this.renderKey("Enter"),
+        action: translateText("help_modal.action_enter"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.toggleView),
+        action: translateText("help_modal.action_alt_view"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.coordinateGrid),
+        action: translateText("help_modal.action_coordinate_grid"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.swapDirection),
+        action: translateText("help_modal.bomb_direction"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.shiftKey)}
+          <span class="text-white/40 font-bold">+</span>
+          ${this.renderMouseLeftIcon()}
+        </div>`,
+        action: translateText("help_modal.action_attack_altclick"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.modifierKey)}
+          <span class="text-white/40 font-bold">+</span>
+          ${this.renderMouseLeftIcon()}
+        </div>`,
+        action: translateText("help_modal.action_build"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.altKey)}
+          <span class="text-white/40 font-bold">+</span>
+          ${this.renderMouseLeftIcon()}
+        </div>`,
+        action: translateText("help_modal.action_emote"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.centerCamera),
+        action: translateText("help_modal.action_center"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.pauseGame),
+        action: translateText("help_modal.action_pause_game"),
+      },
+      {
+        shortcut: html`<div class="flex flex-wrap gap-2">
+          ${this.renderKey(keybinds.gameSpeedDown)}
+          ${this.renderKey(keybinds.gameSpeedUp)}
+        </div>`,
+        action: translateText("help_modal.action_game_speed"),
+      },
+      {
+        shortcut: html`<div class="flex flex-wrap gap-2">
+          ${this.renderKey(keybinds.zoomOut)} ${this.renderKey(keybinds.zoomIn)}
+        </div>`,
+        action: translateText("help_modal.action_zoom"),
+      },
+      {
+        shortcut: html`<div class="flex flex-wrap gap-1 max-w-[200px]">
+          ${this.renderKey(keybinds.moveUp)}
+          ${this.renderKey(keybinds.moveLeft)}
+          ${this.renderKey(keybinds.moveDown)}
+          ${this.renderKey(keybinds.moveRight)}
+        </div>`,
+        action: translateText("help_modal.action_move_camera"),
+      },
+      {
+        shortcut: html`<div class="flex flex-wrap gap-2">
+          ${this.renderKey(keybinds.attackRatioDown)}
+          ${this.renderKey(keybinds.attackRatioUp)}
+        </div>`,
+        action: translateText("help_modal.action_ratio_change"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.shiftKey)}
+          <span class="text-white/40 font-bold">+</span>
+          <div class="flex items-center gap-1">
+            ${this.renderMouseWheelIcon()}
+            <div class="flex flex-col text-[10px] text-white/50">
+              <span>↑</span>
+              <span>↓</span>
+            </div>
+          </div>
+        </div>`,
+        action: translateText("help_modal.action_ratio_change"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.altKey)}
+          <span class="text-white/40 font-bold">+</span>
+          ${this.renderKey(keybinds.resetGfx)}
+        </div>`,
+        action: translateText("help_modal.action_reset_gfx"),
+      },
+      {
+        shortcut: this.renderMouseWheelIcon(),
+        action: translateText("help_modal.action_auto_upgrade"),
+      },
+      {
+        shortcut: html`<div class="inline-flex items-center gap-2">
+          ${this.renderKey(keybinds.shiftKey)}
+          <span class="text-white/40 font-bold">+</span>
+          <span class="text-white/50 text-xs"
+            >${translateText("help_modal.drag")}</span
+          >
+        </div>`,
+        action: translateText("help_modal.action_warship_multiselect"),
+      },
+      {
+        shortcut: this.renderKey(keybinds.selectAllWarships),
+        action: translateText("help_modal.action_warship_selectall"),
+      },
+    ];
+
+    return html`<hud-table
+      class="text-sm"
+      style="--hud-table-cell-padding: 10px 16px;"
+    >
+      <hud-table-row>
+        <hud-table-cell header align="left" style="width: 42%">
+          ${translateText("help_modal.table_key")}
+        </hud-table-cell>
+        <hud-table-cell header align="left" style="width: 58%">
+          ${translateText("help_modal.table_action")}
+        </hud-table-cell>
+      </hud-table-row>
+      ${rows.map((row) => this.renderHotkeyRow(row.shortcut, row.action))}
+    </hud-table>`;
+  }
+
+  private renderBuildIcon(icon: string) {
+    return html`<hud-icon
+      src=${assetUrl(icon)}
+      size="lg"
+      tone="inherit"
+    ></hud-icon>`;
+  }
+
+  private renderBuildMenuTable() {
+    const rows = [
+      {
+        name: translateText("help_modal.build_city"),
+        icon: this.renderBuildIcon("images/CityIconWhite.svg"),
+        description: translateText("help_modal.build_city_desc"),
+      },
+      {
+        name: translateText("help_modal.build_defense"),
+        icon: this.renderBuildIcon("images/ShieldIconWhite.svg"),
+        description: translateText("help_modal.build_defense_desc"),
+      },
+      {
+        name: translateText("help_modal.build_port"),
+        icon: this.renderBuildIcon("images/PortIcon.svg"),
+        description: translateText("help_modal.build_port_desc"),
+      },
+      {
+        name: translateText("help_modal.build_factory"),
+        icon: this.renderBuildIcon("images/FactoryIconWhite.svg"),
+        description: translateText("help_modal.build_factory_desc"),
+      },
+      {
+        name: translateText("help_modal.build_warship"),
+        icon: this.renderBuildIcon("images/BattleshipIconWhite.svg"),
+        description: translateText("help_modal.build_warship_desc"),
+      },
+      {
+        name: translateText("help_modal.build_rail_station"),
+        icon: html`<span class="text-xl font-extrabold text-white">R</span>`,
+        description: translateText("help_modal.build_rail_station_desc"),
+      },
+      {
+        name: translateText("help_modal.build_silo"),
+        icon: html`<span class="text-xl font-extrabold text-white">S</span>`,
+        description: translateText("help_modal.build_silo_desc"),
+      },
+      {
+        name: translateText("help_modal.build_atom"),
+        icon: this.renderBuildIcon("images/NukeIconWhite.svg"),
+        description: translateText("help_modal.build_atom_desc"),
+      },
+      {
+        name: translateText("help_modal.build_hydrogen"),
+        icon: this.renderBuildIcon("images/MushroomCloudIconWhite.svg"),
+        description: translateText("help_modal.build_hydrogen_desc"),
+      },
+      {
+        name: translateText("help_modal.build_mirv"),
+        icon: this.renderBuildIcon("images/MIRVIcon.svg"),
+        description: translateText("help_modal.build_mirv_desc"),
+      },
+    ];
+
+    return html`<hud-table
+      class="text-sm"
+      style="--hud-table-cell-padding: 12px 16px;"
+    >
+      <hud-table-row>
+        <hud-table-cell header align="left" style="width: 22%">
+          ${translateText("help_modal.build_name")}
+        </hud-table-cell>
+        <hud-table-cell header align="center" style="width: 10%">
+          ${translateText("help_modal.build_icon")}
+        </hud-table-cell>
+        <hud-table-cell header align="left" wrap>
+          ${translateText("help_modal.build_desc")}
+        </hud-table-cell>
+      </hud-table-row>
+      ${rows.map(
+        (row) =>
+          html`<hud-table-row interactive>
+            <hud-table-cell align="left" style="width: 22%">
+              <span class="font-medium">${row.name}</span>
+            </hud-table-cell>
+            <hud-table-cell align="center" style="width: 10%">
+              ${row.icon}
+            </hud-table-cell>
+            <hud-table-cell align="left" wrap>
+              <span class="text-white/60">${row.description}</span>
+            </hud-table-cell>
+          </hud-table-row>`,
+      )}
+    </hud-table>`;
+  }
+
   protected renderHeaderSlot() {
     return modalHeader({
       title: translateText("main.help"),
@@ -161,7 +430,7 @@ export class HelpModal extends BaseModal {
                 variant="active"
                 size="lg"
                 data-page="page-troubleshooting"
-                @click="${this.openTroubleshooting}"
+                @click=${this.openTroubleshooting}
                 label=${translateText("main.go_to_troubleshooting")}
               >
                 <span
@@ -209,259 +478,7 @@ export class HelpModal extends BaseModal {
             class="bg-white/5 rounded-xl border border-white/10 overflow-hidden"
           >
             <div class="pt-2 pb-4 px-4 overflow-x-auto">
-              <table class="w-full text-sm border-separate border-spacing-y-1">
-                <thead>
-                  <tr
-                    class="text-white/40 text-xs uppercase tracking-wider text-left"
-                  >
-                    <th class="pb-2 pl-4">
-                      ${translateText("help_modal.table_key")}
-                    </th>
-                    <th class="pb-2">
-                      ${translateText("help_modal.table_action")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="text-white/80">
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey("Escape")}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_esc")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey("Enter")}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_enter")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.toggleView)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_alt_view")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.coordinateGrid)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_coordinate_grid")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.swapDirection)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.bomb_direction")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.shiftKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        <div
-                          class="w-5 h-8 border border-white/40 rounded-full relative"
-                        >
-                          <div
-                            class="absolute top-0 left-0 w-1/2 h-1/2 bg-red-500/80 rounded-tl-full"
-                          ></div>
-                          <div
-                            class="w-0.5 h-1.5 bg-white/40 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_attack_altclick")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.modifierKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        <div
-                          class="w-5 h-8 border border-white/40 rounded-full relative"
-                        >
-                          <div
-                            class="absolute top-0 left-0 w-1/2 h-1/2 bg-red-500/80 rounded-tl-full"
-                          ></div>
-                          <div
-                            class="w-0.5 h-1.5 bg-white/40 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_build")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.altKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        <div
-                          class="w-5 h-8 border border-white/40 rounded-full relative"
-                        >
-                          <div
-                            class="absolute top-0 left-0 w-1/2 h-1/2 bg-red-500/80 rounded-tl-full"
-                          ></div>
-                          <div
-                            class="w-0.5 h-1.5 bg-white/40 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_emote")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.centerCamera)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_center")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.pauseGame)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_pause_game")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="flex flex-wrap gap-2">
-                        ${this.renderKey(keybinds.gameSpeedDown)}
-                        ${this.renderKey(keybinds.gameSpeedUp)}
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_game_speed")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="flex flex-wrap gap-2">
-                        ${this.renderKey(keybinds.zoomOut)}
-                        ${this.renderKey(keybinds.zoomIn)}
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_zoom")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="flex flex-wrap gap-1 max-w-[200px]">
-                        ${this.renderKey(keybinds.moveUp)}
-                        ${this.renderKey(keybinds.moveLeft)}
-                        ${this.renderKey(keybinds.moveDown)}
-                        ${this.renderKey(keybinds.moveRight)}
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_move_camera")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="flex flex-wrap gap-2">
-                        ${this.renderKey(keybinds.attackRatioDown)}
-                        ${this.renderKey(keybinds.attackRatioUp)}
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_ratio_change")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.shiftKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        <div class="flex items-center gap-1">
-                          <div
-                            class="w-5 h-8 border border-white/40 rounded-full relative"
-                          >
-                            <div
-                              class="w-0.5 h-2 bg-red-400 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
-                            ></div>
-                          </div>
-                          <div class="flex flex-col text-[10px] text-white/50">
-                            <span>↑</span>
-                            <span>↓</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_ratio_change")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.altKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        ${this.renderKey(keybinds.resetGfx)}
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_reset_gfx")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div
-                        class="w-5 h-8 border border-white/40 rounded-full relative"
-                      >
-                        <div
-                          class="w-0.5 h-2 bg-red-400 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"
-                        ></div>
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_auto_upgrade")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      <div class="inline-flex items-center gap-2">
-                        ${this.renderKey(keybinds.shiftKey)}
-                        <span class="text-white/40 font-bold">+</span>
-                        <span class="text-white/50 text-xs"
-                          >${translateText("help_modal.drag")}</span
-                        >
-                      </div>
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_warship_multiselect")}
-                    </td>
-                  </tr>
-                  <tr class="hover:bg-white/5 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5">
-                      ${this.renderKey(keybinds.selectAllWarships)}
-                    </td>
-                    <td class="py-3 border-b border-white/5 text-white/70">
-                      ${translateText("help_modal.action_warship_selectall")}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              ${this.renderHotkeysTable(keybinds)}
             </div>
           </section>
 
@@ -923,189 +940,7 @@ export class HelpModal extends BaseModal {
             </p>
 
             <div class="overflow-hidden rounded-xl border border-white/10">
-              <table class="w-full border-collapse">
-                <thead class="bg-white/10">
-                  <tr>
-                    <th
-                      class="py-3 pl-4 text-left text-xs font-bold uppercase tracking-wider text-blue-300 w-[20%]"
-                    >
-                      ${translateText("help_modal.build_name")}
-                    </th>
-                    <th
-                      class="py-3 text-left text-xs font-bold uppercase tracking-wider text-blue-300 w-[8%]"
-                    >
-                      ${translateText("help_modal.build_icon")}
-                    </th>
-                    <th
-                      class="py-3 text-left text-xs font-bold uppercase tracking-wider text-blue-300"
-                    >
-                      ${translateText("help_modal.build_desc")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="text-white/80">
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_city")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/CityIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_city_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_defense")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/ShieldIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_defense_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_port")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/PortIcon.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_port_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_factory")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/FactoryIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_factory_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_warship")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/BattleshipIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_warship_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_rail_station")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <span
-                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
-                        >R</span
-                      >
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_rail_station_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_silo")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <span
-                        class="inline-flex w-8 h-8 items-center justify-center text-xl font-extrabold text-white"
-                        >S</span
-                      >
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_silo_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_atom")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/NukeIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_atom_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_hydrogen")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/MushroomCloudIconWhite.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_hydrogen_desc")}
-                    </td>
-                  </tr>
-                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
-                    <td class="py-3 pl-4 border-b border-white/5 font-medium">
-                      ${translateText("help_modal.build_mirv")}
-                    </td>
-                    <td class="py-3 border-b border-white/5">
-                      <img
-                        src=${assetUrl("images/MIRVIcon.svg")}
-                        class="w-8 h-8 scale-75 origin-left"
-                      />
-                    </td>
-                    <td
-                      class="py-3 border-b border-white/5 text-white/60 text-sm"
-                    >
-                      ${translateText("help_modal.build_mirv_desc")}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              ${this.renderBuildMenuTable()}
             </div>
           </section>
 

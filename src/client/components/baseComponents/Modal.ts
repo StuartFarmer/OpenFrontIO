@@ -87,14 +87,15 @@ export class OModal extends LitElement {
         ${this.tabs.map((tab) => {
           const active = this.activeTab === tab.key;
           return html`
-            <button
-              type="button"
+            <hud-button
               role="tab"
               data-key=${tab.key}
               aria-selected=${active}
               class="px-4 py-3 text-sm font-bold uppercase tracking-wider transition-all relative cursor-pointer ${active
                 ? "text-aquarius"
                 : "text-white/40 hover:text-white/70"}"
+              variant=${active ? "active" : "ghost"}
+              style="--hud-button-padding: 12px 16px; --hud-button-background: transparent; --hud-button-hover-background: rgba(255,255,255,0.05); --hud-button-border-color: transparent;"
               @click=${() => this.handleTabClick(tab.key)}
             >
               ${tab.label}
@@ -103,7 +104,7 @@ export class OModal extends LitElement {
                     class="absolute bottom-0 left-0 right-0 h-0.5 bg-malibu-blue"
                   ></div>`
                 : ""}
-            </button>
+            </hud-button>
           `;
         })}
       </div>

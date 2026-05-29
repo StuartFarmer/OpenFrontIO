@@ -62,6 +62,40 @@ describe("PlayerEconomyAdapter", () => {
     expect(typeof delta.food).toBe("bigint");
   });
 
+  test("uses player food allocation override when evaluating economy", async () => {
+    const mechanicsInput = {
+      populationResources: {
+        passiveResourceRegenMultiplier: 0,
+        foodAllocationToPopulation: 1,
+        foodConsumptionPerPopulation: 1,
+        foodConsumptionPerMobilizedPopulation: 0,
+        foodProductionPerTile: 60_000,
+        wartimeFoodConsumptionMultiplier: 1,
+      },
+    };
+    const game = await setup("plains", { mechanics: mechanicsInput }, [
+      new PlayerInfo("player", PlayerType.Human, null, "player_id"),
+    ]);
+    const player = game.player("player_id");
+    player.conquer(game.ref(0, 0));
+    player.setTroops(100);
+    player.addResources({ food: 100n, energy: 0n, materials: 0n }, undefined, {
+      updateGold: false,
+    });
+    player.setFoodAllocationToPopulation(0.25);
+
+    const result = evaluatePlayerEconomy(game, player, {
+      mechanics: resolveMechanicsConfig(mechanicsInput).populationResources,
+      difficulty: game.config().gameConfig().difficulty,
+      hasInfiniteTroops: false,
+    });
+
+    expect(result.food.allocatedAvailable).toBe(25);
+    expect(result.food.consumed).toBe(25);
+    expect(result.food.reservedSurplus).toBe(75);
+    expect(result.resourceDelta.food).toBe(75n);
+  });
+
   test("exposes terrain production weights as addressable model inputs", async () => {
     const game = await setup("plains", { instantBuild: true }, [
       new PlayerInfo("player", PlayerType.Human, null, "player_id"),
@@ -102,7 +136,11 @@ describe("PlayerEconomyAdapter", () => {
       game.config().maxTroops(player),
     );
     expect(evaluatePlayerPopulationGrowth(player, options)).toBeCloseTo(
-      game.config().troopIncreaseRate(player, game),
+      game.config().troopIncreaseRate(player),
+      5,
+    );
+    expect(game.config().troopIncreaseRate(player, game)).toBeCloseTo(
+      game.config().playerEconomyTick(game, player).troopDelta,
       5,
     );
     expect(evaluatePlayerResourceCapacity(player, options)).toEqual(

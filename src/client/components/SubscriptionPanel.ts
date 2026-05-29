@@ -161,36 +161,30 @@ export class SubscriptionPanel extends LitElement {
               ${this.renderStatus()}
               <div class="flex flex-wrap justify-end gap-2">
                 ${sub.cancelAtPeriodEnd
-                  ? html`<o-button
+                  ? html`<hud-button
                       variant="default"
-                      size="xs"
-                      translationKey="account_modal.reactivate_subscription"
                       @click=${this.handleManage}
-                    ></o-button>`
+                    >
+                      ${translateText("account_modal.reactivate_subscription")}
+                    </hud-button>`
                   : html`
-                      <o-button
+                      <hud-button variant="default" @click=${this.handleManage}>
+                        ${translateText("account_modal.manage_subscription")}
+                      </hud-button>
+                      <hud-button
                         variant="default"
-                        size="xs"
-                        translationKey="account_modal.manage_subscription"
-                        @click=${this.handleManage}
-                      ></o-button>
-                      <o-button
-                        variant="default"
-                        size="xs"
-                        translationKey="account_modal.change_tier"
                         @click=${this.handleChangeTier}
-                      ></o-button>
+                      >
+                        ${translateText("account_modal.change_tier")}
+                      </hud-button>
                     `}
               </div>
               ${sub.cancelAtPeriodEnd
                 ? ""
                 : html`<div class="flex justify-center w-full">
-                    <o-button
-                      variant="danger"
-                      size="xs"
-                      translationKey="account_modal.cancel_subscription"
-                      @click=${this.handleCancel}
-                    ></o-button>
+                    <hud-button variant="danger" @click=${this.handleCancel}>
+                      ${translateText("account_modal.cancel_subscription")}
+                    </hud-button>
                   </div>`}
             </div>
           </div>

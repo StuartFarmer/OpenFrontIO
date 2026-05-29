@@ -46,6 +46,14 @@ export function diffPlayerUpdate(
     resourceStockpileEqual(prev.resourceCapacity, next.resourceCapacity),
   );
   setIfDifferent(
+    "foodAllocationToPopulation",
+    prev.foodAllocationToPopulation === next.foodAllocationToPopulation,
+  );
+  setIfDifferent(
+    "nutritionHealth",
+    prev.nutritionHealth === next.nutritionHealth,
+  );
+  setIfDifferent(
     "stockFlowDiagnostics",
     jsonEqual(prev.stockFlowDiagnostics, next.stockFlowDiagnostics),
   );
@@ -129,6 +137,12 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
       energy: Number(pu.resourceCapacity.energy),
       materials: Number(pu.resourceCapacity.materials),
     };
+  }
+  if (pu.foodAllocationToPopulation !== undefined) {
+    target.foodAllocationToPopulation = pu.foodAllocationToPopulation;
+  }
+  if (pu.nutritionHealth !== undefined) {
+    target.nutritionHealth = pu.nutritionHealth;
   }
   if (pu.stockFlowDiagnostics !== undefined) {
     target.stockFlowDiagnostics = pu.stockFlowDiagnostics;

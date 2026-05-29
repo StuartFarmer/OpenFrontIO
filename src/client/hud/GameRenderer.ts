@@ -50,16 +50,6 @@ export function createRenderer(
 
   const uiState: UIState = {
     attackRatio: 20,
-    resourceImportBlend: {
-      food: 34,
-      energy: 33,
-      materials: 33,
-    },
-    resourceExportBlend: {
-      food: 34,
-      energy: 33,
-      materials: 33,
-    },
     ghostStructure: null,
     overlappingRailroads: [],
     ghostRailPaths: [],

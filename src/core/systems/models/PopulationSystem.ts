@@ -10,13 +10,18 @@ export interface PopulationSystemInputs {
   readonly effectiveCapacityOverride?: number;
   readonly capacityMultiplier: number;
   readonly growthMultiplier: number;
-  readonly foodShortageRatio?: number;
+  readonly foodSatisfactionRatio?: number;
+  readonly nutritionHealth?: number;
 }
 
 export interface PopulationSystemResult {
   readonly population: number;
   readonly capacity: number;
   readonly growth: number;
+  readonly births: number;
+  readonly deaths: number;
+  readonly nutritionHealth: number;
+  readonly foodSatisfactionRatio: number;
 }
 
 export function createPopulationSystemModel(
@@ -30,7 +35,7 @@ export function createPopulationSystemModel(
       "population.effectiveCapacityOverride",
       "player.capacityMultiplier",
       "player.populationGrowthMultiplier",
-      "food.shortageRatio",
+      "food.satisfactionRatio",
     ],
     systems: [
       {
@@ -41,10 +46,11 @@ export function createPopulationSystemModel(
           "population.effectiveCapacityOverride",
           "player.capacityMultiplier",
           "player.populationGrowthMultiplier",
-          "food.shortageRatio",
+          "food.satisfactionRatio",
         ],
         stocks: {
           "population.current": { initial: 0, min: 0 },
+          "population.nutritionHealth": { initial: 1, min: 0, max: 1 },
         },
         parameters: {
           maxPopulationPerTile: {
@@ -53,11 +59,20 @@ export function createPopulationSystemModel(
           populationGrowthRate: {
             value: mechanics.populationGrowthRate,
           },
-          foodShortageBirthPenalty: {
-            value: mechanics.foodShortageBirthPenalty,
+          birthNutritionThreshold: {
+            value: mechanics.birthNutritionThreshold,
           },
-          famineDeathRate: {
-            value: mechanics.famineDeathRate,
+          survivalNutritionThreshold: {
+            value: mechanics.survivalNutritionThreshold,
+          },
+          starvationDamageRate: {
+            value: mechanics.starvationDamageRate,
+          },
+          nutritionRecoveryRate: {
+            value: mechanics.nutritionRecoveryRate,
+          },
+          starvationMortalityScale: {
+            value: mechanics.starvationMortalityScale,
           },
         },
         outputs: {
@@ -89,31 +104,69 @@ export function createPopulationSystemModel(
               getNumber("player.populationGrowthMultiplier")
             );
           },
-          "population.birthModifier": ({ getNumber, params }) =>
+          "population.foodSatisfactionRatio": ({ getNumber }) =>
+            clampUnit(getNumber("food.satisfactionRatio")),
+          "population.birthFactor": ({ getNumber, params }) => {
+            const threshold = clampUnit(params.birthNutritionThreshold);
+            if (threshold >= 1) {
+              return getNumber("population.foodSatisfactionRatio") >= 1 ? 1 : 0;
+            }
+            return clampUnit(
+              (getNumber("population.foodSatisfactionRatio") - threshold) /
+                (1 - threshold),
+            );
+          },
+          "population.deathPressure": ({ getNumber, params }) => {
+            const threshold = clampUnit(params.survivalNutritionThreshold);
+            if (threshold <= 0) {
+              return 0;
+            }
+            return clampUnit(
+              (threshold - getNumber("population.foodSatisfactionRatio")) /
+                threshold,
+            );
+          },
+          "population.nutritionHealthDelta": ({ getNumber, params }) => {
+            const satisfaction = getNumber("population.foodSatisfactionRatio");
+            if (satisfaction >= 1) {
+              return params.nutritionRecoveryRate;
+            }
+            return -(1 - satisfaction) * params.starvationDamageRate;
+          },
+          "population.births": ({ getNumber }) =>
             Math.max(
               0,
-              1 -
-                getNumber("food.shortageRatio") *
-                  params.foodShortageBirthPenalty,
+              getNumber("population.logisticGrowth") *
+                getNumber("population.birthFactor"),
             ),
-          "population.famineDeaths": ({ getNumber, params }) =>
+          "population.deaths": ({ getNumber, params }) =>
             getNumber("population.current") *
-            params.famineDeathRate *
-            getNumber("food.shortageRatio"),
+            getNumber("population.deathPressure") *
+            (1 - getNumber("population.nutritionHealth")) *
+            params.starvationMortalityScale,
           "population.growth": ({ getNumber }) => {
             const population = getNumber("population.current");
             const capacity = getNumber("population.capacity");
+            if (population > capacity) {
+              return capacity - population;
+            }
             const rawGrowth =
-              getNumber("population.logisticGrowth") *
-                getNumber("population.birthModifier") -
-              getNumber("population.famineDeaths");
-            return Math.min(population + rawGrowth, capacity) - population;
+              getNumber("population.births") - getNumber("population.deaths");
+            return (
+              Math.max(0, Math.min(population + rawGrowth, capacity)) -
+              population
+            );
           },
         },
         flows: {
           "population.growthFlow": {
             stock: "population.current",
             amount: ({ getNumber }) => getNumber("population.growth"),
+          },
+          "population.nutritionHealthFlow": {
+            stock: "population.nutritionHealth",
+            amount: ({ getNumber }) =>
+              getNumber("population.nutritionHealthDelta"),
           },
         },
       },
@@ -128,6 +181,7 @@ export function evaluatePopulationSystem(
   const result = runStockFlowStep(createPopulationSystemModel(mechanics), {
     stocks: {
       "population.current": inputs.population,
+      "population.nutritionHealth": inputs.nutritionHealth ?? 1,
     },
     inputs: {
       "territory.tilesOwned": inputs.tilesOwned,
@@ -136,7 +190,7 @@ export function evaluatePopulationSystem(
         inputs.effectiveCapacityOverride ?? -1,
       "player.capacityMultiplier": inputs.capacityMultiplier,
       "player.populationGrowthMultiplier": inputs.growthMultiplier,
-      "food.shortageRatio": inputs.foodShortageRatio ?? 0,
+      "food.satisfactionRatio": inputs.foodSatisfactionRatio ?? 1,
     },
   });
 
@@ -145,7 +199,17 @@ export function evaluatePopulationSystem(
     capacity: result.outputs["population.capacity"] as number,
     growth: result.flows.find((flow) => flow.id === "population.growthFlow")
       ?.amount as number,
+    births: result.outputs["population.births"] as number,
+    deaths: result.outputs["population.deaths"] as number,
+    nutritionHealth: result.stocks["population.nutritionHealth"],
+    foodSatisfactionRatio: result.outputs[
+      "population.foodSatisfactionRatio"
+    ] as number,
   };
+}
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
 export function capacityMultiplierForPlayerType(

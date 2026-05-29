@@ -21,6 +21,7 @@ import {
 export interface PlayerEconomyModelInputs {
   readonly mechanics: PopulationResourceMechanicsConfig;
   readonly population: PopulationSystemInputs;
+  readonly nutritionHealth: number;
   readonly resources: ResourceProductionSystemInputs;
   readonly war: WarSystemInputs;
   readonly playerType: PlayerType;
@@ -33,6 +34,7 @@ export interface PlayerEconomyModelResult {
   readonly war: WarSystemResult;
   readonly resourceDelta: ResourceStockpile;
   readonly troopDelta: number;
+  readonly nutritionHealth: number;
 }
 
 export function evaluatePlayerEconomyModel(
@@ -45,18 +47,19 @@ export function evaluatePlayerEconomyModel(
   const war = evaluateWarSystem(inputs.mechanics, inputs.war);
   const food = evaluateFoodSystem(inputs.mechanics, {
     stock: Number(inputs.resources.resources.food),
-    produced: Number(resources.delta.food),
+    produced: Number(resources.production.food),
     population: inputs.population.population,
     mobilizedPopulation: war.mobilizedPopulation,
     warFoodConsumptionMultiplier: war.foodConsumptionMultiplier,
   });
   const landPopulation = evaluatePopulationSystem(inputs.mechanics, {
     ...inputs.population,
-    foodShortageRatio: 0,
+    foodSatisfactionRatio: 1,
+    nutritionHealth: 1,
   });
   const foodSupportedPopulation = foodSupportedPopulationForProduction(
     inputs.mechanics,
-    Number(resources.delta.food),
+    Number(resources.production.food),
   );
   const effectiveCapacity =
     inputs.mechanics.populationFoodConstraintMode === "hard-min-cap"
@@ -68,10 +71,11 @@ export function evaluatePlayerEconomyModel(
       effectiveCapacity !== undefined && Number.isFinite(effectiveCapacity)
         ? effectiveCapacity
         : undefined,
-    foodShortageRatio:
+    foodSatisfactionRatio:
       inputs.mechanics.populationFoodConstraintMode === "hard-min-cap"
-        ? 0
-        : food.shortageRatio,
+        ? 1
+        : food.satisfactionRatio,
+    nutritionHealth: inputs.nutritionHealth,
   });
 
   return {
@@ -80,11 +84,22 @@ export function evaluatePlayerEconomyModel(
     food,
     war,
     resourceDelta: {
-      food: resources.delta.food - BigInt(Math.floor(food.consumed)),
+      food: BigInt(
+        Math.floor(
+          Math.min(
+            food.reservedSurplus,
+            Math.max(
+              0,
+              Number(resources.capacity.food - inputs.resources.resources.food),
+            ),
+          ),
+        ),
+      ),
       energy: resources.delta.energy,
       materials: resources.delta.materials,
     },
     troopDelta: population.growth,
+    nutritionHealth: population.nutritionHealth,
   };
 }
 

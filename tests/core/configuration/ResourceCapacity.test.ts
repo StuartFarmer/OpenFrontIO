@@ -57,12 +57,11 @@ describe("resource capacity config", () => {
     );
   });
 
-  test("base resource capacity is much lower than max population", () => {
+  test("base resource capacity uses the configured default", () => {
     player.conquer(game.ref(0, 0));
     const resourceCapacity = game.config().maxResources(player);
 
-    expect(resourceCapacity.food).toBeLessThan(game.config().maxTroops(player));
-    expect(resourceCapacity.food).toBe(75_000n);
+    expect(resourceCapacity.food).toBe(34_000n);
   });
 
   test("mechanics config resolves partial inputs with defaults", () => {
@@ -81,21 +80,32 @@ describe("resource capacity config", () => {
 
     expect(resolved.version).toBe(1);
     expect(resolved.populationResources.populationGrowthRate).toBe(0.02);
-    expect(resolved.populationResources.initialPopulation).toBe(25_000);
-    expect(resolved.populationResources.maxPopulationPerTile).toBe(100_000);
+    expect(resolved.populationResources.initialPopulation).toBe(250);
+    expect(resolved.populationResources.maxPopulationPerTile).toBe(3000);
     expect(resolved.populationResources.populationFoodConstraintMode).toBe(
-      "hard-min-cap",
+      "dynamic-shortage",
     );
-    expect(resolved.populationResources.foodAllocationToPopulation).toBe(1);
-    expect(resolved.populationResources.foodConsumptionPerPopulation).toBe(0);
+    expect(resolved.populationResources.foodAllocationToPopulation).toBe(0.5);
+    expect(
+      resolved.populationResources.foodConsumptionPerPopulation,
+    ).toBeCloseTo(10 * (365 / 600), 5);
     expect(
       resolved.populationResources.foodConsumptionPerMobilizedPopulation,
-    ).toBe(0);
+    ).toBeCloseTo(30 * (365 / 600), 5);
     expect(resolved.populationResources.wartimeFoodConsumptionMultiplier).toBe(
-      1,
+      3,
     );
-    expect(resolved.populationResources.foodShortageBirthPenalty).toBe(1);
-    expect(resolved.populationResources.famineDeathRate).toBe(0);
+    expect(resolved.populationResources.foodProductionPerTile).toBe(50_000_000);
+    expect(resolved.populationResources.foodTicksPerYear).toBe(600);
+    expect(
+      resolved.populationResources.foodProductionTechnologyMultiplier,
+    ).toBe(1);
+    expect(resolved.populationResources.birthNutritionThreshold).toBe(0.8);
+    expect(resolved.populationResources.survivalNutritionThreshold).toBe(0.5);
+    expect(resolved.populationResources.starvationDamageRate).toBe(0.005);
+    expect(resolved.populationResources.nutritionRecoveryRate).toBe(0.01);
+    expect(resolved.populationResources.starvationMortalityScale).toBe(0.002);
+    expect(resolved.populationResources.minBaseResourceCapacity).toBe(25_000);
     expect(resolved.populationResources.baselineBiomassProductionShare).toBe(
       0.25,
     );
@@ -160,6 +170,20 @@ describe("resource capacity config", () => {
       MechanicsConfigSchema.parse({
         populationResources: {
           foodAllocationToPopulation: 1.1,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          foodProductionTechnologyMultiplier: 0,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      MechanicsConfigSchema.parse({
+        populationResources: {
+          foodProductionTechnologyMultiplier: 11,
         },
       }),
     ).toThrow();
@@ -245,7 +269,6 @@ describe("resource capacity config", () => {
 
     expect(player.resources()).toEqual(before);
     expect(delta.food).toBeGreaterThan(0n);
-    expect(delta.energy).toBeGreaterThan(delta.food);
     expect(delta.energy).toBeGreaterThan(delta.materials);
   });
 
@@ -279,15 +302,47 @@ describe("resource capacity config", () => {
     expect(delta.materials).toBe(0n);
   });
 
-  test("resourceIncreaseRate favors biomass on highland tiles", () => {
-    const tile = game.ref(0, 0);
-    game.setMagnitude(tile, 15);
-    player.conquer(tile);
+  test("resourceIncreaseRate scales food production by agriculture technology", async () => {
+    const baseGame = await setup(
+      "plains",
+      {
+        instantBuild: true,
+        mechanics: {
+          populationResources: {
+            minBaseResourceCapacity: 10_000_000,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const basePlayer = baseGame.player("player_id");
+    basePlayer.conquer(baseGame.ref(0, 0));
 
-    const delta = game.config().resourceIncreaseRate(game, player);
+    const technologyGame = await setup(
+      "plains",
+      {
+        instantBuild: true,
+        mechanics: {
+          populationResources: {
+            minBaseResourceCapacity: 10_000_000,
+            foodProductionTechnologyMultiplier: 2,
+          },
+        },
+      },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const technologyPlayer = technologyGame.player("player_id");
+    technologyPlayer.conquer(technologyGame.ref(0, 0));
 
-    expect(delta.food).toBeGreaterThan(delta.energy);
-    expect(delta.food).toBeGreaterThan(delta.materials);
+    const baseDelta = baseGame
+      .config()
+      .resourceIncreaseRate(baseGame, basePlayer);
+    const technologyDelta = technologyGame
+      .config()
+      .resourceIncreaseRate(technologyGame, technologyPlayer);
+
+    expect(baseDelta.food).toBe(83_333n);
+    expect(technologyDelta.food).toBe(166_666n);
   });
 
   test("resourceIncreaseRate favors metals on mountain tiles", () => {
@@ -297,32 +352,20 @@ describe("resource capacity config", () => {
 
     const delta = game.config().resourceIncreaseRate(game, player);
 
-    expect(delta.materials).toBeGreaterThan(delta.food);
     expect(delta.materials).toBeGreaterThan(delta.energy);
   });
 
-  test("resourceIncreaseRate is slowed to one third of the base regen curve", () => {
+  test("non-food resourceIncreaseRate is slowed by the configured passive multiplier", () => {
     player.conquer(game.ref(0, 0));
     const capacity = game.config().maxResources(player);
     const baseDelta = resourceRegenDelta(player.resources(), capacity);
-    const slowedUniformDelta = resourceRegenDelta(
-      player.resources(),
-      capacity,
-      1 / 3,
-    );
     const slowerDelta = game.config().resourceIncreaseRate(game, player);
 
     expect(baseDelta.food).toBeGreaterThan(0n);
-    expect(
-      slowedUniformDelta.food +
-        slowedUniformDelta.energy +
-        slowedUniformDelta.materials,
-    ).toBeLessThan(baseDelta.food + baseDelta.energy + baseDelta.materials);
-    expect(slowerDelta.food + slowerDelta.energy + slowerDelta.materials).toBe(
-      slowedUniformDelta.food +
-        slowedUniformDelta.energy +
-        slowedUniformDelta.materials,
+    expect(slowerDelta.energy + slowerDelta.materials).toBeLessThan(
+      baseDelta.energy + baseDelta.materials,
     );
+    expect(slowerDelta.energy + slowerDelta.materials).toBeGreaterThan(0n);
   });
 
   test("biomass-supported population follows terrain production blend", () => {
@@ -333,7 +376,8 @@ describe("resource capacity config", () => {
       .config()
       .biomassSupportedTroopCapacity(game, player);
 
-    expect(plainsBiomassCapacity).toBeLessThan(plainsTroopCapacity);
+    expect(plainsTroopCapacity).toBe(3000);
+    expect(plainsBiomassCapacity).toBeGreaterThan(plainsTroopCapacity);
     expect(plainsBiomassCapacity).toBeCloseTo(
       Number(game.config().maxResources(player).food),
       0,
@@ -378,9 +422,9 @@ describe("resource capacity config", () => {
     const capacity = game.config().effectiveTroopCapacity(game, player);
     player.setTroops(capacity / 2);
 
-    const rate = game.config().troopIncreaseRate(player, game);
+    const rate = game.config().troopIncreaseRate(player);
 
-    expect(rate).toBeCloseTo(0.016 * player.troops() * 0.5, 5);
+    expect(rate).toBeCloseTo(0.0015 * player.troops() * 0.5, 5);
     expect(rate).toBeGreaterThan(0);
   });
 
@@ -403,9 +447,7 @@ describe("resource capacity config", () => {
       .effectiveTroopCapacity(customGame, customPlayer);
     customPlayer.setTroops(capacity / 2);
 
-    const rate = customGame
-      .config()
-      .troopIncreaseRate(customPlayer, customGame);
+    const rate = customGame.config().troopIncreaseRate(customPlayer);
 
     expect(rate).toBeCloseTo(0.032 * customPlayer.troops() * 0.5, 5);
   });

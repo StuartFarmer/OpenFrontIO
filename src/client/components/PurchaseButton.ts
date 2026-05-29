@@ -1,6 +1,7 @@
 import { html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Product } from "../../core/CosmeticSchemas";
+import "../hud/ui";
 import { translateText } from "../Utils";
 import "./CapIcon";
 import "./PlutoniumIcon";
@@ -230,9 +231,10 @@ export class PurchaseButton extends LitElement {
 
   private renderDollarButton() {
     return html`
-      <button
+      <hud-button
         class="purchase-sparkle-btn relative overflow-hidden w-full px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-all duration-200
          hover:bg-green-500 hover:border-green-400 hover:text-white hover:shadow-[0_0_20px_rgba(74,222,128,0.6)]"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 8px 16px; --hud-button-radius: 8px; --hud-button-background: rgba(34,197,94,0.2); --hud-button-hover-background: rgb(34,197,94); --hud-button-border-color: rgba(34,197,94,0.3); --hud-button-color: #4ade80;"
         @click=${(e: Event) => this.handleClick(e, this.onPurchaseDollar)}
       >
         <span class="purchase-sparkle-streak"></span>
@@ -240,33 +242,35 @@ export class PurchaseButton extends LitElement {
         <span class="ml-1 text-white/50"
           >(${this.product!.price}${this.priceSuffix})</span
         >
-      </button>
+      </hud-button>
     `;
   }
 
   private renderHardButton() {
     return html`
-      <button
+      <hud-button
         class="purchase-sparkle-btn-hard relative overflow-hidden w-full px-2 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-base font-bold cursor-pointer transition-all duration-200 flex items-center justify-center gap-2
          hover:bg-green-500 hover:border-green-400 hover:text-white hover:shadow-[0_0_20px_rgba(74,222,128,0.6)]"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 6px 8px; --hud-button-radius: 8px; --hud-button-gap: 8px; --hud-button-background: rgba(34,197,94,0.2); --hud-button-hover-background: rgb(34,197,94); --hud-button-border-color: rgba(34,197,94,0.3); --hud-button-color: #4ade80;"
         @click=${(e: Event) => this.handleClick(e, this.onPurchaseHard)}
       >
         <plutonium-icon .size=${20} style="margin-top:3px"></plutonium-icon>
         ${this.priceHard!.toLocaleString()}
-      </button>
+      </hud-button>
     `;
   }
 
   private renderSoftButton() {
     return html`
-      <button
+      <hud-button
         class="purchase-sparkle-btn-soft relative overflow-hidden w-full px-2 py-1.5 bg-amber-700/20 text-amber-600 border border-amber-700/30 rounded-lg text-base font-bold cursor-pointer transition-all duration-200 flex items-center justify-center gap-2
          hover:bg-amber-700 hover:border-amber-600 hover:text-white hover:shadow-[0_0_20px_rgba(217,119,6,0.6)]"
+        style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-padding: 6px 8px; --hud-button-radius: 8px; --hud-button-gap: 8px; --hud-button-background: rgba(180,83,9,0.2); --hud-button-hover-background: rgb(180,83,9); --hud-button-border-color: rgba(180,83,9,0.3); --hud-button-color: #d97706;"
         @click=${(e: Event) => this.handleClick(e, this.onPurchaseSoft)}
       >
         <cap-icon .size=${22} style="margin-top:3px"></cap-icon>
         ${this.priceSoft!.toLocaleString()}
-      </button>
+      </hud-button>
     `;
   }
 

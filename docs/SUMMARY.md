@@ -11,6 +11,7 @@
 
 # Mechanics
 
+- [Causal Influence Architecture](CausalInfluenceArchitecture.md)
 - [Economy Model](Economy.md)
 - [Population, Food, And Systems Modeling](PopulationFoodSystemsReport.md)
 - [Stock-Flow Architecture Analysis](StockFlowArchitectureAnalysis.md)

@@ -413,16 +413,16 @@ export class HostLobbyModal extends BaseModal {
 
         <!-- Player List / footer -->
         <div class="p-6 pt-4 border-t border-white/10 bg-black/20 shrink-0">
-          <o-button
+          <hud-button
             variant="active"
-            width="block"
-            size="lg"
-            .title=${this.clients.length === 1
+            style="--hud-button-host-width: 100%; --hud-button-width: 100%; --hud-button-min-height: 40px;"
+            ?disabled=${this.clients.length < 2}
+            @click=${this.startGame}
+          >
+            ${this.clients.length === 1
               ? translateText("host_modal.waiting")
               : translateText("host_modal.start")}
-            ?disable=${this.clients.length < 2}
-            @click=${this.startGame}
-          ></o-button>
+          </hud-button>
         </div>
       </div>
     `;

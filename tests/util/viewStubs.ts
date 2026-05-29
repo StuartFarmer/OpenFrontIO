@@ -167,6 +167,8 @@ export function makePlayerUpdate(
     gold: 0n,
     resources: { food: 0n, energy: 0n, materials: 0n },
     resourceCapacity: { food: 0n, energy: 0n, materials: 0n },
+    foodAllocationToPopulation: 0.5,
+    nutritionHealth: 1,
     effectiveTroopCapacity: 1_000,
     biomassSupportedTroopCapacity: 1_000,
     troopIncreaseRate: 10,

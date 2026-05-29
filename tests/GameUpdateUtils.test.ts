@@ -17,6 +17,8 @@ function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
     gold: 0,
     resources: { food: 0, energy: 0, materials: 0 },
     resourceCapacity: { food: 0, energy: 0, materials: 0 },
+    foodAllocationToPopulation: 0.5,
+    nutritionHealth: 1,
     effectiveTroopCapacity: 1_000,
     biomassSupportedTroopCapacity: 1_000,
     troopIncreaseRate: 0,
@@ -58,11 +60,17 @@ describe("diffPlayerUpdate", () => {
   });
 
   it("includes every changed primitive in a single diff", () => {
-    const prev = makePlayerUpdate({ gold: 100n, troops: 50, tilesOwned: 5 });
+    const prev = makePlayerUpdate({
+      gold: 100n,
+      troops: 50,
+      tilesOwned: 5,
+      foodAllocationToPopulation: 0.25,
+    });
     const next = makePlayerUpdate({ gold: 200n, troops: 75, tilesOwned: 5 });
     const diff = diffPlayerUpdate(prev, next)!;
     expect(diff.gold).toBe(200n);
     expect(diff.troops).toBe(75);
+    expect(diff.foodAllocationToPopulation).toBe(0.5);
     expect(diff.tilesOwned).toBeUndefined();
   });
 

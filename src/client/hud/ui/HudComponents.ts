@@ -1040,6 +1040,7 @@ export class HudButton extends HudScopedElement {
     | "ghost" = "default";
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property() type: "button" | "submit" | "reset" = "button";
+  @property() label = "";
 
   render() {
     return html`<button
@@ -1047,7 +1048,7 @@ export class HudButton extends HudScopedElement {
       type=${this.type}
       ?disabled=${this.disabled}
     >
-      <slot name="icon"></slot><slot></slot>
+      <slot name="icon"></slot><slot>${this.label}</slot>
     </button>`;
   }
 }
@@ -1351,12 +1352,21 @@ export class HudTableCell extends HudScopedElement {
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      :host([wrap]) {
+        white-space: normal;
+      }
+
+      :host([wrap]) .cell {
+        white-space: normal;
+      }
     `,
   ];
 
   @property({ reflect: true }) align: HudAlign = "right";
   @property({ type: Boolean, reflect: true }) header = false;
   @property({ type: Boolean, reflect: true }) truncate = false;
+  @property({ type: Boolean, reflect: true }) wrap = false;
 
   render() {
     return html`<span class="cell" part="cell"><slot></slot></span>`;
