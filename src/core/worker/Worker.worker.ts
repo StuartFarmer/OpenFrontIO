@@ -1,7 +1,8 @@
+import { getServerGameModule } from "src/games/serverRegistry";
 import { assetUrl } from "../AssetUrls";
 import { FetchGameMapLoader } from "../game/FetchGameMapLoader";
 import { ErrorUpdate, GameUpdateViewData } from "../game/GameUpdates";
-import { createGameRunner, GameRunner } from "../GameRunner";
+import { GameRunner } from "../GameRunner";
 import {
   AttackClusteredPositionsResultMessage,
   InitializedMessage,
@@ -134,15 +135,17 @@ ctx.addEventListener("message", async (e: MessageEvent<MainThreadMessage>) => {
   switch (message.type) {
     case "init":
       try {
-        // Set before createGameRunner so map fetches via mapLoader pick up the
+        // Set before runner creation so map fetches via mapLoader pick up the
         // CDN base. Workers have no `window`, so AssetUrls falls back to this.
         globalThis.__CDN_BASE__ = message.cdnBase;
-        gameRunner = createGameRunner(
-          message.gameStartInfo,
-          message.clientID,
+        const module = getServerGameModule();
+        gameRunner = module.createRunner({
+          gameStart: message.gameStartInfo,
+          clientId: message.clientID,
           mapLoader,
-          gameUpdate,
-        ).then((gr) => {
+          onUpdate: gameUpdate as (update: unknown) => void,
+        }) as Promise<GameRunner>;
+        gameRunner = gameRunner.then((gr) => {
           sendMessage({
             type: "initialized",
             id: message.id,
