@@ -1,7 +1,7 @@
 import { EngineTileMap, TileRef } from "./EngineTileMap";
 import { Player } from "./FoundationPlayer";
 
-export const FOUNDATION_PLACEMENT_RADIUS = 10;
+export const FOUNDATION_PLACEMENT_RADIUS = 4;
 export const FOUNDATION_OWNER_ID_MASK = 0x0fff;
 
 export interface PlacePlayerResult {
@@ -59,8 +59,8 @@ export function collectTilesInRadius(
 
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
-      const dx = x - centerX;
-      const dy = y - centerY;
+      const dx = x - (centerX - 0.5);
+      const dy = y - (centerY - 0.5);
       if (dx * dx + dy * dy <= radiusSquared) {
         tiles.push(map.ref(x, y));
       }

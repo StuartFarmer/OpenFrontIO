@@ -1,16 +1,22 @@
 import seedrandom from "seedrandom";
 import { EngineTileMap, TileRef } from "./EngineTileMap";
-import { Player, WildernessFrontierTile } from "./FoundationPlayer";
+import { ExplorationAttack } from "./ExplorationAttack";
+import { Player } from "./FoundationPlayer";
 import { ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_GRASS_ATTACKER_LOSS = 80 / 5;
 const FOUNDATION_GRASS_ATTACK_SPEED = 16.5;
+const FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER = 2;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
 
 export interface StartWildernessExplorationResult {
   player: Player;
   committedTroops: number;
+}
+
+export interface StartWildernessExplorationOptions {
+  troopRatio?: number;
 }
 
 export interface TickWildernessExplorationResult {
@@ -24,6 +30,7 @@ export function startWildernessExploration(
   player: Player,
   targetTile: TileRef,
   tick: number,
+  options: StartWildernessExplorationOptions = {},
 ): StartWildernessExplorationResult {
   if (!player.placement) {
     throw new Error("Cannot explore wilderness before player placement");
@@ -34,30 +41,32 @@ export function startWildernessExploration(
   if (ownerIdFromState(map.stateBuffer()[targetTile]) === player.ownerId) {
     throw new Error("Cannot explore an already owned tile");
   }
-  if (player.activeExploration) {
-    throw new Error("Cannot start a second active wilderness exploration");
-  }
-
-  const committedTroops = Math.floor(
-    player.troops * FOUNDATION_WILDERNESS_ATTACK_FRACTION,
+  const troopRatio = clamp(
+    options.troopRatio ?? FOUNDATION_WILDERNESS_ATTACK_FRACTION,
+    0,
+    1,
   );
+  const committedTroops = Math.floor(player.troops * troopRatio);
   if (committedTroops < 1) {
     throw new Error("Not enough troops to explore wilderness");
   }
 
-  const rng = createWildernessRandom();
-  const frontier = createWildernessFrontier(map, player, rng, tick);
+  const rng = createWildernessRandom(player.activeExploration?.randomState);
+  const attack = new ExplorationAttack();
+  refreshWildernessFrontier(map, player, attack, rng, tick);
+  const attackState = attack.toState();
+  const activeTroops = player.activeExploration?.troops ?? 0;
 
   return {
     player: {
       ...player,
       troops: player.troops - committedTroops,
       activeExploration: {
-        id: `explore-${targetTile}`,
+        id: player.activeExploration?.id ?? `explore-${targetTile}`,
         targetTile,
-        troops: committedTroops,
-        frontier: frontier.frontier,
-        borderTiles: frontier.borderTiles,
+        troops: activeTroops + committedTroops,
+        frontier: attackState.frontier,
+        borderTiles: attackState.borderTiles,
         randomState: serializeRandomState(rng),
       },
     },
@@ -89,59 +98,42 @@ export function tickWildernessExploration(
     };
   }
 
-  const frontier = [...exploration.frontier];
-  const borderTiles = new Set<TileRef>(exploration.borderTiles);
-  if (frontier.length === 0) {
-    const refreshed = createWildernessFrontier(map, player, rng, tick);
+  const attack = ExplorationAttack.fromExploration(exploration);
+  if (attack.frontierSize() === 0) {
     return {
       player: {
         ...player,
         troops: player.troops + explorationTroops,
-        activeExploration:
-          refreshed.frontier.length === 0
-            ? null
-            : {
-                ...exploration,
-                frontier: refreshed.frontier,
-                borderTiles: refreshed.borderTiles,
-                randomState: serializeRandomState(rng),
-              },
+        activeExploration: null,
       },
       claimedTiles: [],
       completed: true,
     };
   }
 
-  let tileBudget = (borderTiles.size + randomInt(rng, 0, 5)) * 2;
+  let tileBudget =
+    (attack.borderSize() + randomInt(rng, 0, 5)) *
+    FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER;
   const claimedTiles: TileRef[] = [];
   while (tileBudget > 0) {
     if (tileBudget <= 0 || explorationTroops < 1) {
       break;
     }
 
-    if (frontier.length === 0) {
-      const refreshed = createWildernessFrontier(map, player, rng, tick);
+    if (attack.frontierSize() === 0) {
       return {
         player: {
           ...player,
           troops: player.troops + explorationTroops,
-          activeExploration:
-            refreshed.frontier.length === 0
-              ? null
-              : {
-                  ...exploration,
-                  frontier: refreshed.frontier,
-                  borderTiles: refreshed.borderTiles,
-                  randomState: serializeRandomState(rng),
-                },
+          activeExploration: null,
         },
         claimedTiles,
         completed: true,
       };
     }
 
-    const tile = dequeueWildernessFrontier(frontier);
-    borderTiles.delete(tile);
+    const [tile] = attack.dequeue();
+    attack.removeBorderTile(tile);
 
     if (!isOwnedBorderNeighbor(map, player.ownerId, tile)) {
       continue;
@@ -151,8 +143,7 @@ export function tickWildernessExploration(
     }
 
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
-      frontier,
-      borderTiles,
+      attack,
     });
 
     const tilesPerTickUsed = wildernessTilesPerTickUsed(explorationTroops);
@@ -164,6 +155,7 @@ export function tickWildernessExploration(
 
   const nextClaimedTiles = [...placement.claimedTiles, ...claimedTiles];
   const completed = explorationTroops < 1;
+  const attackState = attack.toState();
 
   return {
     player: {
@@ -178,8 +170,8 @@ export function tickWildernessExploration(
         : {
             ...exploration,
             troops: explorationTroops,
-            frontier,
-            borderTiles: Array.from(borderTiles),
+            frontier: attackState.frontier,
+            borderTiles: attackState.borderTiles,
             randomState: serializeRandomState(rng),
           },
     },
@@ -188,24 +180,19 @@ export function tickWildernessExploration(
   };
 }
 
-function createWildernessFrontier(
+function refreshWildernessFrontier(
   map: EngineTileMap,
   player: Player,
+  attack: ExplorationAttack,
   rng: StatefulRandom,
   tick: number,
-): { frontier: WildernessFrontierTile[]; borderTiles: TileRef[] } {
-  const frontier: WildernessFrontierTile[] = [];
-  const borderTiles = new Set<TileRef>();
+): void {
+  attack.clearBorder();
   for (const tile of player.placement?.claimedTiles ?? []) {
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
-      frontier,
-      borderTiles,
+      attack,
     });
   }
-  return {
-    frontier,
-    borderTiles: Array.from(borderTiles),
-  };
 }
 
 function addWildernessNeighbors(
@@ -215,19 +202,15 @@ function addWildernessNeighbors(
   tick: number,
   rng: StatefulRandom,
   frontierState: {
-    frontier: WildernessFrontierTile[];
-    borderTiles: Set<TileRef>;
+    attack: ExplorationAttack;
   },
 ): void {
   forEachCardinalNeighbor(map, tile, (neighbor) => {
     if (ownerIdFromState(map.stateBuffer()[neighbor]) !== 0) {
       return;
     }
-    if (frontierState.borderTiles.has(neighbor)) {
-      return;
-    }
 
-    frontierState.borderTiles.add(neighbor);
+    frontierState.attack.addBorderTile(neighbor);
     let numOwnedByMe = 0;
     forEachCardinalNeighbor(map, neighbor, (candidateNeighbor) => {
       if (ownerIdFromState(map.stateBuffer()[candidateNeighbor]) === ownerId) {
@@ -241,24 +224,8 @@ function addWildernessNeighbors(
         (1 - numOwnedByMe * 0.5 + plainsMagnitude / 2) +
       tick;
 
-    frontierState.frontier.push({ tile: neighbor, priority });
+    frontierState.attack.enqueue(neighbor, priority);
   });
-}
-
-function dequeueWildernessFrontier(
-  frontier: WildernessFrontierTile[],
-): TileRef {
-  let bestIndex = 0;
-  let bestPriority = frontier[0].priority;
-  for (let i = 1; i < frontier.length; i++) {
-    const priority = frontier[i].priority;
-    if (priority < bestPriority) {
-      bestPriority = priority;
-      bestIndex = i;
-    }
-  }
-  const [best] = frontier.splice(bestIndex, 1);
-  return best.tile;
 }
 
 function isOwnedBorderNeighbor(

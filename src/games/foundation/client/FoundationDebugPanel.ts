@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { renderTroops } from "../../../client/Utils";
 import type { FoundationRuntimeSnapshot } from "../runtime";
 
 export interface FoundationClientStatus {
@@ -143,13 +144,13 @@ export class FoundationDebugPanel extends LitElement {
           <dt>Claimed tiles</dt>
           <dd>${snapshot?.player.claimedTileCount.toLocaleString() ?? "0"}</dd>
           <dt>Troops</dt>
-          <dd>${formatNumber(snapshot?.player.troops)}</dd>
+          <dd>${formatTroops(snapshot?.player.troops)}</dd>
           <dt>Max troops</dt>
-          <dd>${formatNumber(snapshot?.player.maxTroops)}</dd>
+          <dd>${formatTroops(snapshot?.player.maxTroops)}</dd>
           <dt>Troop rate</dt>
-          <dd>${formatNumber(snapshot?.player.troopIncreaseRate)}</dd>
+          <dd>${formatTroopRate(snapshot?.player.troopIncreaseRate)}</dd>
           <dt>Exploring</dt>
-          <dd>${formatNumber(snapshot?.player.exploringTroops)}</dd>
+          <dd>${formatTroops(snapshot?.player.exploringTroops)}</dd>
           <dt>Tick</dt>
           <dd>${snapshot?.tick.toLocaleString() ?? "0"}</dd>
           <dt>Updates</dt>
@@ -163,6 +164,14 @@ export class FoundationDebugPanel extends LitElement {
 
 function formatNumber(value: number | undefined): string {
   return Math.floor(value ?? 0).toLocaleString();
+}
+
+function formatTroops(value: number | undefined): string {
+  return renderTroops(value ?? 0);
+}
+
+function formatTroopRate(value: number | undefined): string {
+  return `${renderTroops((value ?? 0) * 10)}/s`;
 }
 
 declare global {

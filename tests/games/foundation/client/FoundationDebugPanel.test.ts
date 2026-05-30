@@ -49,9 +49,10 @@ describe("FoundationDebugPanel", () => {
     expect(text).toContain("placed");
     expect(text).toContain("32,896");
     expect(text).toContain("317");
-    expect(text).toContain("25,000");
-    expect(text).toContain("163,000");
-    expect(text).toContain("5,000");
+    expect(text).toContain("2.50K");
+    expect(text).toContain("16.3K");
+    expect(text).toContain("300/s");
+    expect(text).toContain("500");
     expect(text).toContain("Placed player at 128, 128.");
     expect(text).not.toContain("Food");
     expect(text).not.toContain("Population");

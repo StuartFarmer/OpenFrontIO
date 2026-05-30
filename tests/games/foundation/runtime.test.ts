@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  ExplorationAttack,
   FOUNDATION_MODULE_ID,
   createFoundationMap,
   createFoundationRuntime,
   createGrowTerritoryCommand,
   createPlacePlayerCommand,
+  maxTroopsForTileCount,
   ownerIdFromState,
+  troopIncreaseRate,
 } from "../../../src/games/foundation";
 
 describe("Foundation runtime", () => {
@@ -54,6 +57,35 @@ describe("Foundation runtime", () => {
     });
   });
 
+  it("can carry an explicit grow troop ratio", () => {
+    const command = createGrowTerritoryCommand({
+      targetTileRef: 64,
+      troopRatio: 0.05,
+    });
+
+    expect(command.payload).toEqual({
+      type: "foundation.grow_territory",
+      targetTileRef: 64,
+      troopRatio: 0.05,
+    });
+  });
+
+  it("tracks exploration frontier entries separately from unique border tiles", () => {
+    const attack = new ExplorationAttack();
+
+    attack.addBorderTile(42);
+    attack.enqueue(42, 2);
+    attack.addBorderTile(42);
+    attack.enqueue(42, 1);
+
+    expect(attack.borderSize()).toBe(1);
+    expect(attack.frontierSize()).toBe(2);
+    expect(attack.dequeue()).toEqual([42, 1]);
+    attack.removeBorderTile(42);
+    expect(attack.borderSize()).toBe(0);
+    expect(attack.frontierSize()).toBe(1);
+  });
+
   it("places the local player from a click placement command", () => {
     const map = createFoundationMap({ width: 32, height: 32 });
     const runtime = createFoundationRuntime({ map });
@@ -75,6 +107,16 @@ describe("Foundation runtime", () => {
       },
     });
     expect(runtime.snapshot().player.claimedTileCount).toBeGreaterThan(0);
+  });
+
+  it("uses the original OpenFront centered spawn radius", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+    const tileRef = map.ref(16, 16);
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef }));
+
+    expect(runtime.snapshot().player.claimedTileCount).toBe(52);
   });
 
   it("emits a map delta with changed tile refs and states", () => {
@@ -144,6 +186,57 @@ describe("Foundation runtime", () => {
     expect(ownerIdFromState(map.stateBuffer()[secondTile])).toBe(0);
   });
 
+  it("keeps original OpenFront starting troops after placement", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    const snapshot = runtime.snapshot();
+
+    expect(snapshot.player.troops).toBe(25_000);
+    expect(snapshot.player.maxTroops).toBeGreaterThan(snapshot.player.troops);
+    expect(snapshot.player.troopIncreaseRate).toBeGreaterThan(0);
+  });
+
+  it("uses the original OpenFront troop regen curve", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    const snapshot = runtime.snapshot();
+    const maxTroops = maxTroopsForTileCount(snapshot.player.claimedTileCount);
+    const expectedGrowth =
+      (10 + Math.pow(snapshot.player.troops, 0.73) / 4) *
+      (1 - snapshot.player.troops / maxTroops);
+
+    expect(snapshot.player.maxTroops).toBe(maxTroops);
+    expect(troopIncreaseRate(runtime.player())).toBeCloseTo(expectedGrowth, 5);
+  });
+
+  it("regenerates troops with the original OpenFront curve after placement", () => {
+    const map = createFoundationMap({ width: 64, height: 64 });
+    const runtime = createFoundationRuntime({ map });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    runtime.dispatch(
+      createGrowTerritoryCommand({
+        turnNumber: 1,
+        targetTileRef: map.ref(40, 16),
+      }),
+    );
+
+    const afterAttackTroops = runtime.snapshot().player.troops;
+    const expectedGrowth = troopIncreaseRate(runtime.player());
+    runtime.advanceTick();
+
+    expect(runtime.snapshot().player.troops).toBeGreaterThan(afterAttackTroops);
+    expect(runtime.snapshot().player.troops).toBeCloseTo(
+      afterAttackTroops + expectedGrowth,
+      5,
+    );
+    expect(runtime.snapshot().player.troopIncreaseRate).toBeGreaterThan(0);
+  });
+
   it("starts wilderness exploration by committing troops toward a clicked target", () => {
     const map = createFoundationMap({ width: 64, height: 64 });
     const runtime = createFoundationRuntime({ map });
@@ -173,6 +266,36 @@ describe("Foundation runtime", () => {
     ]);
   });
 
+  it("reinforces active wilderness exploration with another grow command", () => {
+    const map = createFoundationMap({ width: 64, height: 64 });
+    const runtime = createFoundationRuntime({ map });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    runtime.dispatch(
+      createGrowTerritoryCommand({
+        turnNumber: 1,
+        targetTileRef: map.ref(40, 16),
+        troopRatio: 0.1,
+      }),
+    );
+    const firstSnapshot = runtime.snapshot();
+    const expectedReinforcement = Math.floor(firstSnapshot.player.troops * 0.1);
+
+    const result = runtime.dispatch(
+      createGrowTerritoryCommand({
+        turnNumber: 2,
+        targetTileRef: map.ref(41, 16),
+        troopRatio: 0.1,
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(runtime.snapshot().player.exploringTroops).toBe(
+      firstSnapshot.player.exploringTroops + expectedReinforcement,
+    );
+  });
+
   it("grinds wilderness exploration over ticks with troop growth and map deltas", () => {
     const map = createFoundationMap({ width: 64, height: 64 });
     const runtime = createFoundationRuntime({ map });
@@ -184,6 +307,7 @@ describe("Foundation runtime", () => {
     runtime.dispatch(
       createGrowTerritoryCommand({ turnNumber: 1, targetTileRef: targetTile }),
     );
+    const committedTroops = runtime.snapshot().player.exploringTroops;
 
     const tick = runtime.advanceTick();
     const changedTiles = Array.from(tick.map?.changedTiles ?? []);
@@ -197,7 +321,12 @@ describe("Foundation runtime", () => {
     expect(runtime.snapshot().player.troops).toBeGreaterThan(20_000);
     expect(runtime.snapshot().player.maxTroops).toBeGreaterThan(100_000);
     expect(runtime.snapshot().player.troopIncreaseRate).toBeGreaterThan(0);
-    expect(runtime.snapshot().player.exploringTroops).toBeLessThan(5_000);
+    expect(runtime.snapshot().player.exploringTroops).toBeLessThan(
+      committedTroops,
+    );
+    expect(runtime.snapshot().player.exploringTroops).toBe(
+      committedTroops - changedTiles.length * 16,
+    );
     expect(tick.events[0]).toEqual({
       type: "foundation.territory_grown",
       payload: {

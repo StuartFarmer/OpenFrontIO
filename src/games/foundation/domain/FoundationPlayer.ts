@@ -1,6 +1,5 @@
 import { TileRef } from "./EngineTileMap";
-
-export const FOUNDATION_STARTING_TROOPS = 25_000;
+import { FOUNDATION_STARTING_TROOPS } from "./FoundationTroops";
 
 export interface PlayerPlacement {
   selectedTile: TileRef;
@@ -33,13 +32,13 @@ export interface Player {
 
 export function createPlayer(
   id: string,
-  options: { ownerId?: number; name?: string } = {},
+  options: { ownerId?: number; name?: string; troops?: number } = {},
 ): Player {
   return {
     id,
     ownerId: options.ownerId ?? 1,
     name: options.name ?? "Player",
-    troops: FOUNDATION_STARTING_TROOPS,
+    troops: options.troops ?? FOUNDATION_STARTING_TROOPS,
     placement: null,
     activeExploration: null,
   };

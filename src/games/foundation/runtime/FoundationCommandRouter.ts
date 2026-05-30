@@ -49,7 +49,11 @@ export class FoundationCommandRouter {
       case "foundation.place_player":
         return this.placePlayer(command.payload.tileRef, state);
       case "foundation.grow_territory":
-        return this.growTerritory(command.payload.targetTileRef, state);
+        return this.growTerritory(
+          command.payload.targetTileRef,
+          command.payload.troopRatio,
+          state,
+        );
     }
   }
 
@@ -82,6 +86,7 @@ export class FoundationCommandRouter {
 
   private growTerritory(
     targetTileRef: TileRef,
+    troopRatio: number | undefined,
     state: FoundationCommandRouterState,
   ): FoundationCommandRouterResult {
     if (!state.player.placement) {
@@ -106,6 +111,7 @@ export class FoundationCommandRouter {
         state.player,
         targetTileRef,
         state.tick,
+        { troopRatio },
       );
     } catch (error) {
       const reason = explorationErrorReason(error);
@@ -144,8 +150,6 @@ function explorationErrorReason(error: unknown): string {
       return "player_not_placed";
     case "Cannot explore an already owned tile":
       return "target_already_owned";
-    case "Cannot start a second active wilderness exploration":
-      return "exploration_already_active";
     case "Not enough troops to explore wilderness":
       return "not_enough_troops";
     default:

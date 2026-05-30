@@ -1,5 +1,6 @@
 export * from "./createFoundationMap";
 export * from "./EngineTileMap";
+export * from "./ExplorationAttack";
 export * from "./FoundationPlayer";
 export * from "./FoundationTerrain";
 export * from "./FoundationTroops";

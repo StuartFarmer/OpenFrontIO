@@ -41,9 +41,9 @@ export function createPlacePlayerCommand(
   return command;
 }
 
-export interface CreateGrowTerritoryCommandOptions
-  extends CreateFoundationCommandOptions {
+export interface CreateGrowTerritoryCommandOptions extends CreateFoundationCommandOptions {
   targetTileRef: TileRef;
+  troopRatio?: number;
 }
 
 export function createGrowTerritoryCommand(
@@ -62,6 +62,10 @@ export function createGrowTerritoryCommand(
       targetTileRef: options.targetTileRef,
     },
   };
+
+  if (options.troopRatio !== undefined) {
+    command.payload.troopRatio = options.troopRatio;
+  }
 
   if (options.commandId) {
     command.commandId = options.commandId;

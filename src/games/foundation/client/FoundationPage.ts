@@ -5,6 +5,8 @@ import {
   type BaseMapPalette,
   type BaseMapTileStateDelta,
 } from "../../../client/render/base-map";
+import { renderTroops } from "../../../client/Utils";
+import { UserSettings } from "../../../core/game/UserSettings";
 import {
   FoundationRuntime,
   createFoundationRuntime,
@@ -168,6 +170,7 @@ export class FoundationPage extends LitElement {
         ? createGrowTerritoryCommand({
             targetTileRef: tile.ref,
             turnNumber: currentSnapshot.tick,
+            troopRatio: new UserSettings().attackRatio(),
           })
         : createPlacePlayerCommand({
             tileRef: tile.ref,
@@ -196,8 +199,9 @@ export class FoundationPage extends LitElement {
         "claimedTileCount" in growthEvent.payload
           ? Number(growthEvent.payload.claimedTileCount)
           : 0;
-      const exploringTroops =
-        update.metrics?.exploringTroops?.toLocaleString() ?? "0";
+      const exploringTroops = renderTroops(
+        update.metrics?.exploringTroops ?? 0,
+      );
       this.status = {
         tone: "ok",
         text: `Expanded ${claimedTileCount.toLocaleString()} tiles. Exploring troops: ${exploringTroops}.`,
@@ -234,7 +238,9 @@ export class FoundationPage extends LitElement {
             : 0;
         return {
           tone: "ok",
-          text: `Exploring toward ${tile.x}, ${tile.y} with ${committedTroops.toLocaleString()} troops.`,
+          text: `Exploring toward ${tile.x}, ${tile.y} with ${renderTroops(
+            committedTroops,
+          )} troops.`,
         };
       }
 

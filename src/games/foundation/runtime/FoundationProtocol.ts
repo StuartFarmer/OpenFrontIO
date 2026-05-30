@@ -32,6 +32,7 @@ export interface FoundationPlacePlayerCommand {
 export interface FoundationGrowTerritoryCommand {
   type: "foundation.grow_territory";
   targetTileRef: TileRef;
+  troopRatio?: number;
 }
 
 export interface FoundationUpdateEnvelope {
