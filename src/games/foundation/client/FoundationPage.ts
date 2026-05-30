@@ -7,6 +7,7 @@ import {
 } from "../../../client/render/base-map";
 import { renderTroops } from "../../../client/Utils";
 import { UserSettings } from "../../../core/game/UserSettings";
+import { createFoundationMap } from "../domain";
 import {
   FoundationRuntime,
   createFoundationRuntime,
@@ -98,7 +99,11 @@ export class FoundationPage extends LitElement {
   `;
 
   firstUpdated(): void {
-    this.runtime = createFoundationRuntime();
+    this.runtime = createFoundationRuntime({
+      map: createFoundationMap({
+        elevation: foundationElevationPresetFromLocation(),
+      }),
+    });
     this.snapshot = this.runtime.snapshot();
 
     const map = this.runtime.map();
@@ -287,6 +292,11 @@ export class FoundationPage extends LitElement {
     const rect = this.canvas.getBoundingClientRect();
     this.renderer.resize(rect.width, rect.height);
   }
+}
+
+function foundationElevationPresetFromLocation(): "flat" | "rolling" {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("elevation") === "rolling" ? "rolling" : "flat";
 }
 
 declare global {

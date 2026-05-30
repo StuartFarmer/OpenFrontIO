@@ -24,8 +24,8 @@ describe("Foundation placement", () => {
       expectedTileCount(map, clickedTile, FOUNDATION_PLACEMENT_RADIUS),
     );
     for (const tile of result.claimedTiles) {
-      const dx = map.x(tile) - 16;
-      const dy = map.y(tile) - 16;
+      const dx = map.x(tile) - (16 - 0.5);
+      const dy = map.y(tile) - (16 - 0.5);
       expect(dx * dx + dy * dy).toBeLessThanOrEqual(
         FOUNDATION_PLACEMENT_RADIUS * FOUNDATION_PLACEMENT_RADIUS,
       );
@@ -99,8 +99,8 @@ function expectedTileCount(
 
   for (let y = 0; y < map.height(); y++) {
     for (let x = 0; x < map.width(); x++) {
-      const dx = x - centerX;
-      const dy = y - centerY;
+      const dx = x - (centerX - 0.5);
+      const dy = y - (centerY - 0.5);
       if (dx * dx + dy * dy <= radius * radius) {
         count++;
       }

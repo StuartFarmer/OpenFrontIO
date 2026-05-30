@@ -7,6 +7,9 @@ import { ownerIdFromState, setOwnerId } from "./placePlayer";
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_GRASS_ATTACKER_LOSS = 80 / 5;
 const FOUNDATION_GRASS_ATTACK_SPEED = 16.5;
+const FOUNDATION_ELEVATION_SLOPE_SCALE = 0.3;
+const FOUNDATION_MIN_TOBLER_SPEED_MULTIPLIER = 0.1;
+const FOUNDATION_MAX_TOBLER_SPEED_MULTIPLIER = 1.25;
 const FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER = 2;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
 
@@ -146,7 +149,12 @@ export function tickWildernessExploration(
       attack,
     });
 
-    const tilesPerTickUsed = wildernessTilesPerTickUsed(explorationTroops);
+    const tilesPerTickUsed = wildernessTilesPerTickUsed(
+      map,
+      player.ownerId,
+      tile,
+      explorationTroops,
+    );
     tileBudget -= tilesPerTickUsed;
     explorationTroops -= FOUNDATION_GRASS_ATTACKER_LOSS;
     setOwnerId(map.stateBuffer(), tile, player.ownerId);
@@ -218,10 +226,12 @@ function addWildernessNeighbors(
       }
     });
 
-    const plainsMagnitude = 1;
+    const terrainPriorityWeight = wildernessTerrainPriorityWeight(
+      map.elevation(neighbor),
+    );
     const priority =
       (randomInt(rng, 0, 7) + 10) *
-        (1 - numOwnedByMe * 0.5 + plainsMagnitude / 2) +
+        (1 - numOwnedByMe * 0.5 + terrainPriorityWeight / 2) +
       tick;
 
     frontierState.attack.enqueue(neighbor, priority);
@@ -258,12 +268,70 @@ function forEachCardinalNeighbor(
   if (y + 1 < map.height()) callback(map.ref(x, y + 1));
 }
 
-function wildernessTilesPerTickUsed(explorationTroops: number): number {
+function wildernessTilesPerTickUsed(
+  map: EngineTileMap,
+  ownerId: number,
+  tile: TileRef,
+  explorationTroops: number,
+): number {
   return clamp(
-    (2000 * Math.max(10, FOUNDATION_GRASS_ATTACK_SPEED)) / explorationTroops,
+    (2000 * Math.max(10, wildernessSpeedForTile(map, ownerId, tile))) /
+      explorationTroops,
     5,
     100,
   );
+}
+
+export function wildernessSpeedForTile(
+  map: EngineTileMap,
+  ownerId: number,
+  tile: TileRef,
+): number {
+  const slope = wildernessSlopeForTile(map, ownerId, tile);
+  const speedMultiplier = clamp(
+    toblerSpeedMultiplier(slope),
+    FOUNDATION_MIN_TOBLER_SPEED_MULTIPLIER,
+    FOUNDATION_MAX_TOBLER_SPEED_MULTIPLIER,
+  );
+  return FOUNDATION_GRASS_ATTACK_SPEED / speedMultiplier;
+}
+
+export function toblerSpeedMultiplier(slope: number): number {
+  const flatSpeed = toblerSpeedForSlope(0);
+  return toblerSpeedForSlope(slope) / flatSpeed;
+}
+
+function wildernessSlopeForTile(
+  map: EngineTileMap,
+  ownerId: number,
+  tile: TileRef,
+): number {
+  let sourceElevation = 0;
+  let ownedNeighborCount = 0;
+  forEachCardinalNeighbor(map, tile, (neighbor) => {
+    if (ownerIdFromState(map.stateBuffer()[neighbor]) === ownerId) {
+      sourceElevation += map.elevation(neighbor);
+      ownedNeighborCount++;
+    }
+  });
+
+  if (ownedNeighborCount === 0) {
+    return 0;
+  }
+
+  const averageSourceElevation = sourceElevation / ownedNeighborCount;
+  return (
+    (map.elevation(tile) - averageSourceElevation) *
+    FOUNDATION_ELEVATION_SLOPE_SCALE
+  );
+}
+
+function toblerSpeedForSlope(slope: number): number {
+  return 6 * Math.exp(-3.5 * Math.abs(slope + 0.05));
+}
+
+export function wildernessTerrainPriorityWeight(elevation: number): number {
+  return 1 + clamp(elevation, 0, 1);
 }
 
 function clamp(value: number, min: number, max: number): number {
