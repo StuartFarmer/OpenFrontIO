@@ -90,7 +90,11 @@ function clearPreviousPlacement(map: EngineTileMap, player: Player): void {
   }
 }
 
-function setOwnerId(state: Uint16Array, tile: TileRef, ownerId: number): void {
+export function setOwnerId(
+  state: Uint16Array,
+  tile: TileRef,
+  ownerId: number,
+): void {
   state[tile] = (state[tile] & ~FOUNDATION_OWNER_ID_MASK) | ownerId;
 }
 

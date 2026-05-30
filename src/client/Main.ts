@@ -834,6 +834,11 @@ const isQuickGameTuningSandboxRoute = () =>
   window.location.pathname === "/quick-game-tuning" ||
   window.location.search.includes("quick-game-tuning");
 
+const isFoundationRoute = () =>
+  window.location.pathname === "/foundation" ||
+  window.location.pathname === "/foundation.html" ||
+  window.location.search.includes("foundation");
+
 const renderHudDemo = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
 };
@@ -923,8 +928,22 @@ const renderWarBattleSystemsSandbox = async () => {
     "<war-battle-systems-sandbox></war-battle-systems-sandbox>";
 };
 
+const renderFoundation = async () => {
+  await import("../games/foundation/client/FoundationPage");
+  removeExistingGameSurfaces();
+  document.body.classList.remove("in-game");
+  document.querySelectorAll("foundation-page").forEach((page) => page.remove());
+  document.body.append(document.createElement("foundation-page"));
+};
+
 // Initialize the client when the DOM is loaded
 const bootstrap = async () => {
+  if (isFoundationRoute()) {
+    await renderFoundation();
+    installSafariPinchZoomBlocker();
+    return;
+  }
+
   if (isQuickGameTuningSandboxRoute()) {
     await renderQuickGameTuningSandbox();
     installSafariPinchZoomBlocker();
