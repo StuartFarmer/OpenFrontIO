@@ -1,10 +1,13 @@
 import {
-  EngineTileMap,
-  Player,
   addTroopGrowth,
   createFoundationMap,
   createPlayer,
+  DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  EngineTileMap,
+  FoundationWildernessParameters,
   maxTroopsForPlayer,
+  normalizeFoundationWildernessParameters,
+  Player,
   tickWildernessExploration,
   troopIncreaseRate,
 } from "../domain";
@@ -23,6 +26,7 @@ import {
 export interface FoundationRuntimeOptions {
   map?: EngineTileMap;
   player?: Player;
+  parameters?: Partial<FoundationWildernessParameters>;
 }
 
 export interface FoundationRuntimeSnapshot {
@@ -50,6 +54,7 @@ export interface FoundationRuntimeSnapshot {
 export class FoundationRuntime {
   private readonly map_: EngineTileMap;
   private readonly router: FoundationCommandRouter;
+  private readonly parameters: FoundationWildernessParameters;
   private player_: Player;
   private tick_ = 0;
   private updateCount_ = 0;
@@ -57,6 +62,9 @@ export class FoundationRuntime {
   constructor(options: FoundationRuntimeOptions = {}) {
     this.map_ = options.map ?? createFoundationMap();
     this.player_ = options.player ?? createPlayer("player-1");
+    this.parameters = normalizeFoundationWildernessParameters(
+      options.parameters ?? DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+    );
     this.router = new FoundationCommandRouter();
   }
 
@@ -103,6 +111,7 @@ export class FoundationRuntime {
       player: this.player_,
       tick: this.tick_,
       updateId: this.updateCount_,
+      parameters: this.parameters,
     });
 
     if (result.player) {
@@ -127,6 +136,7 @@ export class FoundationRuntime {
       this.map_,
       nextPlayer,
       this.tick_,
+      this.parameters,
     );
     nextPlayer = exploration.player;
     this.player_ = nextPlayer;

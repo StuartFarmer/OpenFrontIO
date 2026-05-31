@@ -39,6 +39,14 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
     validateMapSize(this.size);
     validateTileBufferLength(this.size, config.terrainBytes, "terrainBytes");
     validateTileBufferLength(this.size, config.tileState, "tileState");
+    if (
+      config.terrainColors &&
+      config.terrainColors.length !== config.width * config.height * 4
+    ) {
+      throw new RangeError(
+        `terrainColors buffer length ${config.terrainColors.length} does not match ${config.width}x${config.height} RGBA`,
+      );
+    }
 
     this.terrainBytesBuffer = config.terrainBytes;
     this.tileStateBuffer = config.tileState;
@@ -242,5 +250,6 @@ function createGameViewTarget(
     paletteData,
     config.raf,
     config.caf,
+    config.terrainColors,
   );
 }

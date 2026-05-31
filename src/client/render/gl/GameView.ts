@@ -46,6 +46,7 @@ export class GameView {
     paletteData: Float32Array,
     raf?: typeof requestAnimationFrame,
     caf?: typeof cancelAnimationFrame,
+    terrainColors?: Uint8Array,
   ) {
     this.renderer = new GPURenderer(
       canvas,
@@ -54,6 +55,7 @@ export class GameView {
       paletteData,
       raf,
       caf,
+      terrainColors,
     );
 
     this.resizeObs = new ResizeObserver((entries) => {

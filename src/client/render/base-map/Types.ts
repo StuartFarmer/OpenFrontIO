@@ -63,6 +63,7 @@ export interface BaseMapRenderTarget {
 
 export interface BaseMapRendererConfig extends BaseMapSize {
   readonly terrainBytes: Uint8Array;
+  readonly terrainColors?: Uint8Array;
   readonly tileState: Uint16Array;
   readonly palette: BaseMapPalette;
   readonly canvas?: HTMLCanvasElement;

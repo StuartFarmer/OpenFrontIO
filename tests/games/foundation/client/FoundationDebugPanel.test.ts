@@ -54,8 +54,35 @@ describe("FoundationDebugPanel", () => {
     expect(text).toContain("300/s");
     expect(text).toContain("500");
     expect(text).toContain("Placed player at 128, 128.");
+    expect(text).toContain("Pause");
+    expect(text).toContain("Reset");
     expect(text).not.toContain("Food");
     expect(text).not.toContain("Population");
+    panel.remove();
+  });
+
+  it("emits play pause and reset control events", async () => {
+    const panel = document.createElement(
+      "foundation-debug-panel",
+    ) as FoundationDebugPanel;
+    panel.snapshot = snapshot();
+
+    let playPauseEvents = 0;
+    let resetEvents = 0;
+    panel.addEventListener("foundation-play-pause", () => playPauseEvents++);
+    panel.addEventListener("foundation-reset-simulation", () => resetEvents++);
+
+    document.body.append(panel);
+    await panel.updateComplete;
+
+    const buttons = Array.from(
+      panel.shadowRoot?.querySelectorAll("button") ?? [],
+    );
+    buttons[0].click();
+    buttons[1].click();
+
+    expect(playPauseEvents).toBe(1);
+    expect(resetEvents).toBe(1);
     panel.remove();
   });
 

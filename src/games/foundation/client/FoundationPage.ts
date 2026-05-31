@@ -6,8 +6,7 @@ import {
   type BaseMapTileStateDelta,
 } from "../../../client/render/base-map";
 import { renderTroops } from "../../../client/Utils";
-import { UserSettings } from "../../../core/game/UserSettings";
-import { createFoundationMap } from "../domain";
+import { createFoundationMap, createWorldEngineFoundationMap } from "../domain";
 import {
   FoundationRuntime,
   createFoundationRuntime,
@@ -18,6 +17,13 @@ import {
 } from "../runtime";
 import "./FoundationDebugPanel";
 import type { FoundationClientStatus } from "./FoundationDebugPanel";
+import "./FoundationTuningPanel";
+import {
+  DEFAULT_FOUNDATION_TUNING_SETTINGS,
+  FoundationTuningSettings,
+  loadFoundationTuningSettings,
+  saveFoundationTuningSettings,
+} from "./FoundationTuningSettings";
 
 const FOUNDATION_PLAYER_PALETTE: BaseMapPalette = {
   entries: [
@@ -42,6 +48,13 @@ export class FoundationPage extends LitElement {
     tone: "idle",
     text: "Click a tile to place the player.",
   };
+
+  @state()
+  private paused = false;
+
+  @state()
+  private tuningSettings: FoundationTuningSettings =
+    DEFAULT_FOUNDATION_TUNING_SETTINGS;
 
   private runtime: FoundationRuntime | null = null;
   private renderer: BaseMapWebGLAdapter | null = null;
@@ -99,29 +112,15 @@ export class FoundationPage extends LitElement {
   `;
 
   firstUpdated(): void {
-    this.runtime = createFoundationRuntime({
-      map: createFoundationMap({
-        elevation: foundationElevationPresetFromLocation(),
-      }),
-    });
-    this.snapshot = this.runtime.snapshot();
-
-    const map = this.runtime.map();
-    this.renderer = new BaseMapWebGLAdapter({
-      width: map.width(),
-      height: map.height(),
-      terrainBytes: map.terrainBuffer(),
-      tileState: map.stateBuffer(),
-      palette: FOUNDATION_PLAYER_PALETTE,
-      canvas: this.canvas,
-    });
-    this.resizeRenderer();
-    this.renderer.fitMap();
+    this.tuningSettings = loadFoundationTuningSettings(
+      foundationTuningOverridesFromLocation(),
+    );
+    this.resetRuntime("Click a tile to place the player.");
 
     this.canvas.addEventListener("click", this.handleCanvasClick);
     this.resizeObserver = new ResizeObserver(() => this.resizeRenderer());
     this.resizeObserver.observe(this.canvas);
-    this.tickTimer = window.setInterval(this.advanceRuntimeTick, 100);
+    this.configureTickTimer();
   }
 
   disconnectedCallback(): void {
@@ -147,7 +146,16 @@ export class FoundationPage extends LitElement {
         <foundation-debug-panel
           .snapshot=${this.snapshot}
           .status=${this.status}
+          .paused=${this.paused}
+          @foundation-play-pause=${this.togglePlayPause}
+          @foundation-reset-simulation=${this.handleResetSimulation}
         ></foundation-debug-panel>
+        <foundation-tuning-panel
+          .settings=${this.tuningSettings}
+          @foundation-tuning-change=${this.handleTuningChange}
+          @foundation-tuning-reset=${this.handleTuningReset}
+          @foundation-tuning-copy=${this.handleTuningCopy}
+        ></foundation-tuning-panel>
       </div>
     `;
   }
@@ -175,7 +183,7 @@ export class FoundationPage extends LitElement {
         ? createGrowTerritoryCommand({
             targetTileRef: tile.ref,
             turnNumber: currentSnapshot.tick,
-            troopRatio: new UserSettings().attackRatio(),
+            troopRatio: this.tuningSettings.attackRatio,
           })
         : createPlacePlayerCommand({
             tileRef: tile.ref,
@@ -189,7 +197,7 @@ export class FoundationPage extends LitElement {
   };
 
   private readonly advanceRuntimeTick = (): void => {
-    if (!this.runtime || !this.renderer) return;
+    if (this.paused || !this.runtime || !this.renderer) return;
     const update = this.runtime.advanceTick();
     this.applyMapUpdate(update.map);
     this.snapshot = this.runtime.snapshot();
@@ -224,6 +232,53 @@ export class FoundationPage extends LitElement {
         text: "Wilderness exploration completed.",
       };
     }
+  };
+
+  private readonly togglePlayPause = (): void => {
+    this.paused = !this.paused;
+    this.status = {
+      tone: this.paused ? "idle" : "ok",
+      text: this.paused ? "Simulation paused." : "Simulation running.",
+    };
+  };
+
+  private readonly handleResetSimulation = (): void => {
+    this.paused = false;
+    this.resetRuntime("Simulation reset with current parameters.");
+    this.configureTickTimer();
+  };
+
+  private readonly handleTuningChange = (
+    event: CustomEvent<FoundationTuningSettings>,
+  ): void => {
+    this.tuningSettings = event.detail;
+    saveFoundationTuningSettings(this.tuningSettings);
+    this.configureTickTimer();
+    this.status = {
+      tone: "idle",
+      text: "Parameters saved. Reset simulation to apply map and mechanics.",
+    };
+  };
+
+  private readonly handleTuningReset = (
+    event: CustomEvent<FoundationTuningSettings>,
+  ): void => {
+    this.tuningSettings = event.detail;
+    saveFoundationTuningSettings(this.tuningSettings);
+    this.paused = false;
+    this.resetRuntime("Parameters reset to defaults.");
+    this.configureTickTimer();
+  };
+
+  private readonly handleTuningCopy = (
+    event: CustomEvent<{ ok: boolean }>,
+  ): void => {
+    this.status = {
+      tone: event.detail.ok ? "ok" : "error",
+      text: event.detail.ok
+        ? "Parameters copied as JSON."
+        : "Could not copy parameters.",
+    };
   };
 
   private statusFromCommandResult(
@@ -292,11 +347,74 @@ export class FoundationPage extends LitElement {
     const rect = this.canvas.getBoundingClientRect();
     this.renderer.resize(rect.width, rect.height);
   }
+
+  private resetRuntime(statusText: string): void {
+    this.renderer?.dispose();
+    this.renderer = null;
+    const foundationMap =
+      this.tuningSettings.mapGenerator === "world-engine"
+        ? createWorldEngineFoundationMap(this.tuningSettings)
+        : {
+            map: createFoundationMap({
+              width: this.tuningSettings.width,
+              height: this.tuningSettings.height,
+              elevation: this.tuningSettings.elevation,
+            }),
+            terrainColors: undefined,
+          };
+    this.runtime = createFoundationRuntime({
+      map: foundationMap.map,
+      parameters: this.tuningSettings,
+    });
+    this.snapshot = this.runtime.snapshot();
+
+    const map = this.runtime.map();
+    this.renderer = new BaseMapWebGLAdapter({
+      width: map.width(),
+      height: map.height(),
+      terrainBytes: map.terrainBuffer(),
+      terrainColors: foundationMap.terrainColors,
+      tileState: map.stateBuffer(),
+      palette: FOUNDATION_PLAYER_PALETTE,
+      canvas: this.canvas,
+    });
+    this.resizeRenderer();
+    this.renderer.fitMap();
+    this.status = {
+      tone: "idle",
+      text: statusText,
+    };
+  }
+
+  private configureTickTimer(): void {
+    if (this.tickTimer !== null) {
+      window.clearInterval(this.tickTimer);
+    }
+    this.tickTimer = window.setInterval(
+      this.advanceRuntimeTick,
+      this.tuningSettings.tickIntervalMs,
+    );
+  }
 }
 
-function foundationElevationPresetFromLocation(): "flat" | "rolling" {
+function foundationTuningOverridesFromLocation(): {
+  elevation?: "flat" | "rolling";
+  mapGenerator?: "foundation" | "world-engine";
+} {
   const params = new URLSearchParams(window.location.search);
-  return params.get("elevation") === "rolling" ? "rolling" : "flat";
+  const overrides: {
+    elevation?: "flat" | "rolling";
+    mapGenerator?: "foundation" | "world-engine";
+  } = {};
+  const elevation = params.get("elevation");
+  if (elevation === "rolling" || elevation === "flat") {
+    overrides.elevation = elevation;
+  }
+  const generator = params.get("generator") ?? params.get("map");
+  if (generator === "foundation" || generator === "world-engine") {
+    overrides.mapGenerator = generator;
+  }
+  return overrides;
 }
 
 declare global {

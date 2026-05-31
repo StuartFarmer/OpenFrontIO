@@ -4,5 +4,7 @@ export * from "./ExplorationAttack";
 export * from "./FoundationPlayer";
 export * from "./FoundationTerrain";
 export * from "./FoundationTroops";
+export * from "./FoundationWildernessParameters";
 export * from "./placePlayer";
 export * from "./WildernessExploration";
+export * from "./WorldEngineElevation";

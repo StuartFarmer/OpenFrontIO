@@ -2,14 +2,14 @@ import seedrandom from "seedrandom";
 import { EngineTileMap, TileRef } from "./EngineTileMap";
 import { ExplorationAttack } from "./ExplorationAttack";
 import { Player } from "./FoundationPlayer";
+import {
+  DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  FoundationWildernessParameters,
+} from "./FoundationWildernessParameters";
 import { ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_GRASS_ATTACKER_LOSS = 80 / 5;
-const FOUNDATION_GRASS_ATTACK_SPEED = 16.5;
-const FOUNDATION_ELEVATION_SLOPE_SCALE = 0.3;
-const FOUNDATION_MIN_TOBLER_SPEED_MULTIPLIER = 0.1;
-const FOUNDATION_MAX_TOBLER_SPEED_MULTIPLIER = 1.25;
 const FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER = 2;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
 
@@ -20,6 +20,7 @@ export interface StartWildernessExplorationResult {
 
 export interface StartWildernessExplorationOptions {
   troopRatio?: number;
+  parameters?: FoundationWildernessRuntimeParameters;
 }
 
 export interface TickWildernessExplorationResult {
@@ -27,6 +28,15 @@ export interface TickWildernessExplorationResult {
   claimedTiles: TileRef[];
   completed: boolean;
 }
+
+export type FoundationWildernessRuntimeParameters = Pick<
+  FoundationWildernessParameters,
+  | "wildernessBaseSpeed"
+  | "elevationSlopeScale"
+  | "minToblerSpeedMultiplier"
+  | "maxToblerSpeedMultiplier"
+  | "terrainPriorityElevationScale"
+>;
 
 export function startWildernessExploration(
   map: EngineTileMap,
@@ -56,7 +66,7 @@ export function startWildernessExploration(
 
   const rng = createWildernessRandom(player.activeExploration?.randomState);
   const attack = new ExplorationAttack();
-  refreshWildernessFrontier(map, player, attack, rng, tick);
+  refreshWildernessFrontier(map, player, attack, rng, tick, options.parameters);
   const attackState = attack.toState();
   const activeTroops = player.activeExploration?.troops ?? 0;
 
@@ -81,6 +91,7 @@ export function tickWildernessExploration(
   map: EngineTileMap,
   player: Player,
   tick: number,
+  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): TickWildernessExplorationResult {
   const exploration = player.activeExploration;
   const placement = player.placement;
@@ -147,6 +158,7 @@ export function tickWildernessExploration(
 
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
+      parameters,
     });
 
     const tilesPerTickUsed = wildernessTilesPerTickUsed(
@@ -154,6 +166,7 @@ export function tickWildernessExploration(
       player.ownerId,
       tile,
       explorationTroops,
+      parameters,
     );
     tileBudget -= tilesPerTickUsed;
     explorationTroops -= FOUNDATION_GRASS_ATTACKER_LOSS;
@@ -194,11 +207,13 @@ function refreshWildernessFrontier(
   attack: ExplorationAttack,
   rng: StatefulRandom,
   tick: number,
+  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): void {
   attack.clearBorder();
   for (const tile of player.placement?.claimedTiles ?? []) {
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
+      parameters,
     });
   }
 }
@@ -211,6 +226,7 @@ function addWildernessNeighbors(
   rng: StatefulRandom,
   frontierState: {
     attack: ExplorationAttack;
+    parameters?: FoundationWildernessRuntimeParameters;
   },
 ): void {
   forEachCardinalNeighbor(map, tile, (neighbor) => {
@@ -228,6 +244,7 @@ function addWildernessNeighbors(
 
     const terrainPriorityWeight = wildernessTerrainPriorityWeight(
       map.elevation(neighbor),
+      frontierState.parameters,
     );
     const priority =
       (randomInt(rng, 0, 7) + 10) *
@@ -273,9 +290,11 @@ function wildernessTilesPerTickUsed(
   ownerId: number,
   tile: TileRef,
   explorationTroops: number,
+  parameters: FoundationWildernessRuntimeParameters,
 ): number {
   return clamp(
-    (2000 * Math.max(10, wildernessSpeedForTile(map, ownerId, tile))) /
+    (2000 *
+      Math.max(10, wildernessSpeedForTile(map, ownerId, tile, parameters))) /
       explorationTroops,
     5,
     100,
@@ -286,14 +305,15 @@ export function wildernessSpeedForTile(
   map: EngineTileMap,
   ownerId: number,
   tile: TileRef,
+  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): number {
-  const slope = wildernessSlopeForTile(map, ownerId, tile);
+  const slope = wildernessSlopeForTile(map, ownerId, tile, parameters);
   const speedMultiplier = clamp(
     toblerSpeedMultiplier(slope),
-    FOUNDATION_MIN_TOBLER_SPEED_MULTIPLIER,
-    FOUNDATION_MAX_TOBLER_SPEED_MULTIPLIER,
+    parameters.minToblerSpeedMultiplier,
+    parameters.maxToblerSpeedMultiplier,
   );
-  return FOUNDATION_GRASS_ATTACK_SPEED / speedMultiplier;
+  return parameters.wildernessBaseSpeed / speedMultiplier;
 }
 
 export function toblerSpeedMultiplier(slope: number): number {
@@ -305,6 +325,7 @@ function wildernessSlopeForTile(
   map: EngineTileMap,
   ownerId: number,
   tile: TileRef,
+  parameters: FoundationWildernessRuntimeParameters,
 ): number {
   let sourceElevation = 0;
   let ownedNeighborCount = 0;
@@ -322,7 +343,7 @@ function wildernessSlopeForTile(
   const averageSourceElevation = sourceElevation / ownedNeighborCount;
   return (
     (map.elevation(tile) - averageSourceElevation) *
-    FOUNDATION_ELEVATION_SLOPE_SCALE
+    parameters.elevationSlopeScale
   );
 }
 
@@ -330,8 +351,14 @@ function toblerSpeedForSlope(slope: number): number {
   return 6 * Math.exp(-3.5 * Math.abs(slope + 0.05));
 }
 
-export function wildernessTerrainPriorityWeight(elevation: number): number {
-  return 1 + clamp(elevation, 0, 1);
+export function wildernessTerrainPriorityWeight(
+  elevation: number,
+  parameters: Pick<
+    FoundationWildernessRuntimeParameters,
+    "terrainPriorityElevationScale"
+  > = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+): number {
+  return 1 + clamp(elevation, 0, 1) * parameters.terrainPriorityElevationScale;
 }
 
 function clamp(value: number, min: number, max: number): number {

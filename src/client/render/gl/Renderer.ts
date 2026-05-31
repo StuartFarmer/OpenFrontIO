@@ -178,6 +178,7 @@ export class GPURenderer {
     paletteData: Float32Array,
     raf: typeof requestAnimationFrame = requestAnimationFrame.bind(window),
     caf: typeof cancelAnimationFrame = cancelAnimationFrame.bind(window),
+    terrainColors?: Uint8Array,
   ) {
     this.canvas = canvas;
     this.settings = createRenderSettings();
@@ -205,7 +206,8 @@ export class GPURenderer {
     this.camera = new Camera(mapW, mapH);
 
     // --- Terrain (static) ---
-    const terrainRGBA = buildTerrainRGBA(terrainBytes, mapW, mapH);
+    const terrainRGBA =
+      terrainColors ?? buildTerrainRGBA(terrainBytes, mapW, mapH);
     this.terrainPass = new TerrainPass(gl, terrainRGBA, mapW, mapH);
 
     // --- Shared palette texture (RGBA32F, 4096×2) ---

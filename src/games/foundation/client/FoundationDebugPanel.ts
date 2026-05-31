@@ -19,6 +19,9 @@ export class FoundationDebugPanel extends LitElement {
     text: "Click a tile to place the player.",
   };
 
+  @property({ type: Boolean })
+  paused = false;
+
   static styles = css`
     :host {
       display: block;
@@ -114,6 +117,30 @@ export class FoundationDebugPanel extends LitElement {
       font-size: 12px;
       line-height: 1.35;
     }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 0 12px 12px;
+    }
+
+    button {
+      border: 1px solid rgba(199, 227, 212, 0.24);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #edf7f3;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.2;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
   `;
 
   render() {
@@ -157,13 +184,33 @@ export class FoundationDebugPanel extends LitElement {
           <dd>${snapshot?.updateCount.toLocaleString() ?? "0"}</dd>
         </dl>
         <div class="status">${this.status.text}</div>
+        <div class="controls">
+          <button type="button" @click=${this.togglePlayPause}>
+            ${this.paused ? "Play" : "Pause"}
+          </button>
+          <button type="button" @click=${this.resetSimulation}>Reset</button>
+        </div>
       </section>
     `;
   }
-}
 
-function formatNumber(value: number | undefined): string {
-  return Math.floor(value ?? 0).toLocaleString();
+  private readonly togglePlayPause = (): void => {
+    this.dispatchEvent(
+      new CustomEvent("foundation-play-pause", {
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
+
+  private readonly resetSimulation = (): void => {
+    this.dispatchEvent(
+      new CustomEvent("foundation-reset-simulation", {
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
 }
 
 function formatTroops(value: number | undefined): string {

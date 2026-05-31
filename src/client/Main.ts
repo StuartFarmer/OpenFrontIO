@@ -19,10 +19,8 @@ import {
   UserSettings,
 } from "../core/game/UserSettings";
 import "./AccountModal";
-import "./ClanModal";
-import "./FlagInput";
-import "./FlagInputModal";
 import { userAuth } from "./Auth";
+import "./ClanModal";
 import {
   joinLobby,
   removeExistingGameSurfaces,
@@ -30,6 +28,8 @@ import {
 } from "./ClientGameRunner";
 import { getPlayerCosmeticsRefs } from "./Cosmetics";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
+import "./FlagInput";
+import "./FlagInputModal";
 import "./GameModeSelector";
 import { GameModeSelector } from "./GameModeSelector";
 import { GameStartingModal } from "./GameStartingModal";
@@ -40,9 +40,9 @@ import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import "./LangSelector";
 import { LangSelector } from "./LangSelector";
-import { areLocalServicesEnabled } from "./LocalServices";
 import { initLayout } from "./Layout";
 import "./LeaderboardModal";
+import { areLocalServicesEnabled } from "./LocalServices";
 import "./Matchmaking";
 import { modalRouter } from "./ModalRouter";
 import { initNavigation } from "./Navigation";
@@ -52,13 +52,13 @@ import "./SinglePlayerModal";
 import "./Store";
 import "./TerritoryPatternsModal";
 import "./TokenLoginModal";
-import "./TroubleshootingModal";
 import {
   PauseGameIntentEvent,
   SendKickPlayerIntentEvent,
   SendStartGameEvent,
   SendUpdateGameConfigIntentEvent,
 } from "./Transport";
+import "./TroubleshootingModal";
 import "./UserSettingModal";
 import "./UsernameInput";
 import { genAnonUsername, UsernameInput } from "./UsernameInput";
@@ -932,7 +932,7 @@ const renderFoundation = async () => {
   await import("../games/foundation/client/FoundationPage");
   removeExistingGameSurfaces();
   document.body.classList.remove("in-game");
-  document.querySelectorAll("foundation-page").forEach((page) => page.remove());
+  document.body.innerHTML = "";
   document.body.append(document.createElement("foundation-page"));
 };
 

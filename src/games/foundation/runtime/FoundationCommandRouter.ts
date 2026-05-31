@@ -1,5 +1,6 @@
 import {
   EngineTileMap,
+  FoundationWildernessParameters,
   Player,
   TileRef,
   maxTroopsForPlayer,
@@ -23,6 +24,7 @@ export interface FoundationCommandRouterState {
   player: Player;
   tick: number;
   updateId: number;
+  parameters?: FoundationWildernessParameters;
 }
 
 export interface FoundationCommandRouterResult extends FoundationCommandResult {
@@ -111,7 +113,7 @@ export class FoundationCommandRouter {
         state.player,
         targetTileRef,
         state.tick,
-        { troopRatio },
+        { troopRatio, parameters: state.parameters },
       );
     } catch (error) {
       const reason = explorationErrorReason(error);
