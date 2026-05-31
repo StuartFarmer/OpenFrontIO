@@ -16,6 +16,7 @@ export interface FoundationTuningSettings
   elevation: FoundationElevationPreset;
   tickIntervalMs: number;
   attackRatio: number;
+  autoGenerateWorld: boolean;
 }
 
 export const FOUNDATION_TUNING_STORAGE_KEY = "foundation.tuning.v1";
@@ -25,6 +26,7 @@ export const DEFAULT_FOUNDATION_TUNING_SETTINGS: FoundationTuningSettings = {
   elevation: "flat",
   tickIntervalMs: 100,
   attackRatio: 0.2,
+  autoGenerateWorld: true,
   ...DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
   ...DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
 };
@@ -100,6 +102,7 @@ export function normalizeFoundationTuningSettings(
       0.01,
       1,
     ),
+    autoGenerateWorld: settings.autoGenerateWorld !== false,
   };
 }
 

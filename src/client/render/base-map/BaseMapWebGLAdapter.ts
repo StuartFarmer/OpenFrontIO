@@ -99,6 +99,32 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
     this.target.fitMap();
   }
 
+  zoomAtScreen(factor: number, pointer: BaseMapPointer): void {
+    this.assertActive();
+    if (!Number.isFinite(factor) || factor <= 0) return;
+
+    if (this.target.zoomAtScreen) {
+      this.target.zoomAtScreen(factor, pointer.screenX, pointer.screenY);
+      return;
+    }
+
+    const worldBefore = this.target.screenToWorld(
+      pointer.screenX,
+      pointer.screenY,
+    );
+    const state = this.target.getCameraState();
+    this.target.setCameraState(state.x, state.y, state.z * factor);
+    const worldAfter = this.target.screenToWorld(
+      pointer.screenX,
+      pointer.screenY,
+    );
+    this.target.setCameraState(
+      state.x + worldBefore.x - worldAfter.x,
+      state.y + worldBefore.y - worldAfter.y,
+      state.z * factor,
+    );
+  }
+
   uploadTileState(tileState: Uint16Array): void {
     this.assertActive();
     validateTileBufferLength(this.size, tileState, "tileState");

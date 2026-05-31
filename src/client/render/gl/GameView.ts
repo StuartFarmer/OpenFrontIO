@@ -148,6 +148,9 @@ export class GameView {
   zoomTo(level: number): void {
     this.renderer.zoomTo(level);
   }
+  zoomAtScreen(factor: number, screenX: number, screenY: number): void {
+    this.renderer.zoomAtScreen(factor, screenX, screenY);
+  }
   fitMap(): void {
     this.renderer.fitMap();
   }

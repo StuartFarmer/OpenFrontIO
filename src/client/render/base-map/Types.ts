@@ -50,6 +50,7 @@ export interface BaseMapRenderTarget {
   fitMap(): void;
   getCameraState(): { x: number; y: number; z: number };
   setCameraState(x: number, y: number, z: number): void;
+  zoomAtScreen?(factor: number, screenX: number, screenY: number): void;
   screenToWorld(screenX: number, screenY: number): { x: number; y: number };
 
   uploadTileAndTrailState(tileState: Uint16Array, trailState: Uint8Array): void;
