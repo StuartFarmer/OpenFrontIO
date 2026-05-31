@@ -2,6 +2,7 @@ export * from "./createFoundationMap";
 export * from "./EngineTileMap";
 export * from "./ExplorationAttack";
 export * from "./FoundationPlayer";
+export * from "./FoundationSimulationParameters";
 export * from "./FoundationTerrain";
 export * from "./FoundationTroops";
 export * from "./FoundationWildernessParameters";

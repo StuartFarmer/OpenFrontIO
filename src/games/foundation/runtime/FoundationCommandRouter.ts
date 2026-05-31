@@ -1,6 +1,6 @@
 import {
   EngineTileMap,
-  FoundationWildernessParameters,
+  FoundationSimulationParameters,
   Player,
   TileRef,
   maxTroopsForPlayer,
@@ -24,7 +24,7 @@ export interface FoundationCommandRouterState {
   player: Player;
   tick: number;
   updateId: number;
-  parameters?: FoundationWildernessParameters;
+  parameters?: FoundationSimulationParameters;
 }
 
 export interface FoundationCommandRouterResult extends FoundationCommandResult {
@@ -67,7 +67,12 @@ export class FoundationCommandRouter {
       return rejectedUpdate(state, "foundation.place_player", "already_placed");
     }
 
-    const placement = placePlayer(state.map, state.player, tileRef);
+    const placement = placePlayer(
+      state.map,
+      state.player,
+      tileRef,
+      state.parameters,
+    );
     const mapUpdate = createTileStateDelta(state.map, placement.claimedTiles);
     const event: FoundationPlayerPlacedEvent = {
       playerId: placement.player.id,
@@ -213,8 +218,8 @@ function createUpdate(
     metrics: {
       pendingTurns: 0,
       troops: player.troops,
-      troopIncreaseRate: troopIncreaseRate(player),
-      maxTroops: maxTroopsForPlayer(player),
+      troopIncreaseRate: troopIncreaseRate(player, state.parameters),
+      maxTroops: maxTroopsForPlayer(player, state.parameters),
       exploringTroops: player.activeExploration?.troops ?? 0,
     },
   };

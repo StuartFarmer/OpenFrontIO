@@ -4,6 +4,8 @@ export interface FoundationWildernessParameters {
   minToblerSpeedMultiplier: number;
   maxToblerSpeedMultiplier: number;
   terrainPriorityElevationScale: number;
+  wildernessAttackerLossPerTile: number;
+  wildernessTilesPerTickMultiplier: number;
 }
 
 export const DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS: FoundationWildernessParameters =
@@ -13,6 +15,8 @@ export const DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS: FoundationWildernessParam
     minToblerSpeedMultiplier: 0.1,
     maxToblerSpeedMultiplier: 1.25,
     terrainPriorityElevationScale: 1,
+    wildernessAttackerLossPerTile: 16,
+    wildernessTilesPerTickMultiplier: 2,
   };
 
 export function normalizeFoundationWildernessParameters(
@@ -38,6 +42,14 @@ export function normalizeFoundationWildernessParameters(
     terrainPriorityElevationScale: nonNegativeNumber(
       parameters.terrainPriorityElevationScale,
       DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.terrainPriorityElevationScale,
+    ),
+    wildernessAttackerLossPerTile: nonNegativeNumber(
+      parameters.wildernessAttackerLossPerTile,
+      DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.wildernessAttackerLossPerTile,
+    ),
+    wildernessTilesPerTickMultiplier: positiveNumber(
+      parameters.wildernessTilesPerTickMultiplier,
+      DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.wildernessTilesPerTickMultiplier,
     ),
   };
 }

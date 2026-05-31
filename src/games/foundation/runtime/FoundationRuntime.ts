@@ -2,11 +2,11 @@ import {
   addTroopGrowth,
   createFoundationMap,
   createPlayer,
-  DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
-  FoundationWildernessParameters,
+  FoundationSimulationParameters,
   maxTroopsForPlayer,
-  normalizeFoundationWildernessParameters,
+  normalizeFoundationSimulationParameters,
   Player,
   tickWildernessExploration,
   troopIncreaseRate,
@@ -26,7 +26,7 @@ import {
 export interface FoundationRuntimeOptions {
   map?: EngineTileMap;
   player?: Player;
-  parameters?: Partial<FoundationWildernessParameters>;
+  parameters?: Partial<FoundationSimulationParameters>;
 }
 
 export interface FoundationRuntimeSnapshot {
@@ -54,17 +54,19 @@ export interface FoundationRuntimeSnapshot {
 export class FoundationRuntime {
   private readonly map_: EngineTileMap;
   private readonly router: FoundationCommandRouter;
-  private readonly parameters: FoundationWildernessParameters;
+  private parameters: FoundationSimulationParameters;
   private player_: Player;
   private tick_ = 0;
   private updateCount_ = 0;
 
   constructor(options: FoundationRuntimeOptions = {}) {
     this.map_ = options.map ?? createFoundationMap();
-    this.player_ = options.player ?? createPlayer("player-1");
-    this.parameters = normalizeFoundationWildernessParameters(
-      options.parameters ?? DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+    this.parameters = normalizeFoundationSimulationParameters(
+      options.parameters ?? DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
     );
+    this.player_ =
+      options.player ??
+      createPlayer("player-1", { troops: this.parameters.startingTroops });
     this.router = new FoundationCommandRouter();
   }
 
@@ -74,6 +76,13 @@ export class FoundationRuntime {
 
   player(): Player {
     return this.player_;
+  }
+
+  updateParameters(parameters: Partial<FoundationSimulationParameters>): void {
+    this.parameters = normalizeFoundationSimulationParameters({
+      ...this.parameters,
+      ...parameters,
+    });
   }
 
   snapshot(): FoundationRuntimeSnapshot {
@@ -95,8 +104,8 @@ export class FoundationRuntime {
         selectedTile: placement?.selectedTile ?? null,
         claimedTileCount: placement?.claimedTileCount ?? 0,
         troops: this.player_.troops,
-        maxTroops: maxTroopsForPlayer(this.player_),
-        troopIncreaseRate: troopIncreaseRate(this.player_),
+        maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
+        troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
         exploringTroops: this.player_.activeExploration?.troops ?? 0,
       },
     };
@@ -129,7 +138,7 @@ export class FoundationRuntime {
     this.tick_++;
     this.updateCount_++;
 
-    let nextPlayer = addTroopGrowth(this.player_);
+    let nextPlayer = addTroopGrowth(this.player_, this.parameters);
     const explorationTargetTile =
       nextPlayer.activeExploration?.targetTile ?? -1;
     const exploration = tickWildernessExploration(
@@ -182,8 +191,8 @@ export class FoundationRuntime {
     return {
       pendingTurns: 0,
       troops: this.player_.troops,
-      troopIncreaseRate: troopIncreaseRate(this.player_),
-      maxTroops: maxTroopsForPlayer(this.player_),
+      troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
+      maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
       exploringTroops: this.player_.activeExploration?.troops ?? 0,
     };
   }

@@ -1,17 +1,17 @@
 import {
-  DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
   FoundationElevationPreset,
-  FoundationWildernessParameters,
+  FoundationSimulationParameters,
   FoundationWorldEngineMapConfig,
-  normalizeFoundationWildernessParameters,
+  normalizeFoundationSimulationParameters,
   normalizeFoundationWorldEngineMapConfig,
 } from "../domain";
 
 export type FoundationMapGenerator = "foundation" | "world-engine";
 
 export interface FoundationTuningSettings
-  extends FoundationWildernessParameters, FoundationWorldEngineMapConfig {
+  extends FoundationSimulationParameters, FoundationWorldEngineMapConfig {
   mapGenerator: FoundationMapGenerator;
   elevation: FoundationElevationPreset;
   tickIntervalMs: number;
@@ -26,7 +26,7 @@ export const DEFAULT_FOUNDATION_TUNING_SETTINGS: FoundationTuningSettings = {
   tickIntervalMs: 100,
   attackRatio: 0.2,
   ...DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
-  ...DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  ...DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
 };
 
 export interface FoundationTuningUrlOverrides {
@@ -80,10 +80,10 @@ export function saveFoundationTuningSettings(
 export function normalizeFoundationTuningSettings(
   settings: Partial<FoundationTuningSettings> = {},
 ): FoundationTuningSettings {
-  const wilderness = normalizeFoundationWildernessParameters(settings);
+  const simulation = normalizeFoundationSimulationParameters(settings);
   const worldMap = normalizeFoundationWorldEngineMapConfig(settings);
   return {
-    ...wilderness,
+    ...simulation,
     ...worldMap,
     mapGenerator:
       settings.mapGenerator === "foundation" ? "foundation" : "world-engine",

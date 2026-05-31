@@ -9,8 +9,6 @@ import {
 import { ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
-const FOUNDATION_GRASS_ATTACKER_LOSS = 80 / 5;
-const FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER = 2;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
 
 export interface StartWildernessExplorationResult {
@@ -36,6 +34,8 @@ export type FoundationWildernessRuntimeParameters = Pick<
   | "minToblerSpeedMultiplier"
   | "maxToblerSpeedMultiplier"
   | "terrainPriorityElevationScale"
+  | "wildernessAttackerLossPerTile"
+  | "wildernessTilesPerTickMultiplier"
 >;
 
 export function startWildernessExploration(
@@ -127,7 +127,7 @@ export function tickWildernessExploration(
 
   let tileBudget =
     (attack.borderSize() + randomInt(rng, 0, 5)) *
-    FOUNDATION_WILDERNESS_TILES_PER_TICK_MULTIPLIER;
+    parameters.wildernessTilesPerTickMultiplier;
   const claimedTiles: TileRef[] = [];
   while (tileBudget > 0) {
     if (tileBudget <= 0 || explorationTroops < 1) {
@@ -169,7 +169,7 @@ export function tickWildernessExploration(
       parameters,
     );
     tileBudget -= tilesPerTickUsed;
-    explorationTroops -= FOUNDATION_GRASS_ATTACKER_LOSS;
+    explorationTroops -= parameters.wildernessAttackerLossPerTile;
     setOwnerId(map.stateBuffer(), tile, player.ownerId);
     claimedTiles.push(tile);
   }

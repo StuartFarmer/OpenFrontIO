@@ -4,6 +4,15 @@ import { Player } from "./FoundationPlayer";
 export const FOUNDATION_PLACEMENT_RADIUS = 4;
 export const FOUNDATION_OWNER_ID_MASK = 0x0fff;
 
+export interface FoundationPlacementParameters {
+  placementRadius: number;
+}
+
+export const DEFAULT_FOUNDATION_PLACEMENT_PARAMETERS: FoundationPlacementParameters =
+  {
+    placementRadius: FOUNDATION_PLACEMENT_RADIUS,
+  };
+
 export interface PlacePlayerResult {
   player: Player;
   claimedTiles: TileRef[];
@@ -13,6 +22,7 @@ export function placePlayer(
   map: EngineTileMap,
   player: Player,
   clickedTile: TileRef,
+  parameters: FoundationPlacementParameters = DEFAULT_FOUNDATION_PLACEMENT_PARAMETERS,
 ): PlacePlayerResult {
   if (!map.isValidRef(clickedTile)) {
     throw new Error(`Cannot place player on invalid tile: ${clickedTile}`);
@@ -20,7 +30,11 @@ export function placePlayer(
   assertValidOwnerId(player.ownerId);
 
   clearPreviousPlacement(map, player);
-  const claimedTiles = collectTilesInRadius(map, clickedTile);
+  const claimedTiles = collectTilesInRadius(
+    map,
+    clickedTile,
+    parameters.placementRadius,
+  );
   for (const tile of claimedTiles) {
     setOwnerId(map.stateBuffer(), tile, player.ownerId);
   }
@@ -35,6 +49,19 @@ export function placePlayer(
       },
     },
     claimedTiles,
+  };
+}
+
+export function normalizeFoundationPlacementParameters(
+  parameters: Partial<FoundationPlacementParameters> = {},
+): FoundationPlacementParameters {
+  return {
+    placementRadius: integer(
+      parameters.placementRadius,
+      DEFAULT_FOUNDATION_PLACEMENT_PARAMETERS.placementRadius,
+      0,
+      32,
+    ),
   };
 }
 
@@ -112,4 +139,16 @@ function assertValidRadius(radius: number): void {
   if (!Number.isInteger(radius) || radius < 0) {
     throw new Error(`Invalid placement radius: ${radius}`);
   }
+}
+
+function integer(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.round(Math.max(min, Math.min(max, value)));
 }
