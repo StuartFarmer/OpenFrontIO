@@ -191,39 +191,11 @@ export class FoundationTuningPanel extends LitElement {
             0.1,
           )}
           ${this.numberInput(
-            "Vector sharpness",
+            "Front sigma",
             "wildernessVectorSharpness",
-            0,
-            4,
-            0.05,
-          )}
-          ${this.numberInput(
-            "Preview distance",
-            "wildernessDirectionalPreviewDistance",
-            1,
-            128,
-            1,
-          )}
-          ${this.numberInput(
-            "Preview sharpness",
-            "wildernessDirectionalPreviewSharpness",
-            0,
-            4,
-            0.05,
-          )}
-          ${this.numberInput(
-            "Preview contrast",
-            "wildernessDirectionalPreviewContrast",
-            0,
-            5,
-            0.05,
-          )}
-          ${this.numberInput(
-            "Preview falloff",
-            "wildernessDirectionalPreviewFalloff",
-            0,
-            24,
-            0.5,
+            0.01,
+            100,
+            0.01,
           )}
           ${this.numberInput(
             "Front capacity",

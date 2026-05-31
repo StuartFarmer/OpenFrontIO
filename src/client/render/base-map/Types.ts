@@ -40,7 +40,6 @@ export interface BaseMapDirectionalBorderIntent {
   readonly directionY: number;
   readonly distance: number;
   readonly sharpness: number;
-  readonly previewDistance: number;
   readonly heatMap: Uint8Array;
 }
 

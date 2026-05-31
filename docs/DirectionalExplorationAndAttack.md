@@ -41,55 +41,43 @@ accepted and does not drift as territory changes.
 
 ## Frontier Priority
 
-For a candidate frontier tile `T`:
+For a candidate frontier tile `T`, the directional component is derived from
+the owned border tile that feeds that candidate. The x-axis is the graph
+distance around the owned front from the peak front, where the peak front is the
+border tile closest to the mouse/click.
 
 ```ts
-d = normalize(target - origin);
-p = T - origin;
-
-forward = dot(p, d);
-lateral = abs(cross(p, d));
-distance = length(target - origin);
+x = perimeterDistanceFromPeakFront;
+mu = 0;
+sigma = wildernessVectorSharpness;
 ```
 
 The existing wilderness priority remains in place, including terrain and
-owned-neighbor weighting. Direction adds a soft priority term. Distance affects
-focus through a bounded inverse-log curve, scaled by `wildernessVectorSharpness`,
-so very distant clicks do not become unrealistically narrow:
+owned-neighbor weighting. Direction adds a soft priority term based on a normal
+distribution over the current front:
 
 ```ts
-focus = clamp(
-  (1 - 1 / (1 + log1p(distance / 40))) * wildernessVectorSharpness,
-  0,
-  1,
-);
+weight(x) = exp(-0.5 * (x / sigma) ** 2);
+share(x) = weight(x) / sum(frontWeights);
 ```
 
-That focus chooses the lateral penalty and forward bias used by:
+Lower priority is claimed first, so the share becomes a negative priority bias:
 
 ```ts
-directionPenalty =
-  lateral * lateralPenalty +
-  max(0, -forward) * backwardPenalty +
-  max(0, forward - distance) * overshootPenalty -
-  forward * forwardBias;
+directionPenalty = -share(x) * priorityScale;
 ```
 
-Lower priority is claimed first. This means tiles ahead of the click vector are
-preferred, sideways tiles are delayed, tiles behind the origin are strongly
-delayed, and tiles beyond the requested reach are allowed but de-prioritized.
-
-The MVP keeps this as a soft bias. It should never prevent legal connected
-growth; it only changes the order in which frontier tiles are selected.
+This means the preview and actual expansion priority use the same troop-share
+distribution. `wildernessVectorSharpness` is the only directional sharpness
+knob. It is a sigma scale: lower values concentrate troops near the peak front;
+higher values spread troops across the front.
 
 ## Visual MVP
 
 When the pointer hovers over a valid unowned target:
 
 - Color the current nation border in the WebGL border stamp pass.
-- Use a linear visual focus based on click distance and
-  `wildernessDirectionalPreviewDistance`; the preview does not use the
-  simulation's inverse-log focus.
+- Use the same normalized normal distribution as frontier priority.
 - Clear the preview when the pointer leaves the map, hovers an invalid target,
   or clicks to commit a wave.
 - A committed wave does not keep border heat active in the MVP.
@@ -101,47 +89,37 @@ The WebGL border stamp shader colors owned border tiles from a preview heat map
 computed by the game layer. Heat is based on each border tile's graph distance
 from the peak front while walking around the owned perimeter, not by straight
 line distance through the territory interior. This makes the back side of a
-front the farthest border region even when it is spatially near the click. The
-visual focus is:
+front the farthest border region even when it is spatially near the click.
 
 ```ts
-visualFocus = clamp(
-  (clickDistance / wildernessDirectionalPreviewDistance) *
-    wildernessDirectionalPreviewSharpness,
-  0,
-  1,
-);
+heat = share(x);
 ```
 
-This makes the closest launch front red when the click is focused, unrelated
-border blue, and broad/equal pressure yellow. The simulation still refuses to
-claim water tiles, so water can define intent without becoming a valid movement
+This means `0` is no troops assigned to that front segment and `1` is all
+troops assigned to that front segment. The simulation still refuses to claim
+water tiles, so water can define intent without becoming a valid movement
 surface.
-
-Visual-only tuning:
-
-- `wildernessDirectionalPreviewDistance`: click distance needed for full visual
-  focus.
-- `wildernessDirectionalPreviewSharpness`: multiplier for visual focus.
-- `wildernessDirectionalPreviewContrast`: color gain away from yellow.
-- `wildernessDirectionalPreviewFalloff`: perimeter-distance decay strength.
 
 Gradient:
 
 ```css
 linear-gradient(
   90deg,
-  rgba(40, 123, 156, 1) 0%,
+  rgba(25, 26, 92, 1) 0%,
+  rgba(40, 123, 156, 1) 25%,
   rgba(255, 248, 107, 1) 50%,
-  rgba(237, 86, 83, 1) 100%
+  rgba(237, 86, 83, 1) 75%,
+  rgba(255, 255, 255, 1) 100%
 )
 ```
 
 Interpretation:
 
-- Blue: low directional pressure.
-- Yellow: equal-priority baseline across border pixels.
-- Red: strongest concentration at the likely launch border.
+- Deep blue: 0% of troops.
+- Cool blue: 25% of troops.
+- Yellow: 50% of troops.
+- Red: 75% of troops.
+- White: 100% of troops.
 
 For multi-wave support, the shader should evaluate up to a small fixed number
 of active wave intents and color each owned border tile by the strongest local

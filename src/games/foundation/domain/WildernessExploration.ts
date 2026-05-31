@@ -10,13 +10,8 @@ import { isLandTile, ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
-const DIRECTIONAL_LATERAL_PENALTY_MIN = 0.4;
-const DIRECTIONAL_LATERAL_PENALTY_MAX = 1.6;
-const DIRECTIONAL_FORWARD_BIAS_MIN = 0.05;
-const DIRECTIONAL_FORWARD_BIAS_MAX = 0.35;
-const DIRECTIONAL_FOCUS_DISTANCE = 40;
-const DIRECTIONAL_BACKWARD_PENALTY = 4;
-const DIRECTIONAL_OVERSHOOT_PENALTY = 0.8;
+const DIRECTIONAL_FRONT_PRIORITY_SCALE = 100;
+const MIN_DIRECTIONAL_FRONT_SIGMA = 0.01;
 
 export interface StartWildernessExplorationResult {
   player: Player;
@@ -134,6 +129,12 @@ export function tickWildernessExploration(
   }
 
   const attack = ExplorationAttack.fromExploration(exploration);
+  const frontShares = createDirectionalFrontShareMap(
+    map,
+    player.ownerId,
+    exploration.intent,
+    parameters.wildernessVectorSharpness,
+  );
   if (attack.frontierSize() === 0) {
     return {
       player: {
@@ -184,6 +185,7 @@ export function tickWildernessExploration(
       attack,
       intent: exploration.intent,
       parameters,
+      frontShares,
     });
 
     const tilesPerTickUsed = wildernessTilesPerTickUsed(
@@ -236,11 +238,18 @@ function refreshWildernessFrontier(
   parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): void {
   attack.clearBorder();
+  const frontShares = createDirectionalFrontShareMap(
+    map,
+    player.ownerId,
+    intent,
+    parameters.wildernessVectorSharpness,
+  );
   for (const tile of player.placement?.claimedTiles ?? []) {
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
       intent,
       parameters,
+      frontShares,
     });
   }
 }
@@ -255,8 +264,15 @@ function addWildernessNeighbors(
     attack: ExplorationAttack;
     intent?: WildernessExplorationIntent;
     parameters?: FoundationWildernessRuntimeParameters;
+    frontShares?: ReadonlyMap<TileRef, number>;
   },
 ): void {
+  const sourceShare = directionalFrontShareForTile(
+    map,
+    ownerId,
+    tile,
+    frontierState.frontShares,
+  );
   forEachCardinalNeighbor(map, tile, (neighbor) => {
     if (!isLandTile(map, neighbor)) {
       return;
@@ -280,12 +296,7 @@ function addWildernessNeighbors(
     const priority =
       (randomInt(rng, 0, 7) + 10) *
         (1 - numOwnedByMe * 0.5 + terrainPriorityWeight / 2) +
-      directionalPriorityPenalty(
-        map,
-        neighbor,
-        frontierState.intent,
-        frontierState.parameters,
-      ) +
+      directionalPriorityPenalty(sourceShare) +
       tick;
 
     frontierState.attack.enqueue(neighbor, priority);
@@ -380,54 +391,103 @@ function isOwnedBorderTile(
   return border;
 }
 
-function directionalPriorityPenalty(
+function createDirectionalFrontShareMap(
   map: EngineTileMap,
-  tile: TileRef,
+  ownerId: number,
   intent: WildernessExplorationIntent | undefined,
-  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
-): number {
-  if (!intent || intent.distance <= 0) {
-    return 0;
+  sigmaScale: number,
+): Map<TileRef, number> {
+  const shares = new Map<TileRef, number>();
+  if (!intent) {
+    return shares;
   }
 
-  const px = map.x(tile) - map.x(intent.originTile);
-  const py = map.y(tile) - map.y(intent.originTile);
-  const forward = px * intent.dx + py * intent.dy;
-  const lateral = Math.abs(px * intent.dy - py * intent.dx);
-  const focus = vectorSharpnessFocus(
-    intent.distance,
-    parameters.wildernessVectorSharpness,
-  );
-  const lateralPenalty = lerp(
-    DIRECTIONAL_LATERAL_PENALTY_MIN,
-    DIRECTIONAL_LATERAL_PENALTY_MAX,
-    focus,
-  );
-  const forwardBias = lerp(
-    DIRECTIONAL_FORWARD_BIAS_MIN,
-    DIRECTIONAL_FORWARD_BIAS_MAX,
-    focus,
-  );
+  const borderTiles = new Set<TileRef>();
+  for (let tile = 0; tile < map.width() * map.height(); tile += 1) {
+    if (isOwnedBorderTile(map, ownerId, tile)) {
+      borderTiles.add(tile);
+    }
+  }
+  if (!borderTiles.has(intent.originTile)) {
+    borderTiles.add(intent.originTile);
+  }
+  if (borderTiles.size === 0) {
+    return shares;
+  }
 
-  return (
-    lateral * lateralPenalty +
-    Math.max(0, -forward) * DIRECTIONAL_BACKWARD_PENALTY +
-    Math.max(0, forward - intent.distance) * DIRECTIONAL_OVERSHOOT_PENALTY -
-    forward * forwardBias
-  );
+  const distances = new Map<TileRef, number>();
+  const queue: TileRef[] = [intent.originTile];
+  distances.set(intent.originTile, 0);
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const tile = queue[head];
+    const distance = distances.get(tile) ?? 0;
+    forEachNeighbor(map, tile, (neighbor) => {
+      if (!borderTiles.has(neighbor) || distances.has(neighbor)) {
+        return;
+      }
+
+      distances.set(neighbor, distance + 1);
+      queue.push(neighbor);
+    });
+  }
+
+  let totalWeight = 0;
+  for (const tile of borderTiles) {
+    const distance = distances.get(tile);
+    const weight =
+      distance === undefined ? 0 : directionalFrontWeight(distance, sigmaScale);
+    shares.set(tile, weight);
+    totalWeight += weight;
+  }
+  if (totalWeight <= 0) {
+    return shares;
+  }
+
+  for (const [tile, weight] of shares) {
+    shares.set(tile, weight / totalWeight);
+  }
+  return shares;
 }
 
-export function vectorSharpnessFocus(
-  distance: number,
-  sharpness: number,
+function directionalPriorityPenalty(sourceShare: number): number {
+  return -sourceShare * DIRECTIONAL_FRONT_PRIORITY_SCALE;
+}
+
+function directionalFrontShareForTile(
+  map: EngineTileMap,
+  ownerId: number,
+  tile: TileRef,
+  frontShares: ReadonlyMap<TileRef, number> | undefined,
 ): number {
-  if (distance <= 0 || sharpness <= 0) {
+  if (!frontShares || frontShares.size === 0) {
     return 0;
   }
 
-  const inverseLogDistance =
-    1 - 1 / (1 + Math.log1p(distance / DIRECTIONAL_FOCUS_DISTANCE));
-  return clamp(inverseLogDistance * sharpness, 0, 1);
+  let share = 0;
+  share = Math.max(share, frontShares.get(tile) ?? 0);
+  forEachCardinalNeighbor(map, tile, (neighbor) => {
+    if (ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId) {
+      return;
+    }
+
+    share = Math.max(share, frontShares.get(neighbor) ?? 0);
+  });
+
+  return share;
+}
+
+export function directionalFrontWeight(
+  frontDistance: number,
+  sigmaScale: number,
+): number {
+  if (frontDistance < 0 || sigmaScale <= 0) {
+    return 0;
+  }
+
+  const sigma = Math.max(MIN_DIRECTIONAL_FRONT_SIGMA, sigmaScale);
+  const z = frontDistance / sigma;
+  return Math.exp(-0.5 * z * z);
 }
 
 function isOwnedBorderNeighbor(
@@ -459,6 +519,30 @@ function forEachCardinalNeighbor(
   if (x + 1 < map.width()) callback(map.ref(x + 1, y));
   if (y > 0) callback(map.ref(x, y - 1));
   if (y + 1 < map.height()) callback(map.ref(x, y + 1));
+}
+
+function forEachNeighbor(
+  map: EngineTileMap,
+  tile: TileRef,
+  callback: (neighbor: TileRef) => void,
+): void {
+  const x = map.x(tile);
+  const y = map.y(tile);
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) {
+        continue;
+      }
+
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= map.width() || ny >= map.height()) {
+        continue;
+      }
+
+      callback(map.ref(nx, ny));
+    }
+  }
 }
 
 function wildernessTilesPerTickUsed(
@@ -544,10 +628,6 @@ export function wildernessTerrainPriorityWeight(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
-}
-
-function lerp(min: number, max: number, t: number): number {
-  return min + (max - min) * t;
 }
 
 type StatefulRandom = seedrandom.PRNG & { state(): unknown };

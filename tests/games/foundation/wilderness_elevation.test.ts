@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createFoundationMap,
+  directionalFrontWeight,
   setOwnerId,
   toblerSpeedMultiplier,
-  vectorSharpnessFocus,
   wildernessSpeedForTile,
   wildernessTerrainPriorityWeight,
 } from "../../../src/games/foundation";
@@ -51,16 +51,16 @@ describe("Foundation wilderness elevation speed", () => {
     expect(wildernessTerrainPriorityWeight(1)).toBe(2);
   });
 
-  it("uses inverse-log distance focus for directional sharpness", () => {
-    const shortFocus = vectorSharpnessFocus(10, 1);
-    const mediumFocus = vectorSharpnessFocus(80, 1);
-    const longFocus = vectorSharpnessFocus(1000, 1);
-
-    expect(shortFocus).toBeGreaterThan(0);
-    expect(mediumFocus).toBeGreaterThan(shortFocus);
-    expect(longFocus).toBeGreaterThan(mediumFocus);
-    expect(longFocus - mediumFocus).toBeLessThan(mediumFocus - shortFocus);
-    expect(vectorSharpnessFocus(80, 0)).toBe(0);
+  it("uses a normal front distribution for directional sharpness", () => {
+    expect(directionalFrontWeight(0, 1)).toBe(1);
+    expect(directionalFrontWeight(1, 1)).toBeCloseTo(Math.exp(-0.5), 5);
+    expect(directionalFrontWeight(2, 1)).toBeLessThan(
+      directionalFrontWeight(1, 1),
+    );
+    expect(directionalFrontWeight(2, 4)).toBeGreaterThan(
+      directionalFrontWeight(2, 1),
+    );
+    expect(directionalFrontWeight(1, 0)).toBe(0);
   });
 
   it("expands easier terrain before high elevation terrain", () => {

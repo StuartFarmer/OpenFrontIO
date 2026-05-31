@@ -134,7 +134,7 @@ export class BorderStampPass {
       internalFormat: gl.R8,
       format: gl.RED,
       type: gl.UNSIGNED_BYTE,
-      data: new Uint8Array(mapW * mapH).fill(128),
+      data: new Uint8Array(mapW * mapH),
       filter: gl.NEAREST,
     });
   }

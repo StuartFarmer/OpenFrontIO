@@ -23,11 +23,15 @@ in vec2 vWorldPos;
 out vec4 fragColor;
 
 vec3 directionalPriorityColor(float heat) {
-  vec3 cold = vec3(40.0, 123.0, 156.0) / 255.0;
+  vec3 deep = vec3(25.0, 26.0, 92.0) / 255.0;
+  vec3 cool = vec3(40.0, 123.0, 156.0) / 255.0;
   vec3 mid = vec3(255.0, 248.0, 107.0) / 255.0;
   vec3 hot = vec3(237.0, 86.0, 83.0) / 255.0;
-  if (heat < 0.5) return mix(cold, mid, heat * 2.0);
-  return mix(mid, hot, (heat - 0.5) * 2.0);
+  vec3 peak = vec3(255.0, 255.0, 255.0) / 255.0;
+  if (heat < 0.25) return mix(deep, cool, heat * 4.0);
+  if (heat < 0.5) return mix(cool, mid, (heat - 0.25) * 4.0);
+  if (heat < 0.75) return mix(mid, hot, (heat - 0.5) * 4.0);
+  return mix(hot, peak, (heat - 0.75) * 4.0);
 }
 
 void main() {

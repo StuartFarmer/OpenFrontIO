@@ -43,7 +43,6 @@ export interface DirectionalBorderIntentInput {
   directionY: number;
   distance: number;
   sharpness: number;
-  previewDistance: number;
   heatMap: Uint8Array;
 }
 

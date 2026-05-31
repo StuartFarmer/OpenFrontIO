@@ -16,6 +16,7 @@ import {
   deriveFoundationWorldEngineResourceConfig,
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
+  directionalFrontWeight,
   foundationLandTerrainByteForElevation,
   foundationWaterTerrainByteForElevation,
   generateWorldEngineBiome,
@@ -59,14 +60,15 @@ interface FoundationDirectionalBorderPreview {
   targetTile: number;
 }
 
-const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 128;
+const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 0;
 
-type FoundationControlTab = "world" | "river" | "mechanics";
+type FoundationControlTab = "world" | "river" | "combat" | "ecology";
 
 const FOUNDATION_CONTROL_TABS = [
   { id: "world", label: "World" },
   { id: "river", label: "River" },
-  { id: "mechanics", label: "Mechanics" },
+  { id: "combat", label: "Combat" },
+  { id: "ecology", label: "Ecology" },
 ];
 
 interface FoundationMechanicBreakdown {
@@ -252,61 +254,15 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "priority = (randomInt(0, 7) + 10) * (1 - ownedNeighborCount * 0.5 + (1 + elevation * priorityScale) / 2) + tick",
   },
   wildernessVectorSharpness: {
-    does: "Scales how tightly a click vector focuses wilderness frontier priority.",
+    does: "Sets sigma for the normal troop distribution along the active front.",
     exists:
-      "Lets directional movement be tuned separately from troop commitment and terrain cost.",
+      "Makes preview color and actual frontier priority use the same troop-share model.",
     represents:
-      "Operational focus: low values make broad fronts, high values make narrower pushes.",
-    increase:
-      "Makes clicked directions more decisive, with distance influence capped by inverse-log scaling.",
-    decrease:
-      "Makes exploration fill more broadly around the border before following the vector.",
+      "Standard deviation of the front distribution, measured in border steps from the peak front.",
+    increase: "Spreads troops across a broader section of the front.",
+    decrease: "Concentrates troops near the peak front.",
     formula:
-      "focus = clamp((1 - 1 / (1 + log1p(distance / 40))) * wildernessVectorSharpness, 0, 1)",
-  },
-  wildernessDirectionalPreviewDistance: {
-    does: "Sets the click distance that makes border preview colors reach full contrast.",
-    exists:
-      "Lets the visual preview be tuned separately from the simulation's inverse-log movement focus.",
-    represents:
-      "Preview calibration distance: shorter values make nearby hovers contrast sooner.",
-    increase:
-      "Keeps the border preview yellower until the pointer is farther from the closest border.",
-    decrease:
-      "Makes red and blue concentration bands appear at shorter pointer distances.",
-    formula:
-      "visualFocus = clamp((clickDistance / wildernessDirectionalPreviewDistance) * wildernessDirectionalPreviewSharpness, 0, 1)",
-  },
-  wildernessDirectionalPreviewSharpness: {
-    does: "Scales how quickly border preview focus increases with click distance.",
-    exists:
-      "Keeps preview tuning independent from the simulation vector sharpness.",
-    represents:
-      "Visual-only distance sensitivity before contrast and perimeter falloff are applied.",
-    increase: "Makes focused red/blue bands appear at shorter click distances.",
-    decrease: "Keeps more hover previews near the equal yellow baseline.",
-    formula:
-      "visualFocus = clamp((clickDistance / wildernessDirectionalPreviewDistance) * wildernessDirectionalPreviewSharpness, 0, 1)",
-  },
-  wildernessDirectionalPreviewContrast: {
-    does: "Controls how far the border preview can move away from yellow.",
-    exists:
-      "Lets the preview be made subtle or high-contrast without changing the front shape.",
-    represents: "Color gain around the yellow equal-priority baseline.",
-    increase: "Pushes peak fronts redder and distant perimeter regions bluer.",
-    decrease: "Compresses the preview toward yellow.",
-    formula:
-      "heat = clamp(0.5 + (concentration - 0.5) * visualFocus * wildernessDirectionalPreviewContrast, 0, 1)",
-  },
-  wildernessDirectionalPreviewFalloff: {
-    does: "Controls how quickly preview concentration decays around the border perimeter.",
-    exists:
-      "Lets perimeter bands be made tighter or broader after the peak front is chosen.",
-    represents: "Perimeter-distance decay strength for the visual heat map.",
-    increase: "Makes the red region tighter and the opposite side colder.",
-    decrease: "Spreads warm colors farther around the border.",
-    formula:
-      "concentration = exp(-normalizedPerimeterDistance * (1 + visualFocus * wildernessDirectionalPreviewFalloff))",
+      "share(x) = normal(x; mu=0, sigma=wildernessVectorSharpness) / sum(front weights)",
   },
   wildernessFrontCapacity: {
     does: "Caps how many exploration troops can affect per-tile expansion speed at once.",
@@ -1415,7 +1371,7 @@ export class FoundationPage extends LitElement {
 
             <div
               class="control-panel"
-              ?hidden=${this.activeControlTab !== "mechanics"}
+              ?hidden=${this.activeControlTab !== "combat"}
             >
               ${this.controlSection(
                 "Simulation",
@@ -1509,7 +1465,54 @@ export class FoundationPage extends LitElement {
                 `,
               )}
               ${this.controlSection(
-                "Wilderness",
+                "Front Mechanics",
+                html`
+                  ${this.logRangeInput(
+                    "Front sigma",
+                    "wildernessVectorSharpness",
+                    0.01,
+                    100,
+                    0.01,
+                  )}
+                  ${this.rangeInput(
+                    "Front capacity",
+                    "wildernessFrontCapacity",
+                    500,
+                    50000,
+                    500,
+                    0,
+                  )}
+                  ${this.rangeInput(
+                    "Loss per tile",
+                    "wildernessAttackerLossPerTile",
+                    0,
+                    100,
+                    1,
+                    0,
+                  )}
+                `,
+              )}
+              ${this.controlSection(
+                "Tile Costs",
+                html`
+                  ${this.rangeInput(
+                    "Tile budget mult",
+                    "wildernessTilesPerTickMultiplier",
+                    0.1,
+                    8,
+                    0.1,
+                    1,
+                  )}
+                `,
+              )}
+            </div>
+
+            <div
+              class="control-panel"
+              ?hidden=${this.activeControlTab !== "ecology"}
+            >
+              ${this.controlSection(
+                "Wilderness Exploration",
                 html`
                   ${this.rangeInput(
                     "Base speed",
@@ -1548,70 +1551,6 @@ export class FoundationPage extends LitElement {
                     "terrainPriorityElevationScale",
                     0,
                     4,
-                    0.1,
-                    1,
-                  )}
-                  ${this.rangeInput(
-                    "Vector sharpness",
-                    "wildernessVectorSharpness",
-                    0,
-                    4,
-                    0.05,
-                    2,
-                  )}
-                  ${this.rangeInput(
-                    "Preview distance",
-                    "wildernessDirectionalPreviewDistance",
-                    1,
-                    128,
-                    1,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Preview sharpness",
-                    "wildernessDirectionalPreviewSharpness",
-                    0,
-                    4,
-                    0.05,
-                    2,
-                  )}
-                  ${this.rangeInput(
-                    "Preview contrast",
-                    "wildernessDirectionalPreviewContrast",
-                    0,
-                    5,
-                    0.05,
-                    2,
-                  )}
-                  ${this.rangeInput(
-                    "Preview falloff",
-                    "wildernessDirectionalPreviewFalloff",
-                    0,
-                    24,
-                    0.5,
-                    1,
-                  )}
-                  ${this.rangeInput(
-                    "Front capacity",
-                    "wildernessFrontCapacity",
-                    500,
-                    50000,
-                    500,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Loss per tile",
-                    "wildernessAttackerLossPerTile",
-                    0,
-                    100,
-                    1,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Tile budget mult",
-                    "wildernessTilesPerTickMultiplier",
-                    0.1,
-                    8,
                     0.1,
                     1,
                   )}
@@ -2080,11 +2019,13 @@ export class FoundationPage extends LitElement {
     event: CustomEvent<{ id: string }>,
   ): void => {
     this.activeControlTab =
-      event.detail.id === "mechanics"
-        ? "mechanics"
-        : event.detail.id === "river"
-          ? "river"
-          : "world";
+      event.detail.id === "ecology"
+        ? "ecology"
+        : event.detail.id === "combat"
+          ? "combat"
+          : event.detail.id === "river"
+            ? "river"
+            : "world";
   };
 
   private controlSection(
@@ -2231,6 +2172,48 @@ export class FoundationPage extends LitElement {
     `;
   }
 
+  private logRangeInput(
+    label: string,
+    key: keyof FoundationTuningSettings,
+    min: number,
+    max: number,
+    step: number,
+  ) {
+    const value = Math.max(
+      min,
+      Math.min(max, Number(this.tuningSettings[key])),
+    );
+    const logMin = Math.log10(min);
+    const logMax = Math.log10(max);
+    const logValue = Math.log10(value);
+    return html`
+      <div class="control-row" role="row">
+        ${this.renderControlName(label, key)}
+        <span class="control-widget" role="cell">
+          <span class="slider-value-control">
+            <hud-range
+              label=${label}
+              .min=${logMin}
+              .max=${logMax}
+              .step=${step}
+              .value=${logValue}
+              ?disabled=${this.loading}
+              @value-change=${(event: CustomEvent<{ value: number }>) =>
+                this.handleLogRangeValue(event, key)}
+              @pointerup=${() => this.handleControlCommit(key)}
+              @keyup=${(event: KeyboardEvent) =>
+                this.handleRangeKeyup(event, key)}
+            ></hud-range>
+            <span class="slider-value-text">
+              ${formatControlValue(value, value < 10 ? 2 : 1)}
+            </span>
+          </span>
+        </span>
+      </div>
+      ${this.renderMechanicBreakdown(key)}
+    `;
+  }
+
   private percentRangeInput(
     label: string,
     key: keyof FoundationTuningSettings,
@@ -2365,6 +2348,15 @@ export class FoundationPage extends LitElement {
     });
   }
 
+  private handleLogRangeValue(
+    event: CustomEvent<{ value: number }>,
+    key: keyof FoundationTuningSettings,
+  ): void {
+    this.updateSettings({
+      [key]: 10 ** Number(event.detail.value),
+    });
+  }
+
   private handlePercentValue(
     event: CustomEvent<{ value: number }>,
     key: keyof FoundationTuningSettings,
@@ -2414,13 +2406,7 @@ export class FoundationPage extends LitElement {
     saveFoundationTuningSettings(this.tuningSettings);
     this.configureTickTimer();
     this.runtime?.updateParameters(this.tuningSettings);
-    if (
-      changedKeys.includes("wildernessVectorSharpness") ||
-      changedKeys.includes("wildernessDirectionalPreviewDistance") ||
-      changedKeys.includes("wildernessDirectionalPreviewSharpness") ||
-      changedKeys.includes("wildernessDirectionalPreviewContrast") ||
-      changedKeys.includes("wildernessDirectionalPreviewFalloff")
-    ) {
+    if (changedKeys.includes("wildernessVectorSharpness")) {
       this.updateDirectionalBorderIntent(this.directionalBorderPreview);
     }
 
@@ -2558,14 +2544,12 @@ export class FoundationPage extends LitElement {
       directionY: rawDy / distance,
       distance,
       sharpness: this.tuningSettings.wildernessVectorSharpness,
-      previewDistance: this.tuningSettings.wildernessDirectionalPreviewDistance,
-      heatMap: this.createDirectionalBorderHeatMap(preview, distance),
+      heatMap: this.createDirectionalBorderHeatMap(preview),
     });
   }
 
   private createDirectionalBorderHeatMap(
     preview: FoundationDirectionalBorderPreview,
-    clickDistance: number,
   ): Uint8Array {
     const runtime = this.runtime;
     if (!runtime) {
@@ -2598,8 +2582,6 @@ export class FoundationPage extends LitElement {
     const distances = new Map<number, number>();
     const queue: number[] = [preview.originTile];
     distances.set(preview.originTile, 0);
-    let maxDistance = 0;
-
     for (let head = 0; head < queue.length; head += 1) {
       const tile = queue[head];
       const distance = distances.get(tile) ?? 0;
@@ -2610,39 +2592,31 @@ export class FoundationPage extends LitElement {
 
         const nextDistance = distance + 1;
         distances.set(neighbor, nextDistance);
-        maxDistance = Math.max(maxDistance, nextDistance);
         queue.push(neighbor);
       });
     }
 
-    const focus = clampFoundationNumber(
-      (clickDistance /
-        Math.max(1, this.tuningSettings.wildernessDirectionalPreviewDistance)) *
-        this.tuningSettings.wildernessDirectionalPreviewSharpness,
-      0,
-      1,
-    );
-    const contrast =
-      focus * this.tuningSettings.wildernessDirectionalPreviewContrast;
-    const concentrationFalloff =
-      1 + focus * this.tuningSettings.wildernessDirectionalPreviewFalloff;
-    const maxConnectedDistance = Math.max(1, maxDistance);
-
+    let totalWeight = 0;
+    const weights = new Map<number, number>();
     for (const tile of borderTiles) {
       const perimeterDistance = distances.get(tile);
-      const normalizedDistance =
+      const weight =
         perimeterDistance === undefined
-          ? 1
-          : perimeterDistance / maxConnectedDistance;
-      const concentration = Math.exp(
-        -normalizedDistance * concentrationFalloff,
-      );
-      const heat = clampFoundationNumber(
-        0.5 + (concentration - 0.5) * contrast,
-        0,
-        1,
-      );
-      heatMap[tile] = Math.round(heat * 255);
+          ? 0
+          : directionalFrontWeight(
+              perimeterDistance,
+              this.tuningSettings.wildernessVectorSharpness,
+            );
+      weights.set(tile, weight);
+      totalWeight += weight;
+    }
+    if (totalWeight <= 0) {
+      return heatMap;
+    }
+
+    for (const tile of borderTiles) {
+      const share = (weights.get(tile) ?? 0) / totalWeight;
+      heatMap[tile] = Math.round(clampFoundationNumber(share, 0, 1) * 255);
     }
 
     return heatMap;
