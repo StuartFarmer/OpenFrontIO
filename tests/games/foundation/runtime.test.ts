@@ -71,20 +71,20 @@ describe("Foundation runtime", () => {
     });
   });
 
-  it("tracks exploration frontier entries separately from unique border tiles", () => {
+  it("aggregates duplicate frontier troop shares for one border tile", () => {
     const attack = new ExplorationAttack();
 
     attack.addBorderTile(42);
-    attack.enqueue(42, 2);
+    attack.enqueue(42, 2, 0.25, 3);
     attack.addBorderTile(42);
-    attack.enqueue(42, 1);
+    attack.enqueue(42, 1, 0.75, 7);
 
     expect(attack.borderSize()).toBe(1);
     expect(attack.frontierSize()).toBe(2);
-    expect(attack.dequeue()).toEqual([42, 1]);
+    expect(attack.dequeue()).toEqual([42, 1, 1, 10]);
     attack.removeBorderTile(42);
     expect(attack.borderSize()).toBe(0);
-    expect(attack.frontierSize()).toBe(1);
+    expect(attack.frontierSize()).toBe(0);
   });
 
   it("places the local player from a click placement command", () => {
@@ -284,7 +284,15 @@ describe("Foundation runtime", () => {
     const eventPayload = result.update.events[0].payload as {
       originTile: number;
     };
-    expect(map.x(eventPayload.originTile)).toBeGreaterThan(map.x(startTile));
+    expect(ownerIdFromState(map.stateBuffer()[eventPayload.originTile])).toBe(
+      1,
+    );
+    expect(
+      Math.abs(map.x(eventPayload.originTile) - map.x(startTile)),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(map.y(eventPayload.originTile) - map.y(startTile)),
+    ).toBeLessThanOrEqual(1);
   });
 
   it("accepts water as a wilderness exploration target without claiming water", () => {
@@ -409,10 +417,10 @@ describe("Foundation runtime", () => {
       return Array.from(runtime.advanceTick().map?.changedTiles ?? []).length;
     };
 
-    expect(claimedOnFirstTick(1_000_000)).toBe(claimedOnFirstTick(25_000));
+    expect(claimedOnFirstTick(2_000_000)).toBe(claimedOnFirstTick(1_000_000));
   });
 
-  it("biases the wilderness frontier toward the clicked target direction", () => {
+  it("concentrates the wilderness frontier near close clicked targets", () => {
     const runFirstExplorationTick = (targetTile: number): number[] => {
       const map = createFoundationMap({ width: 64, height: 64 });
       const runtime = createFoundationRuntime({ map });
@@ -426,8 +434,8 @@ describe("Foundation runtime", () => {
       return Array.from(runtime.advanceTick().map?.changedTiles ?? []);
     };
 
-    const eastTargetTiles = runFirstExplorationTick(16 + 64 * 16 + 24);
-    const westTargetTiles = runFirstExplorationTick(16 + 64 * 16 - 12);
+    const eastTargetTiles = runFirstExplorationTick(20 + 64 * 16);
+    const westTargetTiles = runFirstExplorationTick(11 + 64 * 16);
 
     expect(eastTargetTiles.length).toBeGreaterThan(0);
     expect(westTargetTiles.length).toBeGreaterThan(0);
@@ -435,6 +443,48 @@ describe("Foundation runtime", () => {
     expect(
       Math.max(...eastTargetTiles.map((tile) => tile % 64)),
     ).toBeGreaterThan(Math.max(...westTargetTiles.map((tile) => tile % 64)));
+  });
+
+  it("continues wilderness exploration along the clicked vector after launch", () => {
+    const runExploration = (targetTile: number): number[] => {
+      const map = createFoundationMap({ width: 64, height: 64 });
+      const runtime = createFoundationRuntime({
+        map,
+        parameters: {
+          startingTroops: 1_000_000,
+          wildernessAttackerLossPerTile: 0,
+          wildernessTilesPerTickMultiplier: 8,
+        },
+      });
+      runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+      runtime.dispatch(
+        createGrowTerritoryCommand({
+          turnNumber: 1,
+          targetTileRef: targetTile,
+        }),
+      );
+
+      const claimedTiles: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        claimedTiles.push(
+          ...Array.from(runtime.advanceTick().map?.changedTiles ?? []),
+        );
+      }
+      return claimedTiles;
+    };
+
+    const eastTiles = runExploration(50 + 64 * 16);
+    const southTiles = runExploration(16 + 64 * 50);
+    const averageX = (tiles: number[]): number =>
+      tiles.reduce((sum, tile) => sum + (tile % 64), 0) / tiles.length;
+    const averageY = (tiles: number[]): number =>
+      tiles.reduce((sum, tile) => sum + Math.floor(tile / 64), 0) /
+      tiles.length;
+
+    expect(eastTiles.length).toBeGreaterThan(0);
+    expect(southTiles.length).toBeGreaterThan(0);
+    expect(averageX(eastTiles)).toBeGreaterThan(averageX(southTiles));
+    expect(averageY(southTiles)).toBeGreaterThan(averageY(eastTiles));
   });
 
   it("rejects growth before placement without tile deltas", () => {

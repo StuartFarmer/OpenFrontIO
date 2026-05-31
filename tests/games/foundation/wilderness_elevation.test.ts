@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createFoundationMap,
-  directionalFrontWeight,
+  distanceFrontWeight,
   setOwnerId,
   toblerSpeedMultiplier,
   wildernessSpeedForTile,
@@ -51,16 +51,14 @@ describe("Foundation wilderness elevation speed", () => {
     expect(wildernessTerrainPriorityWeight(1)).toBe(2);
   });
 
-  it("uses a normal front distribution for directional sharpness", () => {
-    expect(directionalFrontWeight(0, 1)).toBe(1);
-    expect(directionalFrontWeight(1, 1)).toBeCloseTo(Math.exp(-0.5), 5);
-    expect(directionalFrontWeight(2, 1)).toBeLessThan(
-      directionalFrontWeight(1, 1),
-    );
-    expect(directionalFrontWeight(2, 4)).toBeGreaterThan(
-      directionalFrontWeight(2, 1),
-    );
-    expect(directionalFrontWeight(1, 0)).toBe(0);
+  it("uses Gaussian Euclidean distance for border front weighting", () => {
+    expect(distanceFrontWeight(0, 1)).toBe(1);
+    expect(distanceFrontWeight(1, 1)).toBeCloseTo(Math.exp(-0.5), 5);
+    expect(distanceFrontWeight(2, 1)).toBeCloseTo(Math.exp(-2), 5);
+    expect(distanceFrontWeight(4, 1)).toBeCloseTo(Math.exp(-8), 5);
+    expect(distanceFrontWeight(4, 10)).toBeLessThan(distanceFrontWeight(4, 1));
+    expect(distanceFrontWeight(10, 1000, 10)).toBe(1);
+    expect(distanceFrontWeight(Number.NaN)).toBe(0);
   });
 
   it("expands easier terrain before high elevation terrain", () => {

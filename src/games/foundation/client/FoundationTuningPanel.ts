@@ -191,11 +191,11 @@ export class FoundationTuningPanel extends LitElement {
             0.1,
           )}
           ${this.numberInput(
-            "Front sigma",
-            "wildernessVectorSharpness",
-            0.01,
-            100,
-            0.01,
+            "Distance focus",
+            "wildernessDistanceFocus",
+            0.001,
+            10000,
+            0.001,
           )}
           ${this.numberInput(
             "Front capacity",

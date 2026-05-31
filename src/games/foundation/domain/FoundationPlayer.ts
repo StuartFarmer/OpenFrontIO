@@ -28,6 +28,8 @@ export interface WildernessExplorationIntent {
 export interface WildernessFrontierTile {
   tile: TileRef;
   priority: number;
+  troopShare?: number;
+  progress?: number;
 }
 
 export interface Player {

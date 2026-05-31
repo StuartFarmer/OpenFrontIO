@@ -24,11 +24,16 @@ export class ExplorationAttack {
     return new ExplorationAttack(exploration);
   }
 
-  enqueue(tile: TileRef, priority: number): void {
-    this.frontier.push({ tile, priority });
+  enqueue(
+    tile: TileRef,
+    priority: number,
+    troopShare?: number,
+    progress = 0,
+  ): void {
+    this.frontier.push({ tile, priority, troopShare, progress });
   }
 
-  dequeue(): [TileRef, number] {
+  dequeue(): [TileRef, number, number | undefined, number] {
     if (this.frontier.length === 0) {
       throw new Error("exploration frontier empty");
     }
@@ -43,7 +48,41 @@ export class ExplorationAttack {
       }
     }
     const [best] = this.frontier.splice(bestIndex, 1);
-    return [best.tile, best.priority];
+    let troopShare = best.troopShare;
+    let progress = best.progress ?? 0;
+    for (let i = this.frontier.length - 1; i >= 0; i--) {
+      if (this.frontier[i].tile !== best.tile) {
+        continue;
+      }
+
+      const entryTroopShare = this.frontier[i].troopShare;
+      if (entryTroopShare !== undefined) {
+        troopShare = (troopShare ?? 0) + entryTroopShare;
+      }
+      progress += this.frontier[i].progress ?? 0;
+      this.frontier.splice(i, 1);
+    }
+    return [best.tile, best.priority, troopShare, progress];
+  }
+
+  drainFrontier(): WildernessFrontierTile[] {
+    const byTile = new Map<TileRef, WildernessFrontierTile>();
+    for (const entry of this.frontier) {
+      const existing = byTile.get(entry.tile);
+      if (!existing) {
+        byTile.set(entry.tile, { ...entry });
+        continue;
+      }
+
+      existing.priority = Math.min(existing.priority, entry.priority);
+      if (entry.troopShare !== undefined) {
+        existing.troopShare = (existing.troopShare ?? 0) + entry.troopShare;
+      }
+      existing.progress = (existing.progress ?? 0) + (entry.progress ?? 0);
+    }
+
+    this.frontier.length = 0;
+    return Array.from(byTile.values()).sort((a, b) => a.priority - b.priority);
   }
 
   frontierSize(): number {

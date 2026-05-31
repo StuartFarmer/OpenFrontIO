@@ -10,8 +10,7 @@ import { isLandTile, ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
-const DIRECTIONAL_FRONT_PRIORITY_SCALE = 100;
-const MIN_DIRECTIONAL_FRONT_SIGMA = 0.01;
+const DISTANCE_FRONT_PRIORITY_SCALE = 100;
 
 export interface StartWildernessExplorationResult {
   player: Player;
@@ -37,7 +36,7 @@ export type FoundationWildernessRuntimeParameters = Pick<
   | "minToblerSpeedMultiplier"
   | "maxToblerSpeedMultiplier"
   | "terrainPriorityElevationScale"
-  | "wildernessVectorSharpness"
+  | "wildernessDistanceFocus"
   | "wildernessFrontCapacity"
   | "wildernessAttackerLossPerTile"
   | "wildernessTilesPerTickMultiplier"
@@ -129,11 +128,11 @@ export function tickWildernessExploration(
   }
 
   const attack = ExplorationAttack.fromExploration(exploration);
-  const frontShares = createDirectionalFrontShareMap(
+  const frontShares = createDistanceFrontShareMap(
     map,
     player.ownerId,
     exploration.intent,
-    parameters.wildernessVectorSharpness,
+    parameters.wildernessDistanceFocus,
   );
   if (attack.frontierSize() === 0) {
     return {
@@ -147,28 +146,18 @@ export function tickWildernessExploration(
     };
   }
 
-  let tileBudget =
-    (attack.borderSize() + randomInt(rng, 0, 5)) *
-    parameters.wildernessTilesPerTickMultiplier;
   const claimedTiles: TileRef[] = [];
-  while (tileBudget > 0) {
-    if (tileBudget <= 0 || explorationTroops < 1) {
+  for (const frontierTile of attack.drainFrontier()) {
+    if (explorationTroops < 1) {
       break;
     }
 
-    if (attack.frontierSize() === 0) {
-      return {
-        player: {
-          ...player,
-          troops: player.troops + explorationTroops,
-          activeExploration: null,
-        },
-        claimedTiles,
-        completed: true,
-      };
-    }
-
-    const [tile] = attack.dequeue();
+    const {
+      tile,
+      priority,
+      troopShare: queuedTroopShare,
+      progress: queuedProgress = 0,
+    } = frontierTile;
     attack.removeBorderTile(tile);
 
     if (!isOwnedBorderNeighbor(map, player.ownerId, tile)) {
@@ -181,23 +170,37 @@ export function tickWildernessExploration(
       continue;
     }
 
+    const troopShare =
+      queuedTroopShare ??
+      directionalFrontShareForTile(map, player.ownerId, tile, frontShares);
+    const allocatedTroops = troopBudgetForShare(explorationTroops, troopShare);
+    if (allocatedTroops <= 0) {
+      continue;
+    }
+
+    const velocity = wildernessFrontVelocity(
+      map,
+      player.ownerId,
+      tile,
+      allocatedTroops,
+      parameters,
+    );
+    const nextProgress = queuedProgress + velocity;
+    if (nextProgress < 1) {
+      attack.addBorderTile(tile);
+      attack.enqueue(tile, priority, queuedTroopShare, nextProgress);
+      continue;
+    }
+
+    explorationTroops -= parameters.wildernessAttackerLossPerTile;
+    setOwnerId(map.stateBuffer(), tile, player.ownerId);
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
       intent: exploration.intent,
       parameters,
       frontShares,
+      troopShare,
     });
-
-    const tilesPerTickUsed = wildernessTilesPerTickUsed(
-      map,
-      player.ownerId,
-      tile,
-      explorationTroops,
-      parameters,
-    );
-    tileBudget -= tilesPerTickUsed;
-    explorationTroops -= parameters.wildernessAttackerLossPerTile;
-    setOwnerId(map.stateBuffer(), tile, player.ownerId);
     claimedTiles.push(tile);
   }
 
@@ -238,11 +241,11 @@ function refreshWildernessFrontier(
   parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): void {
   attack.clearBorder();
-  const frontShares = createDirectionalFrontShareMap(
+  const frontShares = createDistanceFrontShareMap(
     map,
     player.ownerId,
     intent,
-    parameters.wildernessVectorSharpness,
+    parameters.wildernessDistanceFocus,
   );
   for (const tile of player.placement?.claimedTiles ?? []) {
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
@@ -265,14 +268,13 @@ function addWildernessNeighbors(
     intent?: WildernessExplorationIntent;
     parameters?: FoundationWildernessRuntimeParameters;
     frontShares?: ReadonlyMap<TileRef, number>;
+    troopShare?: number;
   },
 ): void {
-  const sourceShare = directionalFrontShareForTile(
-    map,
-    ownerId,
-    tile,
-    frontierState.frontShares,
-  );
+  const sourceShare =
+    frontierState.troopShare ??
+    directionalFrontShareForTile(map, ownerId, tile, frontierState.frontShares);
+  const neighbors: TileRef[] = [];
   forEachCardinalNeighbor(map, tile, (neighbor) => {
     if (!isLandTile(map, neighbor)) {
       return;
@@ -281,6 +283,15 @@ function addWildernessNeighbors(
       return;
     }
 
+    neighbors.push(neighbor);
+  });
+
+  if (neighbors.length === 0) {
+    return;
+  }
+
+  const neighborShare = sourceShare / neighbors.length;
+  for (const neighbor of neighbors) {
     frontierState.attack.addBorderTile(neighbor);
     let numOwnedByMe = 0;
     forEachCardinalNeighbor(map, neighbor, (candidateNeighbor) => {
@@ -296,11 +307,11 @@ function addWildernessNeighbors(
     const priority =
       (randomInt(rng, 0, 7) + 10) *
         (1 - numOwnedByMe * 0.5 + terrainPriorityWeight / 2) +
-      directionalPriorityPenalty(sourceShare) +
+      distancePriorityPenalty(neighborShare) +
       tick;
 
-    frontierState.attack.enqueue(neighbor, priority);
-  });
+    frontierState.attack.enqueue(neighbor, priority, neighborShare);
+  }
 }
 
 function createWildernessExplorationIntent(
@@ -308,13 +319,13 @@ function createWildernessExplorationIntent(
   player: Player,
   targetTile: TileRef,
 ): WildernessExplorationIntent {
-  const originTile = closestOwnedBorderTile(map, player, targetTile);
-  const rawDx = map.x(targetTile) - map.x(originTile);
-  const rawDy = map.y(targetTile) - map.y(originTile);
+  const origin = averageOwnedBorderOrigin(map, player);
+  const rawDx = map.x(targetTile) + 0.5 - origin.x;
+  const rawDy = map.y(targetTile) + 0.5 - origin.y;
   const distance = Math.hypot(rawDx, rawDy);
   if (distance === 0) {
     return {
-      originTile,
+      originTile: origin.tile,
       targetTile,
       dx: 0,
       dy: 0,
@@ -323,7 +334,7 @@ function createWildernessExplorationIntent(
   }
 
   return {
-    originTile,
+    originTile: origin.tile,
     targetTile,
     dx: rawDx / distance,
     dy: rawDy / distance,
@@ -331,28 +342,62 @@ function createWildernessExplorationIntent(
   };
 }
 
-function closestOwnedBorderTile(
+function averageOwnedBorderOrigin(
   map: EngineTileMap,
   player: Player,
-  targetTile: TileRef,
-): TileRef {
+): { tile: TileRef; x: number; y: number } {
   const placement = player.placement;
   if (!placement) {
     throw new Error("Cannot explore wilderness before player placement");
   }
 
-  const targetX = map.x(targetTile);
-  const targetY = map.y(targetTile);
-  let closestTile: TileRef | null = null;
-  let closestDistanceSq = Number.POSITIVE_INFINITY;
+  let totalX = 0;
+  let totalY = 0;
+  let count = 0;
 
   for (const tile of placement.claimedTiles) {
     if (!isOwnedBorderTile(map, player.ownerId, tile)) {
       continue;
     }
 
-    const dx = map.x(tile) - targetX;
-    const dy = map.y(tile) - targetY;
+    totalX += map.x(tile) + 0.5;
+    totalY += map.y(tile) + 0.5;
+    count++;
+  }
+
+  if (count === 0) {
+    return {
+      tile: placement.selectedTile,
+      x: map.x(placement.selectedTile) + 0.5,
+      y: map.y(placement.selectedTile) + 0.5,
+    };
+  }
+
+  const x = totalX / count;
+  const y = totalY / count;
+  return {
+    tile: closestOwnedTileToPoint(map, player, x, y),
+    x,
+    y,
+  };
+}
+
+function closestOwnedTileToPoint(
+  map: EngineTileMap,
+  player: Player,
+  x: number,
+  y: number,
+): TileRef {
+  const placement = player.placement;
+  if (!placement) {
+    throw new Error("Cannot explore wilderness before player placement");
+  }
+
+  let closestTile = placement.selectedTile;
+  let closestDistanceSq = Number.POSITIVE_INFINITY;
+  for (const tile of placement.claimedTiles) {
+    const dx = map.x(tile) + 0.5 - x;
+    const dy = map.y(tile) + 0.5 - y;
     const distanceSq = dx * dx + dy * dy;
     if (distanceSq < closestDistanceSq) {
       closestTile = tile;
@@ -360,11 +405,7 @@ function closestOwnedBorderTile(
     }
   }
 
-  if (closestTile !== null) {
-    return closestTile;
-  }
-
-  return placement.selectedTile;
+  return closestTile;
 }
 
 function isOwnedBorderTile(
@@ -376,26 +417,24 @@ function isOwnedBorderTile(
     return false;
   }
 
-  const x = map.x(tile);
-  const y = map.y(tile);
-  if (x === 0 || y === 0 || x + 1 === map.width() || y + 1 === map.height()) {
-    return true;
-  }
-
   let border = false;
   forEachCardinalNeighbor(map, tile, (neighbor) => {
-    if (!border && ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId) {
+    if (
+      !border &&
+      isLandTile(map, neighbor) &&
+      ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId
+    ) {
       border = true;
     }
   });
   return border;
 }
 
-function createDirectionalFrontShareMap(
+function createDistanceFrontShareMap(
   map: EngineTileMap,
   ownerId: number,
   intent: WildernessExplorationIntent | undefined,
-  sigmaScale: number,
+  distanceFocus: number,
 ): Map<TileRef, number> {
   const shares = new Map<TileRef, number>();
   if (!intent) {
@@ -408,35 +447,29 @@ function createDirectionalFrontShareMap(
       borderTiles.add(tile);
     }
   }
-  if (!borderTiles.has(intent.originTile)) {
-    borderTiles.add(intent.originTile);
-  }
   if (borderTiles.size === 0) {
     return shares;
   }
 
+  let totalWeight = 0;
+  let minDistance = Number.POSITIVE_INFINITY;
   const distances = new Map<TileRef, number>();
-  const queue: TileRef[] = [intent.originTile];
-  distances.set(intent.originTile, 0);
-
-  for (let head = 0; head < queue.length; head += 1) {
-    const tile = queue[head];
-    const distance = distances.get(tile) ?? 0;
-    forEachNeighbor(map, tile, (neighbor) => {
-      if (!borderTiles.has(neighbor) || distances.has(neighbor)) {
-        return;
-      }
-
-      distances.set(neighbor, distance + 1);
-      queue.push(neighbor);
-    });
+  const targetX = map.x(intent.targetTile);
+  const targetY = map.y(intent.targetTile);
+  for (const tile of borderTiles) {
+    const dx = map.x(tile) - targetX;
+    const dy = map.y(tile) - targetY;
+    const distance = Math.hypot(dx, dy);
+    distances.set(tile, distance);
+    minDistance = Math.min(minDistance, distance);
   }
 
-  let totalWeight = 0;
   for (const tile of borderTiles) {
-    const distance = distances.get(tile);
-    const weight =
-      distance === undefined ? 0 : directionalFrontWeight(distance, sigmaScale);
+    const weight = distanceFrontWeight(
+      distances.get(tile) ?? 0,
+      distanceFocus,
+      minDistance,
+    );
     shares.set(tile, weight);
     totalWeight += weight;
   }
@@ -450,8 +483,29 @@ function createDirectionalFrontShareMap(
   return shares;
 }
 
-function directionalPriorityPenalty(sourceShare: number): number {
-  return -sourceShare * DIRECTIONAL_FRONT_PRIORITY_SCALE;
+function distancePriorityPenalty(sourceShare: number): number {
+  return -sourceShare * DISTANCE_FRONT_PRIORITY_SCALE;
+}
+
+export function distanceFrontWeight(
+  distance: number,
+  focus = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.wildernessDistanceFocus,
+  referenceDistance = 0,
+): number {
+  if (
+    !Number.isFinite(distance) ||
+    distance < 0 ||
+    !Number.isFinite(focus) ||
+    focus <= 0 ||
+    !Number.isFinite(referenceDistance) ||
+    referenceDistance < 0
+  ) {
+    return 0;
+  }
+
+  const z = distance * focus;
+  const referenceZ = referenceDistance * focus;
+  return Math.exp(-0.5 * (z * z - referenceZ * referenceZ));
 }
 
 function directionalFrontShareForTile(
@@ -477,17 +531,12 @@ function directionalFrontShareForTile(
   return share;
 }
 
-export function directionalFrontWeight(
-  frontDistance: number,
-  sigmaScale: number,
+function troopBudgetForShare(
+  explorationTroops: number,
+  troopShare: number,
 ): number {
-  if (frontDistance < 0 || sigmaScale <= 0) {
-    return 0;
-  }
-
-  const sigma = Math.max(MIN_DIRECTIONAL_FRONT_SIGMA, sigmaScale);
-  const z = frontDistance / sigma;
-  return Math.exp(-0.5 * z * z);
+  const boundedShare = clamp(troopShare, 0, 1);
+  return explorationTroops * boundedShare;
 }
 
 function isOwnedBorderNeighbor(
@@ -521,48 +570,26 @@ function forEachCardinalNeighbor(
   if (y + 1 < map.height()) callback(map.ref(x, y + 1));
 }
 
-function forEachNeighbor(
-  map: EngineTileMap,
-  tile: TileRef,
-  callback: (neighbor: TileRef) => void,
-): void {
-  const x = map.x(tile);
-  const y = map.y(tile);
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) {
-        continue;
-      }
-
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= map.width() || ny >= map.height()) {
-        continue;
-      }
-
-      callback(map.ref(nx, ny));
-    }
-  }
-}
-
-function wildernessTilesPerTickUsed(
+function wildernessFrontVelocity(
   map: EngineTileMap,
   ownerId: number,
   tile: TileRef,
-  explorationTroops: number,
+  frontTroops: number,
   parameters: FoundationWildernessRuntimeParameters,
 ): number {
-  const activeFrontTroops = Math.min(
-    explorationTroops,
-    parameters.wildernessFrontCapacity,
+  const terminalTroopFactor = clamp(
+    frontTroops / parameters.wildernessFrontCapacity,
+    0,
+    1,
   );
+  const slopeFactor =
+    parameters.wildernessBaseSpeed /
+    wildernessSpeedForTile(map, ownerId, tile, parameters);
 
-  return clamp(
-    (2000 *
-      Math.max(10, wildernessSpeedForTile(map, ownerId, tile, parameters))) /
-      activeFrontTroops,
-    5,
-    100,
+  return (
+    parameters.wildernessTilesPerTickMultiplier *
+    terminalTroopFactor *
+    slopeFactor
   );
 }
 

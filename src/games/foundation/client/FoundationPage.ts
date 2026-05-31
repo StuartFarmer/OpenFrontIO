@@ -16,7 +16,7 @@ import {
   deriveFoundationWorldEngineResourceConfig,
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
-  directionalFrontWeight,
+  distanceFrontWeight,
   foundationLandTerrainByteForElevation,
   foundationWaterTerrainByteForElevation,
   generateWorldEngineBiome,
@@ -28,6 +28,7 @@ import {
   generateWorldEngineResourceMaps,
   generateWorldEngineTemperature,
   generateWorldEngineWatermap,
+  isFoundationLandTerrainByte,
   normalizeFoundationWorldEngineMapConfig,
   normalizeWorldEngineLand,
   ownerIdFromState,
@@ -57,10 +58,15 @@ interface FoundationClientStatus {
 
 interface FoundationDirectionalBorderPreview {
   originTile: number;
+  originX: number;
+  originY: number;
   targetTile: number;
 }
 
 const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 0;
+const FOUNDATION_BORDER_HEAT_BUCKETS = 100;
+const FOUNDATION_VECTOR_LINE_BASE_ALPHA = 0.025;
+const FOUNDATION_VECTOR_LINE_WEIGHT_ALPHA = 0.22;
 
 type FoundationControlTab = "world" | "river" | "combat" | "ecology";
 
@@ -199,16 +205,13 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "maxTroops = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
   wildernessBaseSpeed: {
-    does: "Sets the base movement cost used when converting terrain speed into tile budget usage.",
-    exists:
-      "Anchors how expensive wilderness expansion is before slope modifiers.",
+    does: "Sets the flat-terrain reference used when slope scales frontier velocity.",
+    exists: "Anchors the terrain speed calculation before slope modifiers.",
     represents: "Baseline travel difficulty through unsettled land.",
-    increase:
-      "Uses more tile budget per claimed tile, usually slowing expansion.",
-    decrease:
-      "Uses less tile budget per tile until the minimum cost clamp dominates.",
+    increase: "Makes the same slope multiplier compare against a higher base.",
+    decrease: "Makes the same slope multiplier compare against a lower base.",
     formula:
-      "tileBudgetUsed = clamp(2000 * max(10, wildernessBaseSpeed / slopeMultiplier) / min(explorationTroops, wildernessFrontCapacity), 5, 100)",
+      "frontVelocity = wildernessTilesPerTickMultiplier * min(frontTroops / wildernessFrontCapacity, 1) * slopeMultiplier",
   },
   elevationSlopeScale: {
     does: "Multiplies elevation difference between a candidate tile and owned neighbors.",
@@ -253,28 +256,26 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     formula:
       "priority = (randomInt(0, 7) + 10) * (1 - ownedNeighborCount * 0.5 + (1 + elevation * priorityScale) / 2) + tick",
   },
-  wildernessVectorSharpness: {
-    does: "Sets sigma for the normal troop distribution along the active front.",
+  wildernessDistanceFocus: {
+    does: "Sharpens the Gaussian distance falloff from border tiles to the cursor.",
     exists:
-      "Makes preview color and actual frontier priority use the same troop-share model.",
-    represents:
-      "Standard deviation of the front distribution, measured in border steps from the peak front.",
-    increase: "Spreads troops across a broader section of the front.",
-    decrease: "Concentrates troops near the peak front.",
+      "Makes close clicks create narrow launch fronts while distant clicks stay broad.",
+    represents: "Focus multiplier applied to direct Euclidean cursor distance.",
+    increase: "Concentrates troops on the closest border tiles to the cursor.",
+    decrease: "Spreads troops across a wider section of the border.",
     formula:
-      "share(x) = normal(x; mu=0, sigma=wildernessVectorSharpness) / sum(front weights)",
+      "weight(tile) = exp(-0.5 * (distance(tile, cursor) * distanceFocus)^2)",
   },
   wildernessFrontCapacity: {
-    does: "Caps how many exploration troops can affect per-tile expansion speed at once.",
-    exists: "Separates wave endurance from immediate front-line throughput.",
+    does: "Sets the troop mass where a frontier tile reaches terminal velocity.",
+    exists: "Separates wave endurance from maximum immediate push speed.",
     represents:
-      "The number of committed troops that can actively fight at the front.",
+      "The number of troops needed on a front tile to move at max speed.",
     increase:
-      "Lets larger waves convert more troop mass into faster tile claims.",
-    decrease:
-      "Makes extra troops mostly extend the push duration instead of increasing speed.",
+      "Requires more troops on a tile before it reaches terminal velocity.",
+    decrease: "Lets smaller allocated troop groups reach terminal velocity.",
     formula:
-      "activeFrontTroops = min(explorationTroops, wildernessFrontCapacity)",
+      "terminalTroopFactor = min(frontTroops / wildernessFrontCapacity, 1)",
   },
   wildernessAttackerLossPerTile: {
     does: "Subtracts exploration troops after each wilderness tile is claimed.",
@@ -287,14 +288,13 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "explorationTroopsAfterTile = explorationTroopsBeforeTile - wildernessAttackerLossPerTile",
   },
   wildernessTilesPerTickMultiplier: {
-    does: "Multiplies the per-tick frontier budget before tiles are claimed.",
-    exists: "Controls how much border can be processed each simulation tick.",
-    represents: "Operational throughput across the active frontier.",
-    increase:
-      "Claims more tiles per tick when troops and frontier are available.",
-    decrease: "Spreads conquest over more ticks and makes growth more gradual.",
+    does: "Sets the max per-tick velocity for each active frontier tile.",
+    exists: "Controls how quickly terminal-velocity fronts move across land.",
+    represents: "Maximum physical push speed across the active frontier.",
+    increase: "Moves saturated fronts farther per tick.",
+    decrease: "Makes saturated fronts take more ticks per tile.",
     formula:
-      "tileBudget = (borderSize + randomInt(0, 5)) * wildernessTilesPerTickMultiplier",
+      "progress += wildernessTilesPerTickMultiplier * terminalTroopFactor * slopeMultiplier",
   },
 };
 
@@ -450,8 +450,11 @@ interface FoundationResourceLayerPreviewItem {
 
 @customElement("foundation-page")
 export class FoundationPage extends LitElement {
-  @query("canvas")
+  @query("canvas.board-canvas")
   private canvas!: HTMLCanvasElement;
+
+  @query("canvas.vector-overlay")
+  private vectorOverlayCanvas!: HTMLCanvasElement;
 
   @state()
   private snapshot: FoundationRuntimeSnapshot | null = null;
@@ -1091,6 +1094,15 @@ export class FoundationPage extends LitElement {
       background: #050708;
     }
 
+    .vector-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: transparent;
+      image-rendering: auto;
+    }
+
     @media (max-width: 820px) {
       :host {
         position: static;
@@ -1175,6 +1187,7 @@ export class FoundationPage extends LitElement {
     this.resizeObserver = null;
     this.tickTimer = null;
     this.directionalBorderPreview = null;
+    this.clearVectorOverlay();
     this.renderer = null;
     this.runtime = null;
     super.disconnectedCallback();
@@ -1468,11 +1481,11 @@ export class FoundationPage extends LitElement {
                 "Front Mechanics",
                 html`
                   ${this.logRangeInput(
-                    "Front sigma",
-                    "wildernessVectorSharpness",
-                    0.01,
-                    100,
-                    0.01,
+                    "Distance focus",
+                    "wildernessDistanceFocus",
+                    0.001,
+                    10000,
+                    0.001,
                   )}
                   ${this.rangeInput(
                     "Front capacity",
@@ -1597,7 +1610,11 @@ export class FoundationPage extends LitElement {
             <hud-surface-body class="canvas-frame-host">
               <div class="canvas-frame">
                 ${this.renderRuntimeOverlay(snapshot)}
-                <canvas aria-label="Foundation generated game board"></canvas>
+                <canvas
+                  class="board-canvas"
+                  aria-label="Foundation generated game board"
+                ></canvas>
+                <canvas class="vector-overlay" aria-hidden="true"></canvas>
                 ${this.renderResourceLayerOverlay()}
                 ${this.renderBoardStateOverlay()}
               </div>
@@ -1793,6 +1810,7 @@ export class FoundationPage extends LitElement {
       screenX: event.clientX - rect.left,
       screenY: event.clientY - rect.top,
     });
+    this.drawDistanceVectorOverlay(this.directionalBorderPreview);
     this.requestUpdate();
   };
 
@@ -2205,7 +2223,10 @@ export class FoundationPage extends LitElement {
                 this.handleRangeKeyup(event, key)}
             ></hud-range>
             <span class="slider-value-text">
-              ${formatControlValue(value, value < 10 ? 2 : 1)}
+              ${formatControlValue(
+                value,
+                value < 0.01 ? 3 : value < 10 ? 2 : 1,
+              )}
             </span>
           </span>
         </span>
@@ -2406,10 +2427,6 @@ export class FoundationPage extends LitElement {
     saveFoundationTuningSettings(this.tuningSettings);
     this.configureTickTimer();
     this.runtime?.updateParameters(this.tuningSettings);
-    if (changedKeys.includes("wildernessVectorSharpness")) {
-      this.updateDirectionalBorderIntent(this.directionalBorderPreview);
-    }
-
     const requiresRestart = changedKeys.some((key) =>
       FOUNDATION_RESTART_SETTING_KEYS.has(key),
     );
@@ -2520,12 +2537,13 @@ export class FoundationPage extends LitElement {
   ): void {
     if (!preview || !this.runtime || !this.renderer) {
       this.renderer?.setDirectionalBorderIntent(null);
+      this.clearVectorOverlay();
       return;
     }
 
     const map = this.runtime.map();
-    const originX = map.x(preview.originTile) + 0.5;
-    const originY = map.y(preview.originTile) + 0.5;
+    const originX = preview.originX;
+    const originY = preview.originY;
     const targetX = map.x(preview.targetTile) + 0.5;
     const targetY = map.y(preview.targetTile) + 0.5;
     const rawDx = targetX - originX;
@@ -2533,6 +2551,7 @@ export class FoundationPage extends LitElement {
     const distance = Math.hypot(rawDx, rawDy);
     if (distance <= 0) {
       this.renderer.setDirectionalBorderIntent(null);
+      this.clearVectorOverlay();
       return;
     }
 
@@ -2543,9 +2562,10 @@ export class FoundationPage extends LitElement {
       directionX: rawDx / distance,
       directionY: rawDy / distance,
       distance,
-      sharpness: this.tuningSettings.wildernessVectorSharpness,
+      sharpness: 1,
       heatMap: this.createDirectionalBorderHeatMap(preview),
     });
+    this.drawDistanceVectorOverlay(preview);
   }
 
   private createDirectionalBorderHeatMap(
@@ -2572,41 +2592,30 @@ export class FoundationPage extends LitElement {
         borderTiles.add(tile);
       }
     }
-    if (!borderTiles.has(preview.originTile)) {
-      borderTiles.add(preview.originTile);
-    }
     if (borderTiles.size === 0) {
       return heatMap;
     }
 
-    const distances = new Map<number, number>();
-    const queue: number[] = [preview.originTile];
-    distances.set(preview.originTile, 0);
-    for (let head = 0; head < queue.length; head += 1) {
-      const tile = queue[head];
-      const distance = distances.get(tile) ?? 0;
-      this.forEachNeighbor(tile, (neighbor) => {
-        if (!borderTiles.has(neighbor) || distances.has(neighbor)) {
-          return;
-        }
-
-        const nextDistance = distance + 1;
-        distances.set(neighbor, nextDistance);
-        queue.push(neighbor);
-      });
-    }
-
     let totalWeight = 0;
     const weights = new Map<number, number>();
+    const distances = new Map<number, number>();
+    let minDistance = Number.POSITIVE_INFINITY;
+    const targetX = map.x(preview.targetTile);
+    const targetY = map.y(preview.targetTile);
     for (const tile of borderTiles) {
-      const perimeterDistance = distances.get(tile);
-      const weight =
-        perimeterDistance === undefined
-          ? 0
-          : directionalFrontWeight(
-              perimeterDistance,
-              this.tuningSettings.wildernessVectorSharpness,
-            );
+      const dx = map.x(tile) - targetX;
+      const dy = map.y(tile) - targetY;
+      const distance = Math.hypot(dx, dy);
+      distances.set(tile, distance);
+      minDistance = Math.min(minDistance, distance);
+    }
+
+    for (const tile of borderTiles) {
+      const weight = distanceFrontWeight(
+        distances.get(tile) ?? 0,
+        this.tuningSettings.wildernessDistanceFocus,
+        minDistance,
+      );
       weights.set(tile, weight);
       totalWeight += weight;
     }
@@ -2614,12 +2623,220 @@ export class FoundationPage extends LitElement {
       return heatMap;
     }
 
+    const meanShare = 1 / borderTiles.size;
     for (const tile of borderTiles) {
       const share = (weights.get(tile) ?? 0) / totalWeight;
-      heatMap[tile] = Math.round(clampFoundationNumber(share, 0, 1) * 255);
+      heatMap[tile] = Math.round(
+        quantizeBorderHeat(shareToMeanCenteredHeat(share, meanShare)) * 255,
+      );
     }
 
     return heatMap;
+  }
+
+  private drawDistanceVectorOverlay(
+    preview: FoundationDirectionalBorderPreview | null,
+  ): void {
+    if (!preview) {
+      this.clearVectorOverlay();
+      return;
+    }
+
+    const runtime = this.runtime;
+    const renderer = this.renderer;
+    const overlay = this.vectorOverlayCanvas;
+    const canvas = this.canvas;
+    if (!runtime || !renderer || !overlay || !canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const pixelWidth = Math.max(1, Math.round(rect.width * dpr));
+    const pixelHeight = Math.max(1, Math.round(rect.height * dpr));
+    if (overlay.width !== pixelWidth || overlay.height !== pixelHeight) {
+      overlay.width = pixelWidth;
+      overlay.height = pixelHeight;
+    }
+
+    const context = overlay.getContext("2d");
+    if (!context) {
+      return;
+    }
+
+    context.clearRect(0, 0, overlay.width, overlay.height);
+    context.save();
+    context.scale(dpr, dpr);
+
+    const map = runtime.map();
+    const placement = runtime.player().placement;
+    if (!placement) {
+      context.restore();
+      return;
+    }
+
+    const target = this.worldToOverlayScreen(
+      map.x(preview.targetTile) + 0.5,
+      map.y(preview.targetTile) + 0.5,
+      rect,
+    );
+    const weightedTiles: { tile: number; weight: number }[] = [];
+    const distances = new Map<number, number>();
+    let totalWeight = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+    const targetX = map.x(preview.targetTile);
+    const targetY = map.y(preview.targetTile);
+
+    for (const tile of placement.claimedTiles) {
+      if (!this.isOwnedBorderTile(tile)) {
+        continue;
+      }
+
+      const dx = map.x(tile) - targetX;
+      const dy = map.y(tile) - targetY;
+      const distance = Math.hypot(dx, dy);
+      distances.set(tile, distance);
+      minDistance = Math.min(minDistance, distance);
+    }
+
+    for (const tile of placement.claimedTiles) {
+      if (!this.isOwnedBorderTile(tile)) {
+        continue;
+      }
+
+      const weight = distanceFrontWeight(
+        distances.get(tile) ?? 0,
+        this.tuningSettings.wildernessDistanceFocus,
+        minDistance,
+      );
+      weightedTiles.push({ tile, weight });
+      totalWeight += weight;
+    }
+
+    if (weightedTiles.length === 0 || totalWeight <= 0) {
+      context.restore();
+      return;
+    }
+
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    let maxShare = 0;
+    const shares = weightedTiles.map(({ weight }) => {
+      const share = weight / totalWeight;
+      maxShare = Math.max(maxShare, share);
+      return share;
+    });
+    if (maxShare <= 0) {
+      context.restore();
+      return;
+    }
+
+    const targetWorldX = targetX + 0.5;
+    const targetWorldY = targetY + 0.5;
+    let centroidWorldX = 0;
+    let centroidWorldY = 0;
+    let centroidTileCount = 0;
+    for (let i = 0; i < weightedTiles.length; i++) {
+      const { tile } = weightedTiles[i];
+      const share = shares[i];
+      const relativeShare = share / maxShare;
+      centroidWorldX += map.x(tile) + 0.5;
+      centroidWorldY += map.y(tile) + 0.5;
+      centroidTileCount++;
+      const start = this.worldToOverlayScreen(
+        map.x(tile) + 0.5,
+        map.y(tile) + 0.5,
+        rect,
+      );
+      const alpha = clampFoundationNumber(
+        FOUNDATION_VECTOR_LINE_BASE_ALPHA +
+          relativeShare * FOUNDATION_VECTOR_LINE_WEIGHT_ALPHA,
+        0.025,
+        0.28,
+      );
+      context.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      context.lineWidth = clampFoundationNumber(
+        0.75 + relativeShare * 1.25,
+        0.75,
+        2,
+      );
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(target.x, target.y);
+      context.stroke();
+    }
+
+    if (centroidTileCount === 0) {
+      context.restore();
+      return;
+    }
+
+    const averageStartWorldX = centroidWorldX / centroidTileCount;
+    const averageStartWorldY = centroidWorldY / centroidTileCount;
+    const averageDx = targetWorldX - averageStartWorldX;
+    const averageDy = targetWorldY - averageStartWorldY;
+    if (Math.hypot(averageDx, averageDy) > 0.001) {
+      const averageStart = this.worldToOverlayScreen(
+        averageStartWorldX,
+        averageStartWorldY,
+        rect,
+      );
+      const averageEnd = this.worldToOverlayScreen(
+        targetWorldX + averageDx * 0.25,
+        targetWorldY + averageDy * 0.25,
+        rect,
+      );
+
+      context.strokeStyle = "rgba(5, 7, 8, 0.88)";
+      context.lineWidth = 5;
+      context.beginPath();
+      context.moveTo(averageStart.x, averageStart.y);
+      context.lineTo(averageEnd.x, averageEnd.y);
+      context.stroke();
+
+      context.strokeStyle = "rgba(74, 222, 255, 0.95)";
+      context.lineWidth = 2.5;
+      context.beginPath();
+      context.moveTo(averageStart.x, averageStart.y);
+      context.lineTo(averageEnd.x, averageEnd.y);
+      context.stroke();
+    }
+
+    context.fillStyle = "rgba(255, 255, 255, 0.95)";
+    context.strokeStyle = "rgba(5, 7, 8, 0.85)";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(target.x, target.y, 4, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+
+  private worldToOverlayScreen(
+    worldX: number,
+    worldY: number,
+    rect: DOMRect,
+  ): { x: number; y: number } {
+    const camera = this.renderer?.getCameraState();
+    if (!camera) {
+      return { x: 0, y: 0 };
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    return {
+      x: (camera.zoom * (worldX - camera.x)) / dpr + rect.width / 2,
+      y: (camera.zoom * (worldY - camera.y)) / dpr + rect.height / 2,
+    };
+  }
+
+  private clearVectorOverlay(): void {
+    const overlay = this.vectorOverlayCanvas;
+    if (!overlay) {
+      return;
+    }
+
+    const context = overlay.getContext("2d");
+    context?.clearRect(0, 0, overlay.width, overlay.height);
   }
 
   private updateDirectionalBorderPreviewForPointer(event: PointerEvent): void {
@@ -2655,6 +2872,8 @@ export class FoundationPage extends LitElement {
 
     if (
       this.directionalBorderPreview?.originTile === preview.originTile &&
+      this.directionalBorderPreview.originX === preview.originX &&
+      this.directionalBorderPreview.originY === preview.originY &&
       this.directionalBorderPreview.targetTile === preview.targetTile
     ) {
       return;
@@ -2681,15 +2900,24 @@ export class FoundationPage extends LitElement {
       return null;
     }
 
-    const originTile = this.closestOwnedBorderTile(targetTile);
-    if (originTile === null) {
+    const origin = this.averageOwnedBorderOrigin();
+    if (origin === null) {
       return null;
     }
 
-    return { originTile, targetTile };
+    return {
+      originTile: origin.tile,
+      originX: origin.x,
+      originY: origin.y,
+      targetTile,
+    };
   }
 
-  private closestOwnedBorderTile(targetTile: number): number | null {
+  private averageOwnedBorderOrigin(): {
+    tile: number;
+    x: number;
+    y: number;
+  } | null {
     if (!this.runtime) {
       return null;
     }
@@ -2701,18 +2929,54 @@ export class FoundationPage extends LitElement {
       return null;
     }
 
-    const targetX = map.x(targetTile);
-    const targetY = map.y(targetTile);
-    let closestTile: number | null = null;
-    let closestDistanceSq = Number.POSITIVE_INFINITY;
+    let totalX = 0;
+    let totalY = 0;
+    let count = 0;
 
     for (const tile of placement.claimedTiles) {
       if (!this.isOwnedBorderTile(tile)) {
         continue;
       }
 
-      const dx = map.x(tile) - targetX;
-      const dy = map.y(tile) - targetY;
+      totalX += map.x(tile) + 0.5;
+      totalY += map.y(tile) + 0.5;
+      count++;
+    }
+
+    if (count === 0) {
+      return {
+        tile: placement.selectedTile,
+        x: map.x(placement.selectedTile) + 0.5,
+        y: map.y(placement.selectedTile) + 0.5,
+      };
+    }
+
+    const x = totalX / count;
+    const y = totalY / count;
+    return {
+      tile: this.closestOwnedTileToPoint(x, y) ?? placement.selectedTile,
+      x,
+      y,
+    };
+  }
+
+  private closestOwnedTileToPoint(x: number, y: number): number | null {
+    if (!this.runtime) {
+      return null;
+    }
+
+    const map = this.runtime.map();
+    const placement = this.runtime.player().placement;
+    if (!placement) {
+      return null;
+    }
+
+    let closestTile: number | null = null;
+    let closestDistanceSq = Number.POSITIVE_INFINITY;
+
+    for (const tile of placement.claimedTiles) {
+      const dx = map.x(tile) + 0.5 - x;
+      const dy = map.y(tile) + 0.5 - y;
       const distanceSq = dx * dx + dy * dy;
       if (distanceSq < closestDistanceSq) {
         closestTile = tile;
@@ -2720,7 +2984,7 @@ export class FoundationPage extends LitElement {
       }
     }
 
-    return closestTile ?? placement.selectedTile;
+    return closestTile;
   }
 
   private isOwnedBorderTile(tile: number): boolean {
@@ -2734,50 +2998,17 @@ export class FoundationPage extends LitElement {
       return false;
     }
 
-    const x = map.x(tile);
-    const y = map.y(tile);
-    if (x === 0 || y === 0 || x + 1 === map.width() || y + 1 === map.height()) {
-      return true;
-    }
-
     let border = false;
     this.forEachCardinalNeighbor(tile, (neighbor) => {
       if (
         !border &&
+        isFoundationLandTerrainByte(map.terrainBuffer()[neighbor]) &&
         ownerIdFromState(map.stateBuffer()[neighbor]) !== player.ownerId
       ) {
         border = true;
       }
     });
     return border;
-  }
-
-  private forEachNeighbor(
-    tile: number,
-    callback: (neighbor: number) => void,
-  ): void {
-    if (!this.runtime) {
-      return;
-    }
-
-    const map = this.runtime.map();
-    const x = map.x(tile);
-    const y = map.y(tile);
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
-        if (dx === 0 && dy === 0) {
-          continue;
-        }
-
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= map.width() || ny >= map.height()) {
-          continue;
-        }
-
-        callback(map.ref(nx, ny));
-      }
-    }
   }
 
   private forEachCardinalNeighbor(
@@ -2803,6 +3034,7 @@ export class FoundationPage extends LitElement {
     }
     this.directionalBorderPreview = null;
     this.renderer?.setDirectionalBorderIntent(null);
+    this.clearVectorOverlay();
   }
 
   private async generateWorld(
@@ -2917,6 +3149,7 @@ export class FoundationPage extends LitElement {
     if (!this.renderer) return;
     const rect = this.canvas.getBoundingClientRect();
     this.renderer.resize(rect.width, rect.height);
+    this.drawDistanceVectorOverlay(this.directionalBorderPreview);
   }
 
   private resetRuntime(
@@ -2925,6 +3158,7 @@ export class FoundationPage extends LitElement {
   ): void {
     this.directionalBorderPreview = null;
     this.updateDirectionalBorderIntent(null);
+    this.clearVectorOverlay();
     this.renderer?.dispose();
     this.renderer = null;
     const preparedWorld = clonePreparedMap(foundationMap, foundationMap.source);
@@ -3211,6 +3445,35 @@ function clampFoundationNumber(
   max: number,
 ): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function quantizeBorderHeat(heat: number): number {
+  const clamped = clampFoundationNumber(heat, 0, 1);
+  return (
+    Math.round(clamped * FOUNDATION_BORDER_HEAT_BUCKETS) /
+    FOUNDATION_BORDER_HEAT_BUCKETS
+  );
+}
+
+function shareToMeanCenteredHeat(share: number, meanShare: number): number {
+  if (
+    !Number.isFinite(share) ||
+    share <= 0 ||
+    !Number.isFinite(meanShare) ||
+    meanShare <= 0
+  ) {
+    return 0;
+  }
+
+  if (share <= meanShare) {
+    return 0.5 * (share / meanShare);
+  }
+
+  if (meanShare >= 1) {
+    return 1;
+  }
+
+  return 0.5 + (0.5 * (share - meanShare)) / (1 - meanShare);
 }
 
 export function foundationGeneratedMapSignature(
