@@ -287,7 +287,7 @@ describe("Foundation runtime", () => {
     expect(map.x(eventPayload.originTile)).toBeGreaterThan(map.x(startTile));
   });
 
-  it("rejects wilderness exploration toward water", () => {
+  it("accepts water as a wilderness exploration target without claiming water", () => {
     const map = createFoundationMap({ width: 64, height: 64 });
     const runtime = createFoundationRuntime({ map });
     const startTile = map.ref(16, 16);
@@ -300,10 +300,14 @@ describe("Foundation runtime", () => {
       createGrowTerritoryCommand({ turnNumber: 1, targetTileRef: targetTile }),
     );
 
-    expect(result.ok).toBe(false);
-    expect(result.error).toBe("water_tile");
-    expect(result.update.map).toBeUndefined();
-    expect(runtime.snapshot().player.exploringTroops).toBe(0);
+    expect(result.ok).toBe(true);
+    expect(runtime.snapshot().player.exploringTroops).toBeGreaterThan(0);
+
+    for (let i = 0; i < 40; i++) {
+      runtime.advanceTick();
+    }
+
+    expect(ownerIdFromState(map.stateBuffer()[targetTile])).toBe(0);
   });
 
   it("reinforces active wilderness exploration with another grow command", () => {
@@ -380,6 +384,32 @@ describe("Foundation runtime", () => {
       expect(changedTileStates[i]).toBe(map.stateBuffer()[changedTiles[i]]);
       expect(ownerIdFromState(changedTileStates[i])).toBe(1);
     }
+  });
+
+  it("caps immediate wilderness speed by front capacity instead of total wave troops", () => {
+    const claimedOnFirstTick = (startingTroops: number): number => {
+      const map = createFoundationMap({ width: 64, height: 64 });
+      const runtime = createFoundationRuntime({
+        map,
+        parameters: {
+          startingTroops,
+          wildernessFrontCapacity: 5_000,
+          wildernessAttackerLossPerTile: 0,
+        },
+      });
+
+      runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+      runtime.dispatch(
+        createGrowTerritoryCommand({
+          turnNumber: 1,
+          targetTileRef: map.ref(40, 16),
+        }),
+      );
+
+      return Array.from(runtime.advanceTick().map?.changedTiles ?? []).length;
+    };
+
+    expect(claimedOnFirstTick(1_000_000)).toBe(claimedOnFirstTick(25_000));
   });
 
   it("biases the wilderness frontier toward the clicked target direction", () => {

@@ -43,6 +43,7 @@ export type FoundationWildernessRuntimeParameters = Pick<
   | "maxToblerSpeedMultiplier"
   | "terrainPriorityElevationScale"
   | "wildernessVectorSharpness"
+  | "wildernessFrontCapacity"
   | "wildernessAttackerLossPerTile"
   | "wildernessTilesPerTickMultiplier"
 >;
@@ -59,9 +60,6 @@ export function startWildernessExploration(
   }
   if (!map.isValidRef(targetTile)) {
     throw new Error(`Cannot explore toward invalid tile: ${targetTile}`);
-  }
-  if (!isLandTile(map, targetTile)) {
-    throw new Error("Cannot explore water");
   }
   if (ownerIdFromState(map.stateBuffer()[targetTile]) === player.ownerId) {
     throw new Error("Cannot explore an already owned tile");
@@ -367,13 +365,15 @@ function isOwnedBorderTile(
     return false;
   }
 
+  const x = map.x(tile);
+  const y = map.y(tile);
+  if (x === 0 || y === 0 || x + 1 === map.width() || y + 1 === map.height()) {
+    return true;
+  }
+
   let border = false;
   forEachCardinalNeighbor(map, tile, (neighbor) => {
-    if (
-      !border &&
-      isLandTile(map, neighbor) &&
-      ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId
-    ) {
+    if (!border && ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId) {
       border = true;
     }
   });
@@ -468,10 +468,15 @@ function wildernessTilesPerTickUsed(
   explorationTroops: number,
   parameters: FoundationWildernessRuntimeParameters,
 ): number {
+  const activeFrontTroops = Math.min(
+    explorationTroops,
+    parameters.wildernessFrontCapacity,
+  );
+
   return clamp(
     (2000 *
       Math.max(10, wildernessSpeedForTile(map, ownerId, tile, parameters))) /
-      explorationTroops,
+      activeFrontTroops,
     5,
     100,
   );

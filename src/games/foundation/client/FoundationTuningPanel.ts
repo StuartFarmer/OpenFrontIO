@@ -197,6 +197,41 @@ export class FoundationTuningPanel extends LitElement {
             4,
             0.05,
           )}
+          ${this.numberInput(
+            "Preview distance",
+            "wildernessDirectionalPreviewDistance",
+            1,
+            128,
+            1,
+          )}
+          ${this.numberInput(
+            "Preview sharpness",
+            "wildernessDirectionalPreviewSharpness",
+            0,
+            4,
+            0.05,
+          )}
+          ${this.numberInput(
+            "Preview contrast",
+            "wildernessDirectionalPreviewContrast",
+            0,
+            5,
+            0.05,
+          )}
+          ${this.numberInput(
+            "Preview falloff",
+            "wildernessDirectionalPreviewFalloff",
+            0,
+            24,
+            0.5,
+          )}
+          ${this.numberInput(
+            "Front capacity",
+            "wildernessFrontCapacity",
+            500,
+            50000,
+            500,
+          )}
         </div>
         <div class="actions">
           <button type="button" @click=${this.copyParameters}>Copy JSON</button>

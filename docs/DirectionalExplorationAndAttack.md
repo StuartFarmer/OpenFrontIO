@@ -9,7 +9,7 @@ while making troop movement read as an intentional wave instead of an even blob.
 
 ## Player Model
 
-- A click on unowned terrain creates a wave.
+- A click on unowned terrain or water creates a wave.
 - The wave origin is the owned border tile closest to the click.
 - The wave target is the clicked tile.
 - The vector from origin to target defines the preferred movement direction and
@@ -84,10 +84,12 @@ growth; it only changes the order in which frontier tiles are selected.
 
 ## Visual MVP
 
-When the pointer hovers over a valid wilderness target:
+When the pointer hovers over a valid unowned target:
 
 - Color the current nation border in the WebGL border stamp pass.
-- Use the same directional pressure model as simulation priority.
+- Use a linear visual focus based on click distance and
+  `wildernessDirectionalPreviewDistance`; the preview does not use the
+  simulation's inverse-log focus.
 - Clear the preview when the pointer leaves the map, hovers an invalid target,
   or clicks to commit a wave.
 - A committed wave does not keep border heat active in the MVP.
@@ -95,10 +97,34 @@ When the pointer hovers over a valid wilderness target:
 ## Border Heat
 
 The persistent heat gradient belongs on the nation's border, not on the arrow.
-The WebGL border stamp shader colors owned border tiles by preview pressure.
-Pressure is based on each border tile's distance to the hovered target compared
-with the closest-border distance. This makes the closest launch front red when
-the click is focused, unrelated border blue, and broad/equal pressure yellow.
+The WebGL border stamp shader colors owned border tiles from a preview heat map
+computed by the game layer. Heat is based on each border tile's graph distance
+from the peak front while walking around the owned perimeter, not by straight
+line distance through the territory interior. This makes the back side of a
+front the farthest border region even when it is spatially near the click. The
+visual focus is:
+
+```ts
+visualFocus = clamp(
+  (clickDistance / wildernessDirectionalPreviewDistance) *
+    wildernessDirectionalPreviewSharpness,
+  0,
+  1,
+);
+```
+
+This makes the closest launch front red when the click is focused, unrelated
+border blue, and broad/equal pressure yellow. The simulation still refuses to
+claim water tiles, so water can define intent without becoming a valid movement
+surface.
+
+Visual-only tuning:
+
+- `wildernessDirectionalPreviewDistance`: click distance needed for full visual
+  focus.
+- `wildernessDirectionalPreviewSharpness`: multiplier for visual focus.
+- `wildernessDirectionalPreviewContrast`: color gain away from yellow.
+- `wildernessDirectionalPreviewFalloff`: perimeter-distance decay strength.
 
 Gradient:
 

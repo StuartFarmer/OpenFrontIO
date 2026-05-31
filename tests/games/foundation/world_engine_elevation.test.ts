@@ -5,13 +5,17 @@ import {
   buildWorldEngineElevationTerrainColors,
   buildWorldEngineTerrainColors,
   createWorldEngineFoundationMap,
+  deriveFoundationWorldEngineResourceConfig,
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
   generateWorldEngineBiome,
   generateWorldEngineElevation,
   generateWorldEngineHumidity,
   generateWorldEngineIrrigation,
+  generateWorldEnginePermeability,
   generateWorldEnginePrecipitation,
+  generateWorldEngineResourceMaps,
+  generateWorldEngineRuggedness,
   generateWorldEngineTemperature,
   generateWorldEngineWatermap,
   isFoundationLandTerrainByte,
@@ -38,7 +42,7 @@ describe("WorldEngine elevation map generation", () => {
   });
 
   it("builds a Foundation map with WorldEngine water-aware colors", () => {
-    const { map, terrainColors } = createWorldEngineFoundationMap({
+    const { map, terrainColors, layers } = createWorldEngineFoundationMap({
       seed: 7,
       width: 32,
       height: 32,
@@ -48,6 +52,10 @@ describe("WorldEngine elevation map generation", () => {
     expect(map.height()).toBe(32);
     expect(map.elevationBuffer()).toHaveLength(32 * 32);
     expect(terrainColors).toHaveLength(32 * 32 * 4);
+    expect(layers.resources.crop).toHaveLength(32 * 32);
+    expect(layers.resources.basin).toHaveLength(32 * 32);
+    expect(layers.resources.oil).toHaveLength(32 * 32);
+    expect(layers.resources.metal).toHaveLength(32 * 32);
 
     const ocean = deriveWorldEngineOcean(map.elevationBuffer(), {
       width: 32,
@@ -277,5 +285,121 @@ describe("WorldEngine elevation map generation", () => {
         buildWorldEngineElevationTerrainColors(new Float32Array([0, 1])),
       ),
     ).toEqual([13, 45, 72, 255, 232, 235, 226, 255]);
+  });
+
+  it("generates deterministic permeability with ocean tiles cleared", () => {
+    const ocean = new Uint8Array([1, 0, 0, 1]);
+    const params = {
+      width: 2,
+      height: 2,
+      seed: 99,
+    };
+
+    const first = generateWorldEnginePermeability(ocean, params);
+    const second = generateWorldEnginePermeability(ocean, params);
+
+    expect(Array.from(first)).toEqual(Array.from(second));
+    expect(first[0]).toBe(0);
+    expect(first[3]).toBe(0);
+    expect(first[1]).toBeGreaterThanOrEqual(0);
+    expect(first[1]).toBeLessThanOrEqual(1);
+  });
+
+  it("generates ruggedness from local elevation differences", () => {
+    const ruggedness = generateWorldEngineRuggedness(
+      new Float32Array([0.5, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]),
+      { width: 3, height: 3 },
+    );
+
+    expect(ruggedness[4]).toBeCloseTo(0.75);
+    expect(Math.min(...ruggedness)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...ruggedness)).toBeLessThanOrEqual(1);
+  });
+
+  it("generates bounded WorldEngine resource potentials", () => {
+    const config = {
+      ...DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
+      seed: 123,
+      width: 24,
+      height: 18,
+    };
+    const resourceConfig = deriveFoundationWorldEngineResourceConfig(
+      config.seed,
+    );
+    const elevation = generateWorldEngineElevation(config);
+    const ocean = deriveWorldEngineOcean(elevation, config);
+    const { data: temperature, mountainThreshold } =
+      generateWorldEngineTemperature(elevation, ocean, config);
+    const precipitation = generateWorldEnginePrecipitation(
+      elevation,
+      ocean,
+      temperature,
+      config,
+    );
+    const seaDepth = deriveWorldEngineSeaDepth(elevation, ocean, config);
+    const { watermap } = generateWorldEngineWatermap(
+      elevation,
+      ocean,
+      precipitation,
+      config,
+    );
+    const normalizedWatermap = normalizeWorldEngineLand(watermap, ocean);
+    const irrigation = generateWorldEngineIrrigation(watermap, ocean, config);
+    const humidity = generateWorldEngineHumidity(
+      precipitation,
+      irrigation,
+      ocean,
+    );
+    const permeability = generateWorldEnginePermeability(ocean, config);
+
+    const first = generateWorldEngineResourceMaps(
+      {
+        elevation,
+        ocean,
+        temperature,
+        precipitation,
+        seaDepth,
+        normalizedWatermap,
+        irrigation,
+        humidity,
+        permeability,
+        mountainThreshold,
+      },
+      {
+        ...config,
+        ...resourceConfig,
+      },
+    );
+    const second = generateWorldEngineResourceMaps(
+      {
+        elevation,
+        ocean,
+        temperature,
+        precipitation,
+        seaDepth,
+        normalizedWatermap,
+        irrigation,
+        humidity,
+        permeability,
+        mountainThreshold,
+      },
+      {
+        ...config,
+        ...resourceConfig,
+      },
+    );
+
+    for (const key of ["crop", "basin", "oil", "metal"] as const) {
+      expect(Array.from(first[key])).toEqual(Array.from(second[key]));
+      expect(first[key]).toHaveLength(config.width * config.height);
+      expect(Math.min(...first[key])).toBeGreaterThanOrEqual(0);
+      expect(Math.max(...first[key])).toBeLessThanOrEqual(1);
+    }
+
+    for (let i = 0; i < ocean.length; i += 1) {
+      if (ocean[i] === 0) continue;
+      expect(first.crop[i]).toBe(0);
+      expect(first.metal[i]).toBe(0);
+    }
   });
 });

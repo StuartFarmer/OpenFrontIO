@@ -9,7 +9,12 @@
 import type { DirectionalBorderIntentInput } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
 import { getPaletteSize } from "../utils/ColorUtils";
-import { createMapQuad, createProgram, shaderSrc } from "../utils/GlUtils";
+import {
+  createMapQuad,
+  createProgram,
+  createTexture2D,
+  shaderSrc,
+} from "../utils/GlUtils";
 import { TILE_DEFINES } from "../utils/TileCodec";
 
 import borderStampFragSrc from "../shaders/day-night/border-stamp.frag.glsl?raw";
@@ -34,15 +39,13 @@ export class BorderStampPass {
   private uAltView: WebGLUniformLocation;
   private uDirectionalBorderActive: WebGLUniformLocation;
   private uDirectionalBorderOwner: WebGLUniformLocation;
-  private uDirectionalBorderOrigin: WebGLUniformLocation;
-  private uDirectionalBorderDirection: WebGLUniformLocation;
-  private uDirectionalBorderDistance: WebGLUniformLocation;
-  private uDirectionalBorderSharpness: WebGLUniformLocation;
+  private uDirectionalBorderHeatTex: WebGLUniformLocation;
 
   private vao: WebGLVertexArrayObject;
   private tileTex: WebGLTexture;
   private paletteTex: WebGLTexture;
   private borderTex: WebGLTexture;
+  private directionalHeatTex: WebGLTexture;
   private affiliationTex: WebGLTexture | null = null;
   private altView = false;
   private directionalIntent: DirectionalBorderIntentInput | null = null;
@@ -111,21 +114,9 @@ export class BorderStampPass {
       this.program,
       "uDirectionalBorderOwner",
     )!;
-    this.uDirectionalBorderOrigin = gl.getUniformLocation(
+    this.uDirectionalBorderHeatTex = gl.getUniformLocation(
       this.program,
-      "uDirectionalBorderOrigin",
-    )!;
-    this.uDirectionalBorderDirection = gl.getUniformLocation(
-      this.program,
-      "uDirectionalBorderDirection",
-    )!;
-    this.uDirectionalBorderDistance = gl.getUniformLocation(
-      this.program,
-      "uDirectionalBorderDistance",
-    )!;
-    this.uDirectionalBorderSharpness = gl.getUniformLocation(
-      this.program,
-      "uDirectionalBorderSharpness",
+      "uDirectionalBorderHeatTex",
     )!;
 
     gl.useProgram(this.program);
@@ -133,8 +124,19 @@ export class BorderStampPass {
     gl.uniform1i(gl.getUniformLocation(this.program, "uPalette"), 1);
     gl.uniform1i(gl.getUniformLocation(this.program, "uBorderTex"), 2);
     gl.uniform1i(gl.getUniformLocation(this.program, "uAffiliation"), 3);
+    gl.uniform1i(this.uDirectionalBorderHeatTex, 4);
 
     this.vao = createMapQuad(gl, mapW, mapH);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    this.directionalHeatTex = createTexture2D(gl, {
+      width: mapW,
+      height: mapH,
+      internalFormat: gl.R8,
+      format: gl.RED,
+      type: gl.UNSIGNED_BYTE,
+      data: new Uint8Array(mapW * mapH).fill(128),
+      filter: gl.NEAREST,
+    });
   }
 
   setAltView(active: boolean): void {
@@ -145,6 +147,9 @@ export class BorderStampPass {
   }
   setDirectionalIntent(intent: DirectionalBorderIntentInput | null): void {
     this.directionalIntent = intent;
+    if (intent) {
+      this.uploadDirectionalHeatMap(intent.heatMap);
+    }
   }
 
   /** Draw borders + defense checkerboard + embers. Blending must be enabled. */
@@ -185,9 +190,33 @@ export class BorderStampPass {
       gl.activeTexture(gl.TEXTURE3);
       gl.bindTexture(gl.TEXTURE_2D, this.affiliationTex);
     }
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, this.directionalHeatTex);
 
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  private uploadDirectionalHeatMap(heatMap: Uint8Array): void {
+    if (heatMap.length !== this.mapW * this.mapH) {
+      return;
+    }
+
+    const gl = this.gl;
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, this.directionalHeatTex);
+    gl.texSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      this.mapW,
+      this.mapH,
+      gl.RED,
+      gl.UNSIGNED_BYTE,
+      heatMap,
+    );
   }
 
   private uploadDirectionalIntent(): void {
@@ -197,6 +226,7 @@ export class BorderStampPass {
       !intent ||
       intent.distance <= 0 ||
       intent.sharpness <= 0 ||
+      intent.heatMap.length !== this.mapW * this.mapH ||
       !Number.isFinite(intent.directionX) ||
       !Number.isFinite(intent.directionY)
     ) {
@@ -206,19 +236,12 @@ export class BorderStampPass {
 
     gl.uniform1i(this.uDirectionalBorderActive, 1);
     gl.uniform1ui(this.uDirectionalBorderOwner, intent.ownerId);
-    gl.uniform2f(this.uDirectionalBorderOrigin, intent.originX, intent.originY);
-    gl.uniform2f(
-      this.uDirectionalBorderDirection,
-      intent.directionX,
-      intent.directionY,
-    );
-    gl.uniform1f(this.uDirectionalBorderDistance, intent.distance);
-    gl.uniform1f(this.uDirectionalBorderSharpness, intent.sharpness);
   }
 
   dispose(): void {
     const gl = this.gl;
     gl.deleteProgram(this.program);
     gl.deleteVertexArray(this.vao);
+    gl.deleteTexture(this.directionalHeatTex);
   }
 }

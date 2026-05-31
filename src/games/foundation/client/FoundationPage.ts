@@ -13,6 +13,7 @@ import {
   FoundationEngineTileMap,
   buildWorldEngineTerrainColors,
   createFoundationMap,
+  deriveFoundationWorldEngineResourceConfig,
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
   foundationLandTerrainByteForElevation,
@@ -21,13 +22,16 @@ import {
   generateWorldEngineElevation,
   generateWorldEngineHumidity,
   generateWorldEngineIrrigation,
+  generateWorldEnginePermeability,
   generateWorldEnginePrecipitation,
+  generateWorldEngineResourceMaps,
   generateWorldEngineTemperature,
   generateWorldEngineWatermap,
-  isLandTile,
   normalizeFoundationWorldEngineMapConfig,
   normalizeWorldEngineLand,
   ownerIdFromState,
+  type FoundationWorldEngineLayers,
+  type WorldEngineResourceMaps,
 } from "../domain";
 import {
   FoundationRuntime,
@@ -54,6 +58,8 @@ interface FoundationDirectionalBorderPreview {
   originTile: number;
   targetTile: number;
 }
+
+const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 128;
 
 type FoundationControlTab = "world" | "river" | "mechanics";
 
@@ -200,7 +206,7 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     decrease:
       "Uses less tile budget per tile until the minimum cost clamp dominates.",
     formula:
-      "tileBudgetUsed = clamp(2000 * max(10, wildernessBaseSpeed / slopeMultiplier) / explorationTroops, 5, 100)",
+      "tileBudgetUsed = clamp(2000 * max(10, wildernessBaseSpeed / slopeMultiplier) / min(explorationTroops, wildernessFrontCapacity), 5, 100)",
   },
   elevationSlopeScale: {
     does: "Multiplies elevation difference between a candidate tile and owned neighbors.",
@@ -257,6 +263,62 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "Makes exploration fill more broadly around the border before following the vector.",
     formula:
       "focus = clamp((1 - 1 / (1 + log1p(distance / 40))) * wildernessVectorSharpness, 0, 1)",
+  },
+  wildernessDirectionalPreviewDistance: {
+    does: "Sets the click distance that makes border preview colors reach full contrast.",
+    exists:
+      "Lets the visual preview be tuned separately from the simulation's inverse-log movement focus.",
+    represents:
+      "Preview calibration distance: shorter values make nearby hovers contrast sooner.",
+    increase:
+      "Keeps the border preview yellower until the pointer is farther from the closest border.",
+    decrease:
+      "Makes red and blue concentration bands appear at shorter pointer distances.",
+    formula:
+      "visualFocus = clamp((clickDistance / wildernessDirectionalPreviewDistance) * wildernessDirectionalPreviewSharpness, 0, 1)",
+  },
+  wildernessDirectionalPreviewSharpness: {
+    does: "Scales how quickly border preview focus increases with click distance.",
+    exists:
+      "Keeps preview tuning independent from the simulation vector sharpness.",
+    represents:
+      "Visual-only distance sensitivity before contrast and perimeter falloff are applied.",
+    increase: "Makes focused red/blue bands appear at shorter click distances.",
+    decrease: "Keeps more hover previews near the equal yellow baseline.",
+    formula:
+      "visualFocus = clamp((clickDistance / wildernessDirectionalPreviewDistance) * wildernessDirectionalPreviewSharpness, 0, 1)",
+  },
+  wildernessDirectionalPreviewContrast: {
+    does: "Controls how far the border preview can move away from yellow.",
+    exists:
+      "Lets the preview be made subtle or high-contrast without changing the front shape.",
+    represents: "Color gain around the yellow equal-priority baseline.",
+    increase: "Pushes peak fronts redder and distant perimeter regions bluer.",
+    decrease: "Compresses the preview toward yellow.",
+    formula:
+      "heat = clamp(0.5 + (concentration - 0.5) * visualFocus * wildernessDirectionalPreviewContrast, 0, 1)",
+  },
+  wildernessDirectionalPreviewFalloff: {
+    does: "Controls how quickly preview concentration decays around the border perimeter.",
+    exists:
+      "Lets perimeter bands be made tighter or broader after the peak front is chosen.",
+    represents: "Perimeter-distance decay strength for the visual heat map.",
+    increase: "Makes the red region tighter and the opposite side colder.",
+    decrease: "Spreads warm colors farther around the border.",
+    formula:
+      "concentration = exp(-normalizedPerimeterDistance * (1 + visualFocus * wildernessDirectionalPreviewFalloff))",
+  },
+  wildernessFrontCapacity: {
+    does: "Caps how many exploration troops can affect per-tile expansion speed at once.",
+    exists: "Separates wave endurance from immediate front-line throughput.",
+    represents:
+      "The number of committed troops that can actively fight at the front.",
+    increase:
+      "Lets larger waves convert more troop mass into faster tile claims.",
+    decrease:
+      "Makes extra troops mostly extend the push duration instead of increasing speed.",
+    formula:
+      "activeFrontTroops = min(explorationTroops, wildernessFrontCapacity)",
   },
   wildernessAttackerLossPerTile: {
     does: "Subtracts exploration troops after each wilderness tile is claimed.",
@@ -315,7 +377,8 @@ const FOUNDATION_PLAYER_PALETTE: BaseMapPalette = {
 };
 
 const FOUNDATION_AUTO_GENERATE_MAX_DIMENSION = 512;
-const FOUNDATION_GENERATED_MAP_STORAGE_KEY = "foundation.generatedMap.v3";
+export const FOUNDATION_GENERATED_MAP_STORAGE_KEY =
+  "foundation.generatedMap.v4";
 const FOUNDATION_GESTURE_EVENTS = [
   "gesturestart",
   "gesturechange",
@@ -355,12 +418,78 @@ interface FoundationGeneratedMapCache {
   elevation16?: string;
   terrainColors?: string;
   terrainColorsRgb?: string;
+  resourceLayers8?: Partial<Record<FoundationResourceLayerKey, string>>;
 }
 
 interface FoundationPreparedMap {
   map: FoundationEngineTileMap;
   terrainColors: Uint8Array | undefined;
+  worldEngineLayers?: FoundationWorldEngineLayers;
+  resourceLayers?: WorldEngineResourceMaps;
   source: "cache" | "current" | "generated";
+}
+
+type FoundationResourceLayerKey = keyof WorldEngineResourceMaps;
+
+const FOUNDATION_RESOURCE_LAYER_KEYS: readonly FoundationResourceLayerKey[] = [
+  "crop",
+  "basin",
+  "oil",
+  "metal",
+];
+
+type FoundationLayerColor = readonly [r: number, g: number, b: number];
+type FoundationScalarLayerPalette = readonly (readonly [
+  value: number,
+  color: FoundationLayerColor,
+])[];
+
+const FOUNDATION_CROP_LAYER_PALETTE: FoundationScalarLayerPalette = [
+  [0, [28, 40, 34]],
+  [0.35, [83, 111, 58]],
+  [0.7, [151, 171, 77]],
+  [1, [222, 214, 126]],
+];
+
+const FOUNDATION_BASIN_LAYER_PALETTE: FoundationScalarLayerPalette = [
+  [0, [31, 37, 45]],
+  [0.38, [76, 83, 94]],
+  [0.72, [145, 137, 103]],
+  [1, [218, 192, 126]],
+];
+
+const FOUNDATION_OIL_LAYER_PALETTE: FoundationScalarLayerPalette = [
+  [0, [20, 33, 42]],
+  [0.35, [56, 73, 76]],
+  [0.72, [106, 112, 79]],
+  [1, [226, 181, 83]],
+];
+
+const FOUNDATION_METAL_LAYER_PALETTE: FoundationScalarLayerPalette = [
+  [0, [29, 34, 39]],
+  [0.4, [83, 91, 98]],
+  [0.72, [151, 155, 152]],
+  [1, [236, 239, 228]],
+];
+
+interface FoundationResourceLayerDefinition {
+  key: FoundationResourceLayerKey;
+  label: string;
+  palette: FoundationScalarLayerPalette;
+}
+
+const FOUNDATION_RESOURCE_LAYER_DEFINITIONS: readonly FoundationResourceLayerDefinition[] =
+  [
+    { key: "crop", label: "Crop", palette: FOUNDATION_CROP_LAYER_PALETTE },
+    { key: "basin", label: "Basin", palette: FOUNDATION_BASIN_LAYER_PALETTE },
+    { key: "oil", label: "Oil", palette: FOUNDATION_OIL_LAYER_PALETTE },
+    { key: "metal", label: "Metal", palette: FOUNDATION_METAL_LAYER_PALETTE },
+  ];
+
+interface FoundationResourceLayerPreviewItem {
+  key: FoundationResourceLayerKey;
+  label: string;
+  src: string;
 }
 
 @customElement("foundation-page")
@@ -407,6 +536,9 @@ export class FoundationPage extends LitElement {
   private directionalBorderPreview: FoundationDirectionalBorderPreview | null =
     null;
   private currentPreparedWorld: FoundationPreparedMap | null = null;
+  private resourceLayerPreviewWorld: FoundationPreparedMap | null = null;
+  private resourceLayerPreviewItems: readonly FoundationResourceLayerPreviewItem[] =
+    [];
   private currentWorldSignature: string | null = null;
   private dragPointerId: number | null = null;
   private dragLastX = 0;
@@ -930,6 +1062,69 @@ export class FoundationPage extends LitElement {
       margin-top: 10px;
     }
 
+    .resource-layer-overlay {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 2;
+      width: min(360px, calc(100% - 24px));
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+      --hud-radius: 8px;
+      --hud-surface-header-min-height: 32px;
+      --hud-surface-header-padding: 8px 10px;
+      --hud-surface-body-padding: 10px;
+    }
+
+    .resource-layer-overlay::part(surface) {
+      border: 1px solid rgb(48 56 61 / 0.86);
+      background: rgb(24 29 32 / 0.88);
+      box-shadow: 0 18px 48px rgb(0 0 0 / 0.28);
+    }
+
+    .resource-layer-title {
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .resource-layer-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .resource-layer-tile {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .resource-layer-tile img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1;
+      border: 1px solid rgb(48 56 61 / 0.9);
+      border-radius: 4px;
+      background: #050708;
+      image-rendering: pixelated;
+      object-fit: cover;
+    }
+
+    .resource-layer-tile span {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      overflow: hidden;
+      text-align: center;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
     canvas {
       display: block;
       width: 100%;
@@ -1365,6 +1560,46 @@ export class FoundationPage extends LitElement {
                     2,
                   )}
                   ${this.rangeInput(
+                    "Preview distance",
+                    "wildernessDirectionalPreviewDistance",
+                    1,
+                    128,
+                    1,
+                    0,
+                  )}
+                  ${this.rangeInput(
+                    "Preview sharpness",
+                    "wildernessDirectionalPreviewSharpness",
+                    0,
+                    4,
+                    0.05,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Preview contrast",
+                    "wildernessDirectionalPreviewContrast",
+                    0,
+                    5,
+                    0.05,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Preview falloff",
+                    "wildernessDirectionalPreviewFalloff",
+                    0,
+                    24,
+                    0.5,
+                    1,
+                  )}
+                  ${this.rangeInput(
+                    "Front capacity",
+                    "wildernessFrontCapacity",
+                    500,
+                    50000,
+                    500,
+                    0,
+                  )}
+                  ${this.rangeInput(
                     "Loss per tile",
                     "wildernessAttackerLossPerTile",
                     0,
@@ -1424,6 +1659,7 @@ export class FoundationPage extends LitElement {
               <div class="canvas-frame">
                 ${this.renderRuntimeOverlay(snapshot)}
                 <canvas aria-label="Foundation generated game board"></canvas>
+                ${this.renderResourceLayerOverlay()}
                 ${this.renderBoardStateOverlay()}
               </div>
             </hud-surface-body>
@@ -1508,6 +1744,65 @@ export class FoundationPage extends LitElement {
         </hud-surface-body>
       </hud-surface>
     `;
+  }
+
+  private renderResourceLayerOverlay(): TemplateResult | null {
+    const preparedWorld = this.currentPreparedWorld;
+    const resourceLayers = resourceLayersForPreparedMap(preparedWorld);
+    if (!preparedWorld || !resourceLayers) {
+      this.resourceLayerPreviewWorld = null;
+      this.resourceLayerPreviewItems = [];
+      return null;
+    }
+
+    const items = this.resourceLayerPreviewItemsFor(preparedWorld);
+
+    return html`
+      <hud-surface class="resource-layer-overlay" aria-label="Resource layers">
+        <hud-surface-header>
+          <span class="resource-layer-title">Resources</span>
+        </hud-surface-header>
+        <hud-surface-body>
+          <div class="resource-layer-grid">
+            ${items.map(({ label, src }) => {
+              return html`
+                <div class="resource-layer-tile">
+                  <img src=${src} alt=${`${label} potential`} />
+                  <span>${label}</span>
+                </div>
+              `;
+            })}
+          </div>
+        </hud-surface-body>
+      </hud-surface>
+    `;
+  }
+
+  private resourceLayerPreviewItemsFor(
+    preparedWorld: FoundationPreparedMap,
+  ): readonly FoundationResourceLayerPreviewItem[] {
+    if (this.resourceLayerPreviewWorld === preparedWorld) {
+      return this.resourceLayerPreviewItems;
+    }
+
+    const resourceLayers = resourceLayersForPreparedMap(preparedWorld);
+    if (!resourceLayers) {
+      this.resourceLayerPreviewWorld = null;
+      this.resourceLayerPreviewItems = [];
+      return this.resourceLayerPreviewItems;
+    }
+
+    const width = preparedWorld.map.width();
+    const height = preparedWorld.map.height();
+    this.resourceLayerPreviewWorld = preparedWorld;
+    this.resourceLayerPreviewItems = FOUNDATION_RESOURCE_LAYER_DEFINITIONS.map(
+      ({ key, label, palette }) => ({
+        key,
+        label,
+        src: scalarLayerDataUrl(resourceLayers[key], width, height, palette),
+      }),
+    );
+    return this.resourceLayerPreviewItems;
   }
 
   private renderBoardStateOverlay(): TemplateResult | null {
@@ -1651,6 +1946,7 @@ export class FoundationPage extends LitElement {
     }
 
     const currentSnapshot = this.snapshot ?? this.runtime.snapshot();
+    const wasPlacingPlayer = !currentSnapshot.player.placed;
     const result = this.runtime.dispatch(
       currentSnapshot.player.placed
         ? createGrowTerritoryCommand({
@@ -1668,6 +1964,9 @@ export class FoundationPage extends LitElement {
     this.clearDirectionalBorderPreview();
     this.snapshot = this.runtime.snapshot();
     this.status = this.statusFromCommandResult(result, tile);
+    if (result.ok && wasPlacingPlayer) {
+      this.paused = false;
+    }
   };
 
   private readonly advanceRuntimeTick = (): void => {
@@ -2050,7 +2349,6 @@ export class FoundationPage extends LitElement {
     this.updateSettings(
       {
         [key]: value,
-        mapGenerator: "world-engine",
       },
       {
         generateOnCommit: true,
@@ -2064,7 +2362,6 @@ export class FoundationPage extends LitElement {
   ): void {
     this.updateSettings({
       [key]: Number(event.detail.value),
-      mapGenerator: "world-engine",
     });
   }
 
@@ -2074,7 +2371,6 @@ export class FoundationPage extends LitElement {
   ): void {
     this.updateSettings({
       [key]: Number(event.detail.value) / 100,
-      mapGenerator: "world-engine",
     });
   }
 
@@ -2118,7 +2414,13 @@ export class FoundationPage extends LitElement {
     saveFoundationTuningSettings(this.tuningSettings);
     this.configureTickTimer();
     this.runtime?.updateParameters(this.tuningSettings);
-    if (changedKeys.includes("wildernessVectorSharpness")) {
+    if (
+      changedKeys.includes("wildernessVectorSharpness") ||
+      changedKeys.includes("wildernessDirectionalPreviewDistance") ||
+      changedKeys.includes("wildernessDirectionalPreviewSharpness") ||
+      changedKeys.includes("wildernessDirectionalPreviewContrast") ||
+      changedKeys.includes("wildernessDirectionalPreviewFalloff")
+    ) {
       this.updateDirectionalBorderIntent(this.directionalBorderPreview);
     }
 
@@ -2256,7 +2558,94 @@ export class FoundationPage extends LitElement {
       directionY: rawDy / distance,
       distance,
       sharpness: this.tuningSettings.wildernessVectorSharpness,
+      previewDistance: this.tuningSettings.wildernessDirectionalPreviewDistance,
+      heatMap: this.createDirectionalBorderHeatMap(preview, distance),
     });
+  }
+
+  private createDirectionalBorderHeatMap(
+    preview: FoundationDirectionalBorderPreview,
+    clickDistance: number,
+  ): Uint8Array {
+    const runtime = this.runtime;
+    if (!runtime) {
+      return new Uint8Array();
+    }
+
+    const map = runtime.map();
+    const heatMap = new Uint8Array(map.width() * map.height());
+    heatMap.fill(FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT);
+
+    const player = runtime.player();
+    const placement = player.placement;
+    if (!placement) {
+      return heatMap;
+    }
+
+    const borderTiles = new Set<number>();
+    for (const tile of placement.claimedTiles) {
+      if (this.isOwnedBorderTile(tile)) {
+        borderTiles.add(tile);
+      }
+    }
+    if (!borderTiles.has(preview.originTile)) {
+      borderTiles.add(preview.originTile);
+    }
+    if (borderTiles.size === 0) {
+      return heatMap;
+    }
+
+    const distances = new Map<number, number>();
+    const queue: number[] = [preview.originTile];
+    distances.set(preview.originTile, 0);
+    let maxDistance = 0;
+
+    for (let head = 0; head < queue.length; head += 1) {
+      const tile = queue[head];
+      const distance = distances.get(tile) ?? 0;
+      this.forEachNeighbor(tile, (neighbor) => {
+        if (!borderTiles.has(neighbor) || distances.has(neighbor)) {
+          return;
+        }
+
+        const nextDistance = distance + 1;
+        distances.set(neighbor, nextDistance);
+        maxDistance = Math.max(maxDistance, nextDistance);
+        queue.push(neighbor);
+      });
+    }
+
+    const focus = clampFoundationNumber(
+      (clickDistance /
+        Math.max(1, this.tuningSettings.wildernessDirectionalPreviewDistance)) *
+        this.tuningSettings.wildernessDirectionalPreviewSharpness,
+      0,
+      1,
+    );
+    const contrast =
+      focus * this.tuningSettings.wildernessDirectionalPreviewContrast;
+    const concentrationFalloff =
+      1 + focus * this.tuningSettings.wildernessDirectionalPreviewFalloff;
+    const maxConnectedDistance = Math.max(1, maxDistance);
+
+    for (const tile of borderTiles) {
+      const perimeterDistance = distances.get(tile);
+      const normalizedDistance =
+        perimeterDistance === undefined
+          ? 1
+          : perimeterDistance / maxConnectedDistance;
+      const concentration = Math.exp(
+        -normalizedDistance * concentrationFalloff,
+      );
+      const heat = clampFoundationNumber(
+        0.5 + (concentration - 0.5) * contrast,
+        0,
+        1,
+      );
+      heatMap[tile] = Math.round(heat * 255);
+    }
+
+    return heatMap;
   }
 
   private updateDirectionalBorderPreviewForPointer(event: PointerEvent): void {
@@ -2313,7 +2702,6 @@ export class FoundationPage extends LitElement {
     if (
       !player.placement ||
       !map.isValidRef(targetTile) ||
-      !isLandTile(map, targetTile) ||
       ownerIdFromState(map.stateBuffer()[targetTile]) === player.ownerId
     ) {
       return null;
@@ -2372,17 +2760,50 @@ export class FoundationPage extends LitElement {
       return false;
     }
 
+    const x = map.x(tile);
+    const y = map.y(tile);
+    if (x === 0 || y === 0 || x + 1 === map.width() || y + 1 === map.height()) {
+      return true;
+    }
+
     let border = false;
     this.forEachCardinalNeighbor(tile, (neighbor) => {
       if (
         !border &&
-        isLandTile(map, neighbor) &&
         ownerIdFromState(map.stateBuffer()[neighbor]) !== player.ownerId
       ) {
         border = true;
       }
     });
     return border;
+  }
+
+  private forEachNeighbor(
+    tile: number,
+    callback: (neighbor: number) => void,
+  ): void {
+    if (!this.runtime) {
+      return;
+    }
+
+    const map = this.runtime.map();
+    const x = map.x(tile);
+    const y = map.y(tile);
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dy === 0) {
+          continue;
+        }
+
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= map.width() || ny >= map.height()) {
+          continue;
+        }
+
+        callback(map.ref(nx, ny));
+      }
+    }
   }
 
   private forEachCardinalNeighbor(
@@ -2619,11 +3040,8 @@ export class FoundationPage extends LitElement {
     const ocean = deriveWorldEngineOcean(elevation, normalized);
 
     await this.showGenerationStep("Calculating temperature...");
-    const { data: temperature } = generateWorldEngineTemperature(
-      elevation,
-      ocean,
-      normalized,
-    );
+    const { data: temperature, mountainThreshold } =
+      generateWorldEngineTemperature(elevation, ocean, normalized);
 
     await this.showGenerationStep("Generating rainfall...");
     const precipitation = generateWorldEnginePrecipitation(
@@ -2664,6 +3082,27 @@ export class FoundationPage extends LitElement {
     await this.showGenerationStep("Classifying biomes...");
     const biome = generateWorldEngineBiome(ocean, temperature, humidity);
 
+    await this.showGenerationStep("Calculating resource potentials...");
+    const permeability = generateWorldEnginePermeability(ocean, normalized);
+    const resources = generateWorldEngineResourceMaps(
+      {
+        elevation,
+        ocean,
+        temperature,
+        precipitation,
+        seaDepth,
+        normalizedWatermap,
+        irrigation,
+        humidity,
+        permeability,
+        mountainThreshold,
+      },
+      {
+        ...normalized,
+        ...deriveFoundationWorldEngineResourceConfig(normalized.seed),
+      },
+    );
+
     await this.showGenerationStep("Painting terrain...");
     const terrain = new Uint8Array(normalized.width * normalized.height);
     for (let i = 0; i < elevation.length; i++) {
@@ -2697,6 +3136,23 @@ export class FoundationPage extends LitElement {
         elevation,
       ),
       terrainColors,
+      worldEngineLayers: {
+        elevation,
+        ocean,
+        temperature,
+        precipitation,
+        seaDepth,
+        watermap,
+        normalizedWatermap,
+        lakes,
+        irrigation,
+        humidity,
+        permeability,
+        biome,
+        mountainThreshold,
+        resources,
+      },
+      resourceLayers: resources,
     };
   }
 
@@ -2775,7 +3231,15 @@ function foundationZoomDeltaFromWheelEvent(event: WheelEvent): number | null {
   return Math.abs(event.deltaY) < 2 ? null : event.deltaY;
 }
 
-function foundationGeneratedMapSignature(
+function clampFoundationNumber(
+  value: number,
+  min: number,
+  max: number,
+): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function foundationGeneratedMapSignature(
   settings: FoundationTuningSettings,
 ): string {
   return JSON.stringify({
@@ -2801,10 +3265,9 @@ function foundationGeneratedMapSignature(
   });
 }
 
-function loadGeneratedMapCache(signature: string): {
-  map: FoundationEngineTileMap;
-  terrainColors: Uint8Array | undefined;
-} | null {
+export function loadGeneratedMapCache(
+  signature: string,
+): Omit<FoundationPreparedMap, "source"> | null {
   if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(
     FOUNDATION_GENERATED_MAP_STORAGE_KEY,
@@ -2815,27 +3278,33 @@ function loadGeneratedMapCache(signature: string): {
     const cache = JSON.parse(stored) as FoundationGeneratedMapCache;
     if (cache.signature !== signature) return null;
     const terrain = base64ToUint8Array(cache.terrain);
+    const expectedLength = cache.width * cache.height;
+    if (terrain.length !== expectedLength) return null;
     const elevation =
       typeof cache.elevation16 === "string"
         ? base64ToNormalizedFloat32Array(cache.elevation16)
         : typeof cache.elevation === "string"
           ? base64ToFloat32Array(cache.elevation)
-          : null;
-    if (elevation === null) return null;
+          : undefined;
+    if (elevation !== undefined && elevation.length !== expectedLength) {
+      return null;
+    }
     const terrainColors =
       typeof cache.terrainColorsRgb === "string"
         ? rgbBase64ToRgbaUint8Array(cache.terrainColorsRgb)
         : typeof cache.terrainColors === "string"
           ? base64ToUint8Array(cache.terrainColors)
           : undefined;
-    if (terrain.length !== cache.width * cache.height) return null;
-    if (elevation.length !== cache.width * cache.height) return null;
     if (
       terrainColors !== undefined &&
-      terrainColors.length !== cache.width * cache.height * 4
+      terrainColors.length !== expectedLength * 4
     ) {
       return null;
     }
+    const resourceLayers = decodeCachedResourceLayers(
+      cache.resourceLayers8,
+      expectedLength,
+    );
     return {
       map: new FoundationEngineTileMap(
         cache.width,
@@ -2845,6 +3314,7 @@ function loadGeneratedMapCache(signature: string): {
         elevation,
       ),
       terrainColors,
+      resourceLayers,
     };
   } catch {
     return null;
@@ -2869,10 +3339,7 @@ function hasGeneratedMapCache(signature: string): boolean {
 
 function saveGeneratedMapCache(
   signature: string,
-  generated: {
-    map: FoundationEngineTileMap;
-    terrainColors: Uint8Array | undefined;
-  },
+  generated: Omit<FoundationPreparedMap, "source">,
 ): void {
   if (typeof window === "undefined") return;
   const width = generated.map.width();
@@ -2886,7 +3353,7 @@ function saveGeneratedMapCache(
 
   try {
     const cache: FoundationGeneratedMapCache = {
-      version: 2,
+      version: 3,
       signature,
       width,
       height,
@@ -2900,6 +3367,9 @@ function saveGeneratedMapCache(
         generated.terrainColors === undefined
           ? undefined
           : rgbaUint8ArrayToRgbBase64(generated.terrainColors),
+      resourceLayers8: encodeCachedResourceLayers(
+        resourceLayersForPreparedMap(generated),
+      ),
     };
     window.localStorage.setItem(
       FOUNDATION_GENERATED_MAP_STORAGE_KEY,
@@ -2928,7 +3398,101 @@ function clonePreparedMap(
       prepared.terrainColors === undefined
         ? undefined
         : new Uint8Array(prepared.terrainColors),
+    worldEngineLayers:
+      prepared.worldEngineLayers === undefined
+        ? undefined
+        : cloneWorldEngineLayers(prepared.worldEngineLayers),
+    resourceLayers:
+      prepared.resourceLayers === undefined
+        ? undefined
+        : cloneWorldEngineResourceMaps(prepared.resourceLayers),
   };
+}
+
+function resourceLayersForPreparedMap(
+  prepared:
+    | Pick<FoundationPreparedMap, "worldEngineLayers" | "resourceLayers">
+    | null
+    | undefined,
+): WorldEngineResourceMaps | undefined {
+  return prepared?.worldEngineLayers?.resources ?? prepared?.resourceLayers;
+}
+
+function cloneWorldEngineLayers(
+  layers: FoundationWorldEngineLayers,
+): FoundationWorldEngineLayers {
+  return {
+    elevation: new Float32Array(layers.elevation),
+    ocean: new Uint8Array(layers.ocean),
+    temperature: new Float32Array(layers.temperature),
+    precipitation: new Float32Array(layers.precipitation),
+    seaDepth: new Float32Array(layers.seaDepth),
+    watermap: new Float32Array(layers.watermap),
+    normalizedWatermap: new Float32Array(layers.normalizedWatermap),
+    lakes: new Uint8Array(layers.lakes),
+    irrigation: new Float32Array(layers.irrigation),
+    humidity: new Float32Array(layers.humidity),
+    permeability: new Float32Array(layers.permeability),
+    biome: new Uint8Array(layers.biome),
+    mountainThreshold: layers.mountainThreshold,
+    resources: cloneWorldEngineResourceMaps(layers.resources),
+  };
+}
+
+function cloneWorldEngineResourceMaps(
+  resources: WorldEngineResourceMaps,
+): WorldEngineResourceMaps {
+  return {
+    crop: new Float32Array(resources.crop),
+    basin: new Float32Array(resources.basin),
+    oil: new Float32Array(resources.oil),
+    metal: new Float32Array(resources.metal),
+  };
+}
+
+function encodeCachedResourceLayers(
+  resources: WorldEngineResourceMaps | undefined,
+): Partial<Record<FoundationResourceLayerKey, string>> | undefined {
+  if (resources === undefined) return undefined;
+  return {
+    crop: normalizedFloat32ArrayToByteBase64(resources.crop),
+    basin: normalizedFloat32ArrayToByteBase64(resources.basin),
+    oil: normalizedFloat32ArrayToByteBase64(resources.oil),
+    metal: normalizedFloat32ArrayToByteBase64(resources.metal),
+  };
+}
+
+function decodeCachedResourceLayers(
+  encoded: Partial<Record<FoundationResourceLayerKey, string>> | undefined,
+  expectedLength: number,
+): WorldEngineResourceMaps | undefined {
+  if (encoded === undefined) return undefined;
+  const decoded: Partial<WorldEngineResourceMaps> = {};
+  for (const key of FOUNDATION_RESOURCE_LAYER_KEYS) {
+    const value = encoded[key];
+    if (typeof value !== "string") return undefined;
+    const layer = base64ToNormalizedByteFloat32Array(value);
+    if (layer.length !== expectedLength) return undefined;
+    decoded[key] = layer;
+  }
+  return decoded as WorldEngineResourceMaps;
+}
+
+function normalizedFloat32ArrayToByteBase64(values: Float32Array): string {
+  const bytes = new Uint8Array(values.length);
+  for (let i = 0; i < values.length; i += 1) {
+    bytes[i] = Math.round(Math.max(0, Math.min(1, values[i])) * 255);
+  }
+  return uint8ArrayToBase64(bytes);
+}
+
+function base64ToNormalizedByteFloat32Array(value: string): Float32Array {
+  const bytes = base64ToUint8Array(value);
+  const values = new Float32Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) {
+    values[i] = bytes[i] / 255;
+  }
+  return values;
 }
 
 function normalizedFloat32ArrayToBase64(values: Float32Array): string {
@@ -3011,6 +3575,57 @@ function base64ToFloat32Array(value: string): Float32Array {
   return new Float32Array(
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
   );
+}
+
+function scalarLayerDataUrl(
+  values: Float32Array,
+  width: number,
+  height: number,
+  palette: FoundationScalarLayerPalette,
+): string {
+  if (typeof document === "undefined" || values.length !== width * height) {
+    return "";
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return "";
+  }
+
+  const image = context.createImageData(width, height);
+  for (let i = 0; i < values.length; i += 1) {
+    const [r, g, b] = scalarLayerColor(values[i], palette);
+    const offset = i * 4;
+    image.data[offset] = r;
+    image.data[offset + 1] = g;
+    image.data[offset + 2] = b;
+    image.data[offset + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+function scalarLayerColor(
+  value: number,
+  palette: FoundationScalarLayerPalette,
+): FoundationLayerColor {
+  const normalized = clampFoundationNumber(value, 0, 1);
+  for (let i = 0; i < palette.length - 1; i += 1) {
+    const left = palette[i];
+    const right = palette[i + 1];
+    if (normalized <= right[0]) {
+      const t = (normalized - left[0]) / Math.max(0.0001, right[0] - left[0]);
+      return [
+        Math.round(left[1][0] + (right[1][0] - left[1][0]) * t),
+        Math.round(left[1][1] + (right[1][1] - left[1][1]) * t),
+        Math.round(left[1][2] + (right[1][2] - left[1][2]) * t),
+      ];
+    }
+  }
+  return palette[palette.length - 1][1];
 }
 
 function nextAnimationFrame(): Promise<void> {

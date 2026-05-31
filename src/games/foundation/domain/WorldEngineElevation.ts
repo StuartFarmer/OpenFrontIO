@@ -24,6 +24,12 @@ export interface FoundationWorldEngineMapConfig {
   riverStrongThreshold: number;
 }
 
+export interface FoundationWorldEngineResourceConfig {
+  soilSeed: number;
+  basinSeed: number;
+  metalSeed: number;
+}
+
 export const DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG: FoundationWorldEngineMapConfig =
   {
     seed: 1337,
@@ -44,6 +50,43 @@ export const DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG: FoundationWorldEngineMa
     riverWeakThreshold: 0.28,
     riverStrongThreshold: 0.48,
   };
+
+export interface WorldEngineResourceMapInputs {
+  elevation: Float32Array;
+  ocean: Uint8Array;
+  temperature: Float32Array;
+  precipitation: Float32Array;
+  seaDepth: Float32Array;
+  normalizedWatermap: Float32Array;
+  irrigation: Float32Array;
+  humidity: Float32Array;
+  permeability: Float32Array;
+  mountainThreshold: number;
+}
+
+export interface WorldEngineResourceMaps {
+  crop: Float32Array;
+  basin: Float32Array;
+  oil: Float32Array;
+  metal: Float32Array;
+}
+
+export interface FoundationWorldEngineLayers {
+  elevation: Float32Array;
+  ocean: Uint8Array;
+  temperature: Float32Array;
+  precipitation: Float32Array;
+  seaDepth: Float32Array;
+  watermap: Float32Array;
+  normalizedWatermap: Float32Array;
+  lakes: Uint8Array;
+  irrigation: Float32Array;
+  humidity: Float32Array;
+  permeability: Float32Array;
+  biome: Uint8Array;
+  mountainThreshold: number;
+  resources: WorldEngineResourceMaps;
+}
 
 type Color = readonly [r: number, g: number, b: number];
 
@@ -100,15 +143,13 @@ export function createWorldEngineFoundationMap(
 ): {
   map: FoundationEngineTileMap;
   terrainColors: Uint8Array;
+  layers: FoundationWorldEngineLayers;
 } {
   const normalized = normalizeFoundationWorldEngineMapConfig(config);
   const elevation = generateWorldEngineElevation(normalized);
   const ocean = deriveWorldEngineOcean(elevation, normalized);
-  const { data: temperature } = generateWorldEngineTemperature(
-    elevation,
-    ocean,
-    normalized,
-  );
+  const { data: temperature, mountainThreshold } =
+    generateWorldEngineTemperature(elevation, ocean, normalized);
   const precipitation = generateWorldEnginePrecipitation(
     elevation,
     ocean,
@@ -130,6 +171,25 @@ export function createWorldEngineFoundationMap(
     ocean,
   );
   const biome = generateWorldEngineBiome(ocean, temperature, humidity);
+  const permeability = generateWorldEnginePermeability(ocean, normalized);
+  const resources = generateWorldEngineResourceMaps(
+    {
+      elevation,
+      ocean,
+      temperature,
+      precipitation,
+      seaDepth,
+      normalizedWatermap,
+      irrigation,
+      humidity,
+      permeability,
+      mountainThreshold,
+    },
+    {
+      ...normalized,
+      ...deriveFoundationWorldEngineResourceConfig(normalized.seed),
+    },
+  );
   const terrain = new Uint8Array(normalized.width * normalized.height);
 
   for (let i = 0; i < elevation.length; i++) {
@@ -159,6 +219,32 @@ export function createWorldEngineFoundationMap(
       lakes,
       normalized,
     ),
+    layers: {
+      elevation,
+      ocean,
+      temperature,
+      precipitation,
+      seaDepth,
+      watermap,
+      normalizedWatermap,
+      lakes,
+      irrigation,
+      humidity,
+      permeability,
+      biome,
+      mountainThreshold,
+      resources,
+    },
+  };
+}
+
+export function deriveFoundationWorldEngineResourceConfig(
+  seed: number,
+): FoundationWorldEngineResourceConfig {
+  return {
+    soilSeed: seed + 2401,
+    basinSeed: seed + 8803,
+    metalSeed: seed + 5107,
   };
 }
 
@@ -686,6 +772,150 @@ export function generateWorldEngineBiome(
   return biome;
 }
 
+export function generateWorldEnginePermeability(
+  ocean: Uint8Array,
+  params: Pick<FoundationWorldEngineMapConfig, "width" | "height" | "seed">,
+): Float32Array {
+  const { width, height, seed } = params;
+  const data = new Float32Array(width * height);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      data[i] = ocean[i]
+        ? 0
+        : fbm(seed + 983, x / width, y / height, 5.4, 5, 0.5);
+    }
+  }
+
+  return data;
+}
+
+export function generateWorldEngineRuggedness(
+  elevation: Float32Array,
+  params: Pick<FoundationWorldEngineMapConfig, "width" | "height">,
+): Float32Array {
+  const { width, height } = params;
+  const data = new Float32Array(elevation.length);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      let maxDiff = 0;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          const ni = ny * width + nx;
+          maxDiff = Math.max(maxDiff, Math.abs(elevation[i] - elevation[ni]));
+        }
+      }
+      data[i] = clamp(maxDiff * 7.5);
+    }
+  }
+
+  return data;
+}
+
+export function generateWorldEngineResourceMaps(
+  layers: WorldEngineResourceMapInputs,
+  params: Pick<
+    FoundationWorldEngineMapConfig,
+    "width" | "height" | "seaLevel"
+  > &
+    FoundationWorldEngineResourceConfig,
+): WorldEngineResourceMaps {
+  const {
+    elevation,
+    ocean,
+    temperature,
+    precipitation,
+    seaDepth,
+    normalizedWatermap,
+    irrigation,
+    humidity,
+    permeability,
+    mountainThreshold,
+  } = layers;
+  const { width, height } = params;
+  const crop = new Float32Array(elevation.length);
+  const basin = new Float32Array(elevation.length);
+  const oil = new Float32Array(elevation.length);
+  const metal = new Float32Array(elevation.length);
+  const ruggedness = generateWorldEngineRuggedness(elevation, params);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      const nx = x / width;
+      const ny = y / height;
+      const land = ocean[i] ? 0 : 1;
+      const aboveSea = clamp(
+        (elevation[i] - params.seaLevel) / Math.max(0.01, 1 - params.seaLevel),
+      );
+      const lowland = 1 - aboveSea;
+      const flatness = 1 - ruggedness[i];
+      const riverInfluence = clamp(
+        normalizedWatermap[i] * 0.38 + irrigation[i] * 0.44,
+      );
+
+      const soilNoise = fbm(params.soilSeed, nx, ny, 6.2, 5, 0.52);
+      const soil = clamp(
+        soilNoise * 0.5 +
+          humidity[i] * 0.22 +
+          riverInfluence * 0.18 +
+          lowland * 0.1,
+      );
+      const cropClimate =
+        suitability(temperature[i], 0.62, 0.36) *
+        suitability(humidity[i], 0.58, 0.42);
+      crop[i] =
+        land *
+        clamp(cropClimate * (0.35 + soil * 0.75) * (0.35 + flatness * 0.85));
+
+      const basinNoise = fbm(params.basinSeed, nx, ny, 3.4, 5, 0.56);
+      const shallowShelf = ocean[i] ? suitability(seaDepth[i], 0.18, 0.28) : 0;
+      const sedimentaryBasin = clamp(
+        basinNoise * 0.55 +
+          lowland * 0.22 +
+          flatness * 0.2 +
+          shallowShelf * 0.22 -
+          ruggedness[i] * 0.28,
+      );
+      const organicMatter = clamp(
+        humidity[i] * 0.42 +
+          precipitation[i] * 0.26 +
+          riverInfluence * 0.22 +
+          (seaDepth[i] > 0 ? 0.34 : 0),
+      );
+      const trapCondition = suitability(permeability[i], 0.52, 0.34);
+      const oilLandAccess = ocean[i]
+        ? clamp(seaDepth[i] < 0.34 ? 0.72 : 0.12)
+        : 1;
+      basin[i] = sedimentaryBasin;
+      oil[i] =
+        oilLandAccess *
+        clamp(sedimentaryBasin * organicMatter * (0.35 + trapCondition * 0.95));
+
+      const veinNoise = fbm(params.metalSeed, nx, ny, 8.5, 5, 0.5);
+      const deepVeinNoise = fbm(params.metalSeed + 1777, nx, ny, 2.2, 4, 0.58);
+      const mountainness = clamp(
+        (elevation[i] - mountainThreshold) /
+          Math.max(0.01, 1 - mountainThreshold),
+      );
+      const exposedRock = clamp(
+        mountainness * 0.62 + ruggedness[i] * 0.38 + (1 - soil) * 0.2,
+      );
+      const veinCluster = clamp(veinNoise * 0.55 + deepVeinNoise * 0.45);
+      metal[i] = land * clamp(exposedRock * (0.25 + veinCluster * 0.95));
+    }
+  }
+
+  return { crop, basin, oil, metal };
+}
+
 export function buildWorldEngineElevationTerrainColors(
   elevation: Float32Array,
 ): Uint8Array {
@@ -1010,6 +1240,10 @@ function fbm(
     frequency *= 2;
   }
   return total / max;
+}
+
+function suitability(value: number, center: number, spread: number): number {
+  return clamp(1 - Math.abs(value - center) / spread);
 }
 
 function colorRamp(
