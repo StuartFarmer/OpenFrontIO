@@ -145,6 +145,9 @@ export class GameView {
   panTo(worldX: number, worldY: number): void {
     this.renderer.panTo(worldX, worldY);
   }
+  panBy(dx: number, dy: number): void {
+    this.renderer.panBy(dx, dy);
+  }
   zoomTo(level: number): void {
     this.renderer.zoomTo(level);
   }

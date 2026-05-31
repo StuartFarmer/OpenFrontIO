@@ -1,19 +1,27 @@
 import seedrandom from "seedrandom";
 import { EngineTileMap, TileRef } from "./EngineTileMap";
 import { ExplorationAttack } from "./ExplorationAttack";
-import { Player } from "./FoundationPlayer";
+import { Player, WildernessExplorationIntent } from "./FoundationPlayer";
 import {
   DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
   FoundationWildernessParameters,
 } from "./FoundationWildernessParameters";
-import { ownerIdFromState, setOwnerId } from "./placePlayer";
+import { isLandTile, ownerIdFromState, setOwnerId } from "./placePlayer";
 
 const FOUNDATION_WILDERNESS_ATTACK_FRACTION = 1 / 5;
 const FOUNDATION_WILDERNESS_RANDOM_SEED = "123";
+const DIRECTIONAL_LATERAL_PENALTY_MIN = 0.4;
+const DIRECTIONAL_LATERAL_PENALTY_MAX = 1.6;
+const DIRECTIONAL_FORWARD_BIAS_MIN = 0.05;
+const DIRECTIONAL_FORWARD_BIAS_MAX = 0.35;
+const DIRECTIONAL_FOCUS_DISTANCE = 40;
+const DIRECTIONAL_BACKWARD_PENALTY = 4;
+const DIRECTIONAL_OVERSHOOT_PENALTY = 0.8;
 
 export interface StartWildernessExplorationResult {
   player: Player;
   committedTroops: number;
+  intent: WildernessExplorationIntent;
 }
 
 export interface StartWildernessExplorationOptions {
@@ -51,6 +59,9 @@ export function startWildernessExploration(
   if (!map.isValidRef(targetTile)) {
     throw new Error(`Cannot explore toward invalid tile: ${targetTile}`);
   }
+  if (!isLandTile(map, targetTile)) {
+    throw new Error("Cannot explore water");
+  }
   if (ownerIdFromState(map.stateBuffer()[targetTile]) === player.ownerId) {
     throw new Error("Cannot explore an already owned tile");
   }
@@ -63,10 +74,19 @@ export function startWildernessExploration(
   if (committedTroops < 1) {
     throw new Error("Not enough troops to explore wilderness");
   }
+  const intent = createWildernessExplorationIntent(map, player, targetTile);
 
   const rng = createWildernessRandom(player.activeExploration?.randomState);
   const attack = new ExplorationAttack();
-  refreshWildernessFrontier(map, player, attack, rng, tick, options.parameters);
+  refreshWildernessFrontier(
+    map,
+    player,
+    attack,
+    rng,
+    tick,
+    intent,
+    options.parameters,
+  );
   const attackState = attack.toState();
   const activeTroops = player.activeExploration?.troops ?? 0;
 
@@ -77,6 +97,7 @@ export function startWildernessExploration(
       activeExploration: {
         id: player.activeExploration?.id ?? `explore-${targetTile}`,
         targetTile,
+        intent,
         troops: activeTroops + committedTroops,
         frontier: attackState.frontier,
         borderTiles: attackState.borderTiles,
@@ -84,6 +105,7 @@ export function startWildernessExploration(
       },
     },
     committedTroops,
+    intent,
   };
 }
 
@@ -155,9 +177,13 @@ export function tickWildernessExploration(
     if (ownerIdFromState(map.stateBuffer()[tile]) !== 0) {
       continue;
     }
+    if (!isLandTile(map, tile)) {
+      continue;
+    }
 
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
+      intent: exploration.intent,
       parameters,
     });
 
@@ -207,12 +233,14 @@ function refreshWildernessFrontier(
   attack: ExplorationAttack,
   rng: StatefulRandom,
   tick: number,
+  intent: WildernessExplorationIntent,
   parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): void {
   attack.clearBorder();
   for (const tile of player.placement?.claimedTiles ?? []) {
     addWildernessNeighbors(map, player.ownerId, tile, tick, rng, {
       attack,
+      intent,
       parameters,
     });
   }
@@ -226,10 +254,14 @@ function addWildernessNeighbors(
   rng: StatefulRandom,
   frontierState: {
     attack: ExplorationAttack;
+    intent?: WildernessExplorationIntent;
     parameters?: FoundationWildernessRuntimeParameters;
   },
 ): void {
   forEachCardinalNeighbor(map, tile, (neighbor) => {
+    if (!isLandTile(map, neighbor)) {
+      return;
+    }
     if (ownerIdFromState(map.stateBuffer()[neighbor]) !== 0) {
       return;
     }
@@ -249,10 +281,130 @@ function addWildernessNeighbors(
     const priority =
       (randomInt(rng, 0, 7) + 10) *
         (1 - numOwnedByMe * 0.5 + terrainPriorityWeight / 2) +
+      directionalPriorityPenalty(map, neighbor, frontierState.intent) +
       tick;
 
     frontierState.attack.enqueue(neighbor, priority);
   });
+}
+
+function createWildernessExplorationIntent(
+  map: EngineTileMap,
+  player: Player,
+  targetTile: TileRef,
+): WildernessExplorationIntent {
+  const originTile = closestOwnedBorderTile(map, player, targetTile);
+  const rawDx = map.x(targetTile) - map.x(originTile);
+  const rawDy = map.y(targetTile) - map.y(originTile);
+  const distance = Math.hypot(rawDx, rawDy);
+  if (distance === 0) {
+    return {
+      originTile,
+      targetTile,
+      dx: 0,
+      dy: 0,
+      distance: 0,
+    };
+  }
+
+  return {
+    originTile,
+    targetTile,
+    dx: rawDx / distance,
+    dy: rawDy / distance,
+    distance,
+  };
+}
+
+function closestOwnedBorderTile(
+  map: EngineTileMap,
+  player: Player,
+  targetTile: TileRef,
+): TileRef {
+  const placement = player.placement;
+  if (!placement) {
+    throw new Error("Cannot explore wilderness before player placement");
+  }
+
+  const targetX = map.x(targetTile);
+  const targetY = map.y(targetTile);
+  let closestTile: TileRef | null = null;
+  let closestDistanceSq = Number.POSITIVE_INFINITY;
+
+  for (const tile of placement.claimedTiles) {
+    if (!isOwnedBorderTile(map, player.ownerId, tile)) {
+      continue;
+    }
+
+    const dx = map.x(tile) - targetX;
+    const dy = map.y(tile) - targetY;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq < closestDistanceSq) {
+      closestTile = tile;
+      closestDistanceSq = distanceSq;
+    }
+  }
+
+  if (closestTile !== null) {
+    return closestTile;
+  }
+
+  return placement.selectedTile;
+}
+
+function isOwnedBorderTile(
+  map: EngineTileMap,
+  ownerId: number,
+  tile: TileRef,
+): boolean {
+  if (ownerIdFromState(map.stateBuffer()[tile]) !== ownerId) {
+    return false;
+  }
+
+  let border = false;
+  forEachCardinalNeighbor(map, tile, (neighbor) => {
+    if (
+      !border &&
+      isLandTile(map, neighbor) &&
+      ownerIdFromState(map.stateBuffer()[neighbor]) !== ownerId
+    ) {
+      border = true;
+    }
+  });
+  return border;
+}
+
+function directionalPriorityPenalty(
+  map: EngineTileMap,
+  tile: TileRef,
+  intent: WildernessExplorationIntent | undefined,
+): number {
+  if (!intent || intent.distance <= 0) {
+    return 0;
+  }
+
+  const px = map.x(tile) - map.x(intent.originTile);
+  const py = map.y(tile) - map.y(intent.originTile);
+  const forward = px * intent.dx + py * intent.dy;
+  const lateral = Math.abs(px * intent.dy - py * intent.dx);
+  const focus = clamp(intent.distance / DIRECTIONAL_FOCUS_DISTANCE, 0, 1);
+  const lateralPenalty = lerp(
+    DIRECTIONAL_LATERAL_PENALTY_MIN,
+    DIRECTIONAL_LATERAL_PENALTY_MAX,
+    focus,
+  );
+  const forwardBias = lerp(
+    DIRECTIONAL_FORWARD_BIAS_MIN,
+    DIRECTIONAL_FORWARD_BIAS_MAX,
+    focus,
+  );
+
+  return (
+    lateral * lateralPenalty +
+    Math.max(0, -forward) * DIRECTIONAL_BACKWARD_PENALTY +
+    Math.max(0, forward - intent.distance) * DIRECTIONAL_OVERSHOOT_PENALTY -
+    forward * forwardBias
+  );
 }
 
 function isOwnedBorderNeighbor(
@@ -264,6 +416,7 @@ function isOwnedBorderNeighbor(
   forEachCardinalNeighbor(map, tile, (neighbor) => {
     if (
       !onBorder &&
+      isLandTile(map, neighbor) &&
       ownerIdFromState(map.stateBuffer()[neighbor]) === ownerId
     ) {
       onBorder = true;
@@ -363,6 +516,10 @@ export function wildernessTerrainPriorityWeight(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function lerp(min: number, max: number, t: number): number {
+  return min + (max - min) * t;
 }
 
 type StatefulRandom = seedrandom.PRNG & { state(): unknown };

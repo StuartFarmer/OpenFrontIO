@@ -35,6 +35,12 @@ interface FoundationClientStatus {
   text: string;
 }
 
+interface FoundationWavePreview {
+  originTile: number;
+  targetTile: number;
+  committedTroops: number;
+}
+
 type FoundationControlTab = "world" | "mechanics";
 
 const FOUNDATION_CONTROL_TABS = [
@@ -272,12 +278,13 @@ const FOUNDATION_PLAYER_PALETTE: BaseMapPalette = {
 };
 
 const FOUNDATION_AUTO_GENERATE_MAX_DIMENSION = 512;
-const FOUNDATION_GENERATED_MAP_STORAGE_KEY = "foundation.generatedMap.v1";
+const FOUNDATION_GENERATED_MAP_STORAGE_KEY = "foundation.generatedMap.v2";
 const FOUNDATION_GESTURE_EVENTS = [
   "gesturestart",
   "gesturechange",
   "gestureend",
 ] as const;
+const FOUNDATION_DRAG_THRESHOLD_PX = 3;
 
 const FOUNDATION_MAP_SETTING_KEYS = new Set<keyof FoundationTuningSettings>([
   "seed",
@@ -335,10 +342,21 @@ export class FoundationPage extends LitElement {
   @state()
   private openMechanicKeys: (keyof FoundationTuningSettings)[] = [];
 
+  @state()
+  private wavePreview: FoundationWavePreview | null = null;
+
   private runtime: FoundationRuntime | null = null;
   private renderer: BaseMapWebGLAdapter | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private tickTimer: number | null = null;
+  private wavePreviewTimer: number | null = null;
+  private dragPointerId: number | null = null;
+  private dragLastX = 0;
+  private dragLastY = 0;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private dragMoved = false;
+  private suppressNextCanvasClick = false;
 
   static styles = css`
     :host {
@@ -814,6 +832,47 @@ export class FoundationPage extends LitElement {
       line-height: 1.35;
     }
 
+    .wave-preview {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .wave-preview-line {
+      fill: none;
+      stroke: url("#foundation-wave-gradient");
+      stroke-linecap: round;
+      stroke-width: 2.5;
+      filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.65));
+    }
+
+    .wave-preview-head {
+      fill: #ed5653;
+      filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.65));
+    }
+
+    .wave-preview-label rect {
+      fill: rgb(16 20 22 / 0.9);
+      stroke: rgb(255 248 107 / 0.8);
+      stroke-width: 1;
+      rx: 4;
+    }
+
+    .wave-preview-label text {
+      fill: #fff86b;
+      font-size: 11px;
+      font-weight: 800;
+      paint-order: stroke;
+      stroke: rgb(0 0 0 / 0.55);
+      stroke-width: 2px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
     .runtime-overlay {
       position: absolute;
       top: 12px;
@@ -889,9 +948,13 @@ export class FoundationPage extends LitElement {
     );
 
     this.canvas.addEventListener("click", this.handleCanvasClick);
+    this.canvas.addEventListener("pointerdown", this.handleCanvasPointerDown);
     this.canvas.addEventListener("wheel", this.handleCanvasWheel, {
       passive: false,
     });
+    window.addEventListener("pointermove", this.handleCanvasPointerMove);
+    window.addEventListener("pointerup", this.handleCanvasPointerUp);
+    window.addEventListener("pointercancel", this.handleCanvasPointerUp);
     for (const eventName of FOUNDATION_GESTURE_EVENTS) {
       document.addEventListener(eventName, this.preventPageGestureZoom, {
         passive: false,
@@ -913,7 +976,14 @@ export class FoundationPage extends LitElement {
 
   disconnectedCallback(): void {
     this.canvas?.removeEventListener("click", this.handleCanvasClick);
+    this.canvas?.removeEventListener(
+      "pointerdown",
+      this.handleCanvasPointerDown,
+    );
     this.canvas?.removeEventListener("wheel", this.handleCanvasWheel);
+    window.removeEventListener("pointermove", this.handleCanvasPointerMove);
+    window.removeEventListener("pointerup", this.handleCanvasPointerUp);
+    window.removeEventListener("pointercancel", this.handleCanvasPointerUp);
     for (const eventName of FOUNDATION_GESTURE_EVENTS) {
       document.removeEventListener(eventName, this.preventPageGestureZoom);
     }
@@ -921,9 +991,13 @@ export class FoundationPage extends LitElement {
     if (this.tickTimer !== null) {
       window.clearInterval(this.tickTimer);
     }
+    if (this.wavePreviewTimer !== null) {
+      window.clearTimeout(this.wavePreviewTimer);
+    }
     this.renderer?.dispose();
     this.resizeObserver = null;
     this.tickTimer = null;
+    this.wavePreviewTimer = null;
     this.renderer = null;
     this.runtime = null;
     super.disconnectedCallback();
@@ -1231,7 +1305,7 @@ export class FoundationPage extends LitElement {
               <div class="canvas-frame">
                 ${this.renderRuntimeOverlay(snapshot)}
                 <canvas aria-label="Foundation generated game board"></canvas>
-                ${this.renderBoardStateOverlay()}
+                ${this.renderWavePreview()} ${this.renderBoardStateOverlay()}
               </div>
             </hud-surface-body>
           </hud-surface>
@@ -1317,6 +1391,85 @@ export class FoundationPage extends LitElement {
     `;
   }
 
+  private renderWavePreview(): TemplateResult | null {
+    if (!this.wavePreview || !this.runtime || !this.renderer || !this.canvas) {
+      return null;
+    }
+
+    const map = this.runtime.map();
+    const originX = map.x(this.wavePreview.originTile) + 0.5;
+    const originY = map.y(this.wavePreview.originTile) + 0.5;
+    const targetX = map.x(this.wavePreview.targetTile) + 0.5;
+    const targetY = map.y(this.wavePreview.targetTile) + 0.5;
+    const origin = this.renderer.worldToScreen(originX, originY);
+    const target = this.renderer.worldToScreen(targetX, targetY);
+    const width = this.canvas.clientWidth || 1;
+    const height = this.canvas.clientHeight || 1;
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 6) {
+      return null;
+    }
+
+    const ux = dx / length;
+    const uy = dy / length;
+    const headLength = 9;
+    const headWidth = 6;
+    const lineEndX = target.x - ux * headLength;
+    const lineEndY = target.y - uy * headLength;
+    const leftX = target.x - ux * headLength - uy * headWidth;
+    const leftY = target.y - uy * headLength + ux * headWidth;
+    const rightX = target.x - ux * headLength + uy * headWidth;
+    const rightY = target.y - uy * headLength - ux * headWidth;
+    const label = renderTroops(this.wavePreview.committedTroops);
+    const labelWidth = Math.max(44, label.length * 8 + 16);
+    const labelHeight = 22;
+    const labelX = origin.x + dx * 0.58;
+    const labelY = origin.y + dy * 0.58 - 14;
+
+    return html`
+      <svg
+        class="wave-preview"
+        viewBox=${`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            id="foundation-wave-gradient"
+            gradientUnits="userSpaceOnUse"
+            x1=${origin.x}
+            y1=${origin.y}
+            x2=${target.x}
+            y2=${target.y}
+          >
+            <stop offset="0%" stop-color="#287b9c"></stop>
+            <stop offset="50%" stop-color="#fff86b"></stop>
+            <stop offset="100%" stop-color="#ed5653"></stop>
+          </linearGradient>
+        </defs>
+        <path
+          class="wave-preview-line"
+          d=${`M ${origin.x} ${origin.y} L ${lineEndX} ${lineEndY}`}
+        ></path>
+        <polygon
+          class="wave-preview-head"
+          points=${`${target.x},${target.y} ${leftX},${leftY} ${rightX},${rightY}`}
+        ></polygon>
+        <g class="wave-preview-label">
+          <rect
+            x=${labelX - labelWidth / 2}
+            y=${labelY - labelHeight / 2}
+            width=${labelWidth}
+            height=${labelHeight}
+          ></rect>
+          <text x=${labelX} y=${labelY}>${label}</text>
+        </g>
+      </svg>
+    `;
+  }
+
   private renderBoardStateOverlay(): TemplateResult | null {
     if (this.loading) {
       return html`
@@ -1365,9 +1518,78 @@ export class FoundationPage extends LitElement {
       screenX: event.clientX - rect.left,
       screenY: event.clientY - rect.top,
     });
+    this.requestUpdate();
+  };
+
+  private readonly handleCanvasPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || this.loading || !this.renderer) {
+      return;
+    }
+
+    this.dragPointerId = event.pointerId;
+    this.dragLastX = event.clientX;
+    this.dragLastY = event.clientY;
+    this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
+    this.dragMoved = false;
+    this.canvas.style.cursor = "grabbing";
+  };
+
+  private readonly handleCanvasPointerMove = (event: PointerEvent): void => {
+    if (this.dragPointerId !== event.pointerId || !this.renderer) {
+      return;
+    }
+
+    const deltaX = event.clientX - this.dragLastX;
+    const deltaY = event.clientY - this.dragLastY;
+    const totalDrag =
+      Math.abs(event.clientX - this.dragStartX) +
+      Math.abs(event.clientY - this.dragStartY);
+
+    this.dragLastX = event.clientX;
+    this.dragLastY = event.clientY;
+
+    if (!this.dragMoved && totalDrag < FOUNDATION_DRAG_THRESHOLD_PX) {
+      return;
+    }
+
+    this.dragMoved = true;
+    event.preventDefault();
+
+    const zoom = this.renderer.getCameraState().zoom;
+    if (zoom <= 0) {
+      return;
+    }
+
+    const worldPerCssPx = (window.devicePixelRatio || 1) / zoom;
+    this.renderer.panBy(-deltaX * worldPerCssPx, -deltaY * worldPerCssPx);
+    if (this.wavePreview) {
+      this.requestUpdate();
+    }
+  };
+
+  private readonly handleCanvasPointerUp = (event: PointerEvent): void => {
+    if (this.dragPointerId !== event.pointerId) {
+      return;
+    }
+
+    this.dragPointerId = null;
+    this.canvas.style.cursor = "crosshair";
+
+    if (this.dragMoved) {
+      this.suppressNextCanvasClick = true;
+      this.dragMoved = false;
+      event.preventDefault();
+    }
   };
 
   private readonly handleCanvasClick = (event: MouseEvent): void => {
+    if (this.suppressNextCanvasClick) {
+      this.suppressNextCanvasClick = false;
+      event.preventDefault();
+      return;
+    }
+
     if (this.loading || !this.runtime || !this.renderer) return;
 
     const rect = this.canvas.getBoundingClientRect();
@@ -1399,6 +1621,7 @@ export class FoundationPage extends LitElement {
     );
 
     this.applyMapUpdate(result.update.map);
+    this.updateWavePreviewFromCommandResult(result);
     this.snapshot = this.runtime.snapshot();
     this.status = this.statusFromCommandResult(result, tile);
   };
@@ -1935,6 +2158,43 @@ export class FoundationPage extends LitElement {
     await this.generateWorld("Generated world with current parameters.");
   }
 
+  private updateWavePreviewFromCommandResult(
+    result: ReturnType<FoundationRuntime["dispatch"]>,
+  ): void {
+    const event = result.update.events.find(
+      (candidate) =>
+        candidate.type === "foundation.wilderness_exploration_started",
+    );
+    if (!result.ok || !event || typeof event.payload !== "object") {
+      return;
+    }
+    const payload = event.payload as {
+      originTile?: unknown;
+      targetTile?: unknown;
+      committedTroops?: unknown;
+    };
+    if (
+      typeof payload.originTile !== "number" ||
+      typeof payload.targetTile !== "number" ||
+      typeof payload.committedTroops !== "number"
+    ) {
+      return;
+    }
+
+    this.wavePreview = {
+      originTile: payload.originTile,
+      targetTile: payload.targetTile,
+      committedTroops: payload.committedTroops,
+    };
+    if (this.wavePreviewTimer !== null) {
+      window.clearTimeout(this.wavePreviewTimer);
+    }
+    this.wavePreviewTimer = window.setTimeout(() => {
+      this.wavePreview = null;
+      this.wavePreviewTimer = null;
+    }, 2200);
+  }
+
   private async generateWorld(
     statusText: string,
     options: { force?: boolean } = {},
@@ -2007,7 +2267,9 @@ export class FoundationPage extends LitElement {
           ? "Wilderness exploration is already active."
           : result.error === "target_already_owned"
             ? "Click unclaimed wilderness to explore."
-            : `Command rejected: ${result.error ?? "unknown"}.`,
+            : result.error === "water_tile"
+              ? "Water tiles cannot be placed on or explored yet."
+              : `Command rejected: ${result.error ?? "unknown"}.`,
     };
   }
 
@@ -2039,6 +2301,11 @@ export class FoundationPage extends LitElement {
   }
 
   private resetRuntime(statusText: string): "cache" | "generated" {
+    if (this.wavePreviewTimer !== null) {
+      window.clearTimeout(this.wavePreviewTimer);
+      this.wavePreviewTimer = null;
+    }
+    this.wavePreview = null;
     this.renderer?.dispose();
     this.renderer = null;
     const foundationMap = this.createMapForCurrentSettings();

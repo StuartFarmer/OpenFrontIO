@@ -10,10 +10,19 @@ export interface PlayerPlacement {
 export interface WildernessExploration {
   id: string;
   targetTile: TileRef;
+  intent: WildernessExplorationIntent;
   troops: number;
   frontier: readonly WildernessFrontierTile[];
   borderTiles: readonly TileRef[];
   randomState: string;
+}
+
+export interface WildernessExplorationIntent {
+  originTile: TileRef;
+  targetTile: TileRef;
+  dx: number;
+  dy: number;
+  distance: number;
 }
 
 export interface WildernessFrontierTile {

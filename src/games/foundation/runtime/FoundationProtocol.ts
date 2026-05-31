@@ -81,6 +81,7 @@ export interface FoundationTerritoryGrownEvent {
 export interface FoundationWildernessExplorationStartedEvent {
   playerId: string;
   targetTile: TileRef;
+  originTile: TileRef;
   committedTroops: number;
   remainingTroops: number;
 }

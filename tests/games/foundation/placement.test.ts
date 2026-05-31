@@ -4,6 +4,7 @@ import {
   FOUNDATION_PLACEMENT_RADIUS,
   createFoundationMap,
   createPlayer,
+  foundationWaterTerrainByteForElevation,
   ownerIdFromState,
   placePlayer,
 } from "../../../src/games/foundation";
@@ -85,6 +86,29 @@ describe("Foundation placement", () => {
     expect(second.player.placement?.selectedTile).toBe(map.ref(24, 24));
     expect(ownerIdFromState(map.stateBuffer()[map.ref(4, 4)])).toBe(0);
     expect(ownerIdFromState(map.stateBuffer()[map.ref(24, 24)])).toBe(1);
+  });
+
+  it("rejects placement on water and clips water out of placement radius", () => {
+    const map = createFoundationMap({ width: 8, height: 8 });
+    const player = createPlayer("player-1", { ownerId: 1 });
+    const center = map.ref(4, 4);
+    const nearbyWater = map.ref(5, 4);
+    map.terrainBuffer()[center] = foundationWaterTerrainByteForElevation(0.1);
+    map.terrainBuffer()[nearbyWater] =
+      foundationWaterTerrainByteForElevation(0.1);
+
+    expect(() => placePlayer(map, player, center)).toThrow(
+      "Cannot place player on water",
+    );
+
+    const result = placePlayer(map, player, map.ref(3, 4), {
+      placementRadius: 2,
+    });
+
+    expect(result.claimedTiles).not.toContain(center);
+    expect(result.claimedTiles).not.toContain(nearbyWater);
+    expect(ownerIdFromState(map.stateBuffer()[center])).toBe(0);
+    expect(ownerIdFromState(map.stateBuffer()[nearbyWater])).toBe(0);
   });
 });
 

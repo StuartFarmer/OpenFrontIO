@@ -6,11 +6,29 @@ export const FOUNDATION_ELEVATION_MAGNITUDE_STEPS = 31;
 export const FOUNDATION_GRASS_TERRAIN_BYTE = FOUNDATION_LAND_TERRAIN_BIT;
 
 export function foundationTerrainByteForElevation(elevation: number): number {
+  return foundationLandTerrainByteForElevation(elevation);
+}
+
+export function foundationLandTerrainByteForElevation(
+  elevation: number,
+): number {
   const normalizedElevation = clampElevation(elevation);
   return (
     FOUNDATION_LAND_TERRAIN_BIT |
     Math.round(normalizedElevation * FOUNDATION_ELEVATION_MAGNITUDE_STEPS)
   );
+}
+
+export function foundationWaterTerrainByteForElevation(
+  elevation: number,
+): number {
+  return Math.round(
+    clampElevation(elevation) * FOUNDATION_ELEVATION_MAGNITUDE_STEPS,
+  );
+}
+
+export function isFoundationLandTerrainByte(terrainByte: number): boolean {
+  return (terrainByte & FOUNDATION_LAND_TERRAIN_BIT) !== 0;
 }
 
 export function foundationElevationFromTerrainByte(
@@ -33,7 +51,15 @@ export class FoundationTerrain {
   }
 
   isGrass(ref: TileRef): boolean {
-    return (this.terrainByte(ref) & FOUNDATION_LAND_TERRAIN_BIT) !== 0;
+    return this.isLand(ref);
+  }
+
+  isLand(ref: TileRef): boolean {
+    return isFoundationLandTerrainByte(this.terrainByte(ref));
+  }
+
+  isWater(ref: TileRef): boolean {
+    return !this.isLand(ref);
   }
 
   elevation(ref: TileRef): number {

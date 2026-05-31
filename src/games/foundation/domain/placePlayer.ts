@@ -1,5 +1,6 @@
 import { EngineTileMap, TileRef } from "./EngineTileMap";
 import { Player } from "./FoundationPlayer";
+import { isFoundationLandTerrainByte } from "./FoundationTerrain";
 
 export const FOUNDATION_PLACEMENT_RADIUS = 4;
 export const FOUNDATION_OWNER_ID_MASK = 0x0fff;
@@ -26,6 +27,9 @@ export function placePlayer(
 ): PlacePlayerResult {
   if (!map.isValidRef(clickedTile)) {
     throw new Error(`Cannot place player on invalid tile: ${clickedTile}`);
+  }
+  if (!isLandTile(map, clickedTile)) {
+    throw new Error("Cannot place player on water");
   }
   assertValidOwnerId(player.ownerId);
 
@@ -88,13 +92,18 @@ export function collectTilesInRadius(
     for (let x = minX; x <= maxX; x++) {
       const dx = x - (centerX - 0.5);
       const dy = y - (centerY - 0.5);
-      if (dx * dx + dy * dy <= radiusSquared) {
-        tiles.push(map.ref(x, y));
+      const tile = map.ref(x, y);
+      if (dx * dx + dy * dy <= radiusSquared && isLandTile(map, tile)) {
+        tiles.push(tile);
       }
     }
   }
 
   return tiles;
+}
+
+export function isLandTile(map: EngineTileMap, tile: TileRef): boolean {
+  return isFoundationLandTerrainByte(map.terrainBuffer()[tile]);
 }
 
 export function ownerIdFromState(state: number): number {

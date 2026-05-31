@@ -6,6 +6,7 @@ import {
   createFoundationRuntime,
   createGrowTerritoryCommand,
   createPlacePlayerCommand,
+  foundationWaterTerrainByteForElevation,
   maxTroopsForTileCount,
   ownerIdFromState,
   troopIncreaseRate,
@@ -107,6 +108,21 @@ describe("Foundation runtime", () => {
       },
     });
     expect(runtime.snapshot().player.claimedTileCount).toBeGreaterThan(0);
+  });
+
+  it("rejects placement on water without tile deltas", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+    const tileRef = map.ref(16, 16);
+    map.terrainBuffer()[tileRef] = foundationWaterTerrainByteForElevation(0.1);
+
+    const result = runtime.dispatch(createPlacePlayerCommand({ tileRef }));
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("water_tile");
+    expect(result.update.map).toBeUndefined();
+    expect(runtime.snapshot().player.placed).toBe(false);
+    expect(ownerIdFromState(map.stateBuffer()[tileRef])).toBe(0);
   });
 
   it("uses the original OpenFront centered spawn radius", () => {
@@ -259,11 +275,35 @@ describe("Foundation runtime", () => {
         payload: {
           playerId: "player-1",
           targetTile,
+          originTile: expect.any(Number),
           committedTroops: beforeTroops * 0.2,
           remainingTroops: beforeTroops * 0.8,
         },
       },
     ]);
+    const eventPayload = result.update.events[0].payload as {
+      originTile: number;
+    };
+    expect(map.x(eventPayload.originTile)).toBeGreaterThan(map.x(startTile));
+  });
+
+  it("rejects wilderness exploration toward water", () => {
+    const map = createFoundationMap({ width: 64, height: 64 });
+    const runtime = createFoundationRuntime({ map });
+    const startTile = map.ref(16, 16);
+    const targetTile = map.ref(40, 16);
+    map.terrainBuffer()[targetTile] =
+      foundationWaterTerrainByteForElevation(0.1);
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: startTile }));
+    const result = runtime.dispatch(
+      createGrowTerritoryCommand({ turnNumber: 1, targetTileRef: targetTile }),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("water_tile");
+    expect(result.update.map).toBeUndefined();
+    expect(runtime.snapshot().player.exploringTroops).toBe(0);
   });
 
   it("reinforces active wilderness exploration with another grow command", () => {
@@ -342,7 +382,7 @@ describe("Foundation runtime", () => {
     }
   });
 
-  it("uses the same wilderness frontier regardless of clicked target direction", () => {
+  it("biases the wilderness frontier toward the clicked target direction", () => {
     const runFirstExplorationTick = (targetTile: number): number[] => {
       const map = createFoundationMap({ width: 64, height: 64 });
       const runtime = createFoundationRuntime({ map });
@@ -360,7 +400,11 @@ describe("Foundation runtime", () => {
     const westTargetTiles = runFirstExplorationTick(16 + 64 * 16 - 12);
 
     expect(eastTargetTiles.length).toBeGreaterThan(0);
-    expect(eastTargetTiles).toEqual(westTargetTiles);
+    expect(westTargetTiles.length).toBeGreaterThan(0);
+    expect(eastTargetTiles).not.toEqual(westTargetTiles);
+    expect(
+      Math.max(...eastTargetTiles.map((tile) => tile % 64)),
+    ).toBeGreaterThan(Math.max(...westTargetTiles.map((tile) => tile % 64)));
   });
 
   it("rejects growth before placement without tile deltas", () => {

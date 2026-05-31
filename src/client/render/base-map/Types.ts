@@ -50,6 +50,7 @@ export interface BaseMapRenderTarget {
   fitMap(): void;
   getCameraState(): { x: number; y: number; z: number };
   setCameraState(x: number, y: number, z: number): void;
+  panBy?(dx: number, dy: number): void;
   zoomAtScreen?(factor: number, screenX: number, screenY: number): void;
   screenToWorld(screenX: number, screenY: number): { x: number; y: number };
 
@@ -60,6 +61,8 @@ export interface BaseMapRenderTarget {
   ): void;
   applyTerrainDelta(refs: readonly number[], terrainBytes: Uint8Array): void;
   updatePalette(paletteData: Float32Array): void;
+
+  worldToScreen?(worldX: number, worldY: number): { x: number; y: number };
 }
 
 export interface BaseMapRendererConfig extends BaseMapSize {
@@ -83,6 +86,7 @@ export interface BaseMapRenderer {
 
   getCameraState(): BaseMapCameraState;
   setCameraState(state: BaseMapCameraState): void;
+  panBy(dx: number, dy: number): void;
   fitMap(): void;
 
   uploadTileState(tileState: Uint16Array): void;
@@ -94,6 +98,7 @@ export interface BaseMapRenderer {
   updatePalette(palette: BaseMapPalette): void;
 
   screenToWorld(pointer: BaseMapPointer): { x: number; y: number };
+  worldToScreen(worldX: number, worldY: number): { x: number; y: number };
   screenToTile(pointer: BaseMapPointer): BaseMapTilePoint | null;
   getOwnerAtTile(ref: BaseMapTileRef): BaseMapOwnerId;
 }

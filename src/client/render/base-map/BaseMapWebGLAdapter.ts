@@ -99,6 +99,19 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
     this.target.fitMap();
   }
 
+  panBy(dx: number, dy: number): void {
+    this.assertActive();
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+
+    if (this.target.panBy) {
+      this.target.panBy(dx, dy);
+      return;
+    }
+
+    const state = this.target.getCameraState();
+    this.target.setCameraState(state.x + dx, state.y + dy, state.z);
+  }
+
   zoomAtScreen(factor: number, pointer: BaseMapPointer): void {
     this.assertActive();
     if (!Number.isFinite(factor) || factor <= 0) return;
@@ -177,6 +190,13 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
     return this.target.screenToWorld(pointer.screenX, pointer.screenY);
   }
 
+  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+    this.assertActive();
+    return this.target.worldToScreen
+      ? this.target.worldToScreen(worldX, worldY)
+      : fallbackWorldToScreen(this.target, worldX, worldY);
+  }
+
   screenToTile(pointer: BaseMapPointer): BaseMapTilePoint | null {
     const world = this.screenToWorld(pointer);
     const x = Math.floor(world.x);
@@ -217,6 +237,18 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
       throw new Error("base map renderer has been disposed");
     }
   }
+}
+
+function fallbackWorldToScreen(
+  target: BaseMapRenderTarget,
+  worldX: number,
+  worldY: number,
+): { x: number; y: number } {
+  const state = target.getCameraState();
+  return {
+    x: (worldX - state.x) * state.z,
+    y: (worldY - state.y) * state.z,
+  };
 }
 
 export function buildBaseMapPaletteData(palette: BaseMapPalette): Float32Array {

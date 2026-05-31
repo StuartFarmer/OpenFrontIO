@@ -3,6 +3,7 @@ import {
   FoundationSimulationParameters,
   Player,
   TileRef,
+  isLandTile,
   maxTroopsForPlayer,
   placePlayer,
   startWildernessExploration,
@@ -66,6 +67,12 @@ export class FoundationCommandRouter {
     if (state.player.placement) {
       return rejectedUpdate(state, "foundation.place_player", "already_placed");
     }
+    if (!state.map.isValidRef(tileRef)) {
+      return rejectedUpdate(state, "foundation.place_player", "invalid_tile");
+    }
+    if (!isLandTile(state.map, tileRef)) {
+      return rejectedUpdate(state, "foundation.place_player", "water_tile");
+    }
 
     const placement = placePlayer(
       state.map,
@@ -128,6 +135,7 @@ export class FoundationCommandRouter {
     const event: FoundationWildernessExplorationStartedEvent = {
       playerId: exploration.player.id,
       targetTile: targetTileRef,
+      originTile: exploration.intent.originTile,
       committedTroops: exploration.committedTroops,
       remainingTroops: exploration.player.troops,
     };
@@ -159,6 +167,8 @@ function explorationErrorReason(error: unknown): string {
       return "target_already_owned";
     case "Not enough troops to explore wilderness":
       return "not_enough_troops";
+    case "Cannot explore water":
+      return "water_tile";
     default:
       if (error.message.startsWith("Cannot explore toward invalid tile:")) {
         return "invalid_target_tile";

@@ -1,5 +1,8 @@
 import { FoundationEngineTileMap } from "./EngineTileMap";
-import { foundationTerrainByteForElevation } from "./FoundationTerrain";
+import {
+  foundationLandTerrainByteForElevation,
+  foundationWaterTerrainByteForElevation,
+} from "./FoundationTerrain";
 
 export interface FoundationWorldEngineMapConfig {
   seed: number;
@@ -36,6 +39,11 @@ const ELEVATION_STOPS: readonly (readonly [number, Color])[] = [
 ];
 
 const WORLD_ENGINE_GRASSLAND: Color = [134, 145, 78];
+const WORLD_ENGINE_COAST: Color = [191, 171, 105];
+const WORLD_ENGINE_OCEAN_SHALLOW: Color = [77, 151, 171];
+const WORLD_ENGINE_OCEAN_SHELF: Color = [38, 115, 155];
+const WORLD_ENGINE_OCEAN_DEEP: Color = [18, 74, 125];
+const WORLD_ENGINE_OCEAN_ABYSS: Color = [7, 38, 83];
 const WORLD_ENGINE_ALTITUDE_STOPS: readonly (readonly [number, Color])[] = [
   [0, [191, 171, 105]],
   [0.22, [96, 135, 72]],
@@ -53,10 +61,14 @@ export function createWorldEngineFoundationMap(
 } {
   const normalized = normalizeFoundationWorldEngineMapConfig(config);
   const elevation = generateWorldEngineElevation(normalized);
+  const ocean = deriveWorldEngineOcean(elevation, normalized);
+  const seaDepth = deriveWorldEngineSeaDepth(elevation, ocean, normalized);
   const terrain = new Uint8Array(normalized.width * normalized.height);
 
   for (let i = 0; i < elevation.length; i++) {
-    terrain[i] = foundationTerrainByteForElevation(elevation[i]);
+    terrain[i] = ocean[i]
+      ? foundationWaterTerrainByteForElevation(elevation[i])
+      : foundationLandTerrainByteForElevation(elevation[i]);
   }
 
   return {
@@ -67,7 +79,12 @@ export function createWorldEngineFoundationMap(
       undefined,
       elevation,
     ),
-    terrainColors: buildWorldEngineLandTerrainColors(elevation, normalized),
+    terrainColors: buildWorldEngineTerrainColors(
+      elevation,
+      ocean,
+      seaDepth,
+      normalized,
+    ),
   };
 }
 
@@ -195,6 +212,61 @@ export function generateWorldEngineElevation(
   return data;
 }
 
+export function deriveWorldEngineOcean(
+  elevation: Float32Array,
+  params: Pick<FoundationWorldEngineMapConfig, "width" | "height" | "seaLevel">,
+): Uint8Array {
+  const { width, height, seaLevel } = params;
+  const ocean = new Uint8Array(width * height);
+  const queue: number[] = [];
+  const enqueue = (x: number, y: number): void => {
+    const ref = y * width + x;
+    if (ocean[ref] !== 0 || elevation[ref] > seaLevel) {
+      return;
+    }
+    ocean[ref] = 1;
+    queue.push(ref);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const ref = queue[head];
+    const x = ref % width;
+    const y = Math.floor(ref / width);
+    if (x > 0) enqueue(x - 1, y);
+    if (x < width - 1) enqueue(x + 1, y);
+    if (y > 0) enqueue(x, y - 1);
+    if (y < height - 1) enqueue(x, y + 1);
+  }
+
+  return ocean;
+}
+
+export function deriveWorldEngineSeaDepth(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  params: Pick<FoundationWorldEngineMapConfig, "seaLevel">,
+): Float32Array {
+  const seaDepth = new Float32Array(elevation.length);
+  for (let i = 0; i < elevation.length; i += 1) {
+    seaDepth[i] =
+      ocean[i] !== 0
+        ? clamp(
+            (params.seaLevel - elevation[i]) / Math.max(0.01, params.seaLevel),
+          )
+        : 0;
+  }
+  return seaDepth;
+}
+
 export function buildWorldEngineElevationTerrainColors(
   elevation: Float32Array,
 ): Uint8Array {
@@ -247,6 +319,84 @@ export function buildWorldEngineLandTerrainColors(
         clampByte(color[1] + dither * 10),
         clampByte(color[2] + dither * 10),
       ];
+
+      const offset = i * 4;
+      pixels[offset] = color[0];
+      pixels[offset + 1] = color[1];
+      pixels[offset + 2] = color[2];
+      pixels[offset + 3] = 255;
+    }
+  }
+
+  return pixels;
+}
+
+export function buildWorldEngineTerrainColors(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  seaDepth: Float32Array,
+  params: Pick<
+    FoundationWorldEngineMapConfig,
+    "width" | "height" | "seed" | "seaLevel"
+  >,
+): Uint8Array {
+  const pixels = new Uint8Array(elevation.length * 4);
+  const { width, height, seed, seaLevel } = params;
+  const blurredSeaDepth = blurOceanValues(seaDepth, ocean, width, height, 4);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      let color: Color;
+
+      if (ocean[i] !== 0) {
+        const visibleDepth = lerp(blurredSeaDepth[i], seaDepth[i], 0.12);
+        color = colorRamp(visibleDepth, [
+          [0, WORLD_ENGINE_OCEAN_SHALLOW],
+          [0.32, WORLD_ENGINE_OCEAN_SHELF],
+          [0.7, WORLD_ENGINE_OCEAN_DEEP],
+          [1, WORLD_ENGINE_OCEAN_ABYSS],
+        ]);
+      } else {
+        const altitude = clamp(
+          (elevation[i] - seaLevel) / Math.max(0.01, 1 - seaLevel),
+        );
+        const altitudeColor = colorRamp(altitude, WORLD_ENGINE_ALTITUDE_STOPS);
+        color = mixColor(WORLD_ENGINE_GRASSLAND, altitudeColor, 0.42);
+
+        if (
+          hasOceanNeighbor(ocean, x, y, width, height) ||
+          elevation[i] <= seaLevel + 0.055
+        ) {
+          const coastAmount = hasOceanNeighbor(ocean, x, y, width, height)
+            ? 0.72
+            : clamp(1 - (elevation[i] - seaLevel) / 0.055) * 0.48;
+          color = mixColor(color, WORLD_ENGINE_COAST, coastAmount);
+        }
+
+        const west = elevationAt(elevation, x - 1, y, width, height);
+        const east = elevationAt(elevation, x + 1, y, width, height);
+        const north = elevationAt(elevation, x, y - 1, width, height);
+        const south = elevationAt(elevation, x, y + 1, width, height);
+        const light = clamp(
+          1 + (west - east + north - south) * 3.6,
+          0.66,
+          1.34,
+        );
+        color = shadeColor(color, light * (0.9 + altitude * 0.18));
+
+        const contour = Math.abs(((altitude * 13) % 1) - 0.5);
+        if (altitude > 0.12 && contour > 0.46) {
+          color = shadeColor(color, 0.88);
+        }
+
+        const dither = hash(seed + 3907, x, y) - 0.5;
+        color = [
+          clampByte(color[0] + dither * 10),
+          clampByte(color[1] + dither * 10),
+          clampByte(color[2] + dither * 10),
+        ];
+      }
 
       const offset = i * 4;
       pixels[offset] = color[0];
@@ -358,6 +508,60 @@ function elevationAt(
   const cx = clamp(x, 0, width - 1);
   const cy = clamp(y, 0, height - 1);
   return elevation[cy * width + cx];
+}
+
+function hasOceanNeighbor(
+  ocean: Uint8Array,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      if (ocean[ny * width + nx] !== 0) return true;
+    }
+  }
+  return false;
+}
+
+function blurOceanValues(
+  values: Float32Array,
+  ocean: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Float32Array {
+  const blurred = new Float32Array(values.length);
+  const radiusSquared = radius * radius;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const ref = y * width + x;
+      if (ocean[ref] === 0) continue;
+      let total = 0;
+      let weightTotal = 0;
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const distanceSquared = dx * dx + dy * dy;
+          if (distanceSquared > radiusSquared) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          const neighbor = ny * width + nx;
+          if (ocean[neighbor] === 0) continue;
+          const weight = 1 / (1 + Math.sqrt(distanceSquared));
+          total += values[neighbor] * weight;
+          weightTotal += weight;
+        }
+      }
+      blurred[ref] = weightTotal > 0 ? total / weightTotal : values[ref];
+    }
+  }
+  return blurred;
 }
 
 function smoothstep(t: number): number {
