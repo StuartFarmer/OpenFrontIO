@@ -9,6 +9,7 @@ import {
 } from "./TileState";
 import type {
   BaseMapCameraState,
+  BaseMapDirectionalBorderIntent,
   BaseMapOwnerId,
   BaseMapPalette,
   BaseMapPointer,
@@ -185,16 +186,16 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
     this.target.updatePalette(this.paletteData);
   }
 
+  setDirectionalBorderIntent(
+    intent: BaseMapDirectionalBorderIntent | null,
+  ): void {
+    this.assertActive();
+    this.target.setDirectionalBorderIntent?.(intent);
+  }
+
   screenToWorld(pointer: BaseMapPointer): { x: number; y: number } {
     this.assertActive();
     return this.target.screenToWorld(pointer.screenX, pointer.screenY);
-  }
-
-  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-    this.assertActive();
-    return this.target.worldToScreen
-      ? this.target.worldToScreen(worldX, worldY)
-      : fallbackWorldToScreen(this.target, worldX, worldY);
   }
 
   screenToTile(pointer: BaseMapPointer): BaseMapTilePoint | null {
@@ -237,18 +238,6 @@ export class BaseMapWebGLAdapter implements BaseMapRenderer {
       throw new Error("base map renderer has been disposed");
     }
   }
-}
-
-function fallbackWorldToScreen(
-  target: BaseMapRenderTarget,
-  worldX: number,
-  worldY: number,
-): { x: number; y: number } {
-  const state = target.getCameraState();
-  return {
-    x: (worldX - state.x) * state.z,
-    y: (worldY - state.y) * state.z,
-  };
 }
 
 export function buildBaseMapPaletteData(palette: BaseMapPalette): Float32Array {

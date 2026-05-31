@@ -15,9 +15,52 @@ uniform float uFriendlyTintRatio;
 uniform vec3 uEmberColorDark;
 uniform vec3 uEmberColorBright;
 uniform float uEmberStrengthUnowned;
+uniform int uDirectionalBorderActive;
+uniform uint uDirectionalBorderOwner;
+uniform vec2 uDirectionalBorderOrigin;
+uniform vec2 uDirectionalBorderDirection;
+uniform float uDirectionalBorderDistance;
+uniform float uDirectionalBorderSharpness;
 
 in vec2 vWorldPos;
 out vec4 fragColor;
+
+float vectorSharpnessFocus(float distance, float sharpness) {
+  if (distance <= 0.0 || sharpness <= 0.0) return 0.0;
+  float inverseLogDistance = 1.0 - 1.0 / (1.0 + log(1.0 + distance / 40.0));
+  return clamp(inverseLogDistance * sharpness, 0.0, 1.0);
+}
+
+vec3 directionalPriorityColor(float heat) {
+  vec3 cold = vec3(40.0, 123.0, 156.0) / 255.0;
+  vec3 mid = vec3(255.0, 248.0, 107.0) / 255.0;
+  vec3 hot = vec3(237.0, 86.0, 83.0) / 255.0;
+  if (heat < 0.5) return mix(cold, mid, heat * 2.0);
+  return mix(mid, hot, (heat - 0.5) * 2.0);
+}
+
+float directionalBorderHeat(vec2 worldPos) {
+  vec2 target =
+    uDirectionalBorderOrigin +
+    normalize(uDirectionalBorderDirection) * uDirectionalBorderDistance;
+  float focus = vectorSharpnessFocus(
+    uDirectionalBorderDistance,
+    uDirectionalBorderSharpness
+  );
+  float falloffWidth = max(
+    1.5,
+    uDirectionalBorderDistance / (1.0 + focus * 10.0)
+  );
+  float extraDistance = max(
+    0.0,
+    distance(worldPos, target) - uDirectionalBorderDistance
+  );
+  float concentration = exp(-extraDistance / falloffWidth);
+
+  // Yellow is the equal-priority baseline. Higher focus turns the same
+  // distance field into sharper red/blue concentration bands.
+  return clamp(mix(0.5, concentration, focus), 0.0, 1.0);
+}
 
 void main() {
   ivec2 tc = ivec2(floor(vWorldPos));
@@ -45,6 +88,10 @@ void main() {
     } else {
       float u = (float(owner) + 0.5) / float(PALETTE_SIZE);
       bc = texture(uPalette, vec2(u, 0.75)).rgb;
+      if (uDirectionalBorderActive != 0 && owner == uDirectionalBorderOwner) {
+        float heat = directionalBorderHeat(vec2(tc) + vec2(0.5));
+        bc = directionalPriorityColor(heat);
+      }
       if (isHighlightBorder) {
         bc = mix(bc, vec3(1.0), uHighlightBrighten);
       }

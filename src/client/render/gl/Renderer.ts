@@ -14,6 +14,7 @@ import type {
   BonusEvent,
   ConquestFx,
   DeadUnitFx,
+  DirectionalBorderIntentInput,
   GhostPreviewData,
   NameEntry,
   NukeTelegraphData,
@@ -605,6 +606,12 @@ export class GPURenderer {
     );
     // SAM radius pass stores its own copy
     this.samRadiusPass.setPaletteData(this.paletteData);
+  }
+
+  setDirectionalBorderIntent(
+    intent: DirectionalBorderIntentInput | null,
+  ): void {
+    this.borderStampPass.setDirectionalIntent(intent);
   }
 
   /** Register late-arriving players (updates palette + NamePass lookup maps). */

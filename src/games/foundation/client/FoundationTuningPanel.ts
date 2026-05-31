@@ -144,6 +144,27 @@ export class FoundationTuningPanel extends LitElement {
           ${this.numberInput("Mountains", "mountainStrength", 0, 1, 0.01)}
           ${this.numberInput("Edge bias", "coastFalloff", 0, 1.4, 0.01)}
           ${this.numberInput("Coast rough", "coastRoughness", 0, 1, 0.01)}
+          ${this.numberInput("Latitude", "latitudeEffect", 0, 1, 0.01)}
+          ${this.numberInput("Cooling", "elevationCooling", 0, 0.8, 0.01)}
+          ${this.numberInput("Rain noise", "rainNoise", 0, 1, 0.01)}
+          ${this.numberInput("Warm rain", "warmthRainfall", 0, 1, 0.01)}
+          ${this.numberInput("Flow retain", "riverFlowRetention", 0, 1, 0.01)}
+          ${this.numberInput(
+            "Lake threshold",
+            "lakeWaterThreshold",
+            0.1,
+            5,
+            0.05,
+          )}
+          ${this.numberInput("Lake depth", "lakeElevationRange", 0, 0.5, 0.01)}
+          ${this.numberInput("Weak river", "riverWeakThreshold", 0, 1, 0.01)}
+          ${this.numberInput(
+            "Strong river",
+            "riverStrongThreshold",
+            0,
+            1,
+            0.01,
+          )}
           ${this.numberInput("Tick ms", "tickIntervalMs", 20, 1000, 10)}
           ${this.percentInput("Attack", "attackRatio", 1, 100, 1)}
           ${this.numberInput("Base speed", "wildernessBaseSpeed", 1, 80, 0.5)}
@@ -168,6 +189,13 @@ export class FoundationTuningPanel extends LitElement {
             0,
             4,
             0.1,
+          )}
+          ${this.numberInput(
+            "Vector sharpness",
+            "wildernessVectorSharpness",
+            0,
+            4,
+            0.05,
           )}
         </div>
         <div class="actions">

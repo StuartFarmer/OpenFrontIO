@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
+  buildWorldEngineDrainage,
   buildWorldEngineElevationTerrainColors,
   buildWorldEngineTerrainColors,
   createWorldEngineFoundationMap,
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
+  generateWorldEngineBiome,
   generateWorldEngineElevation,
+  generateWorldEngineHumidity,
+  generateWorldEngineIrrigation,
+  generateWorldEnginePrecipitation,
+  generateWorldEngineTemperature,
+  generateWorldEngineWatermap,
   isFoundationLandTerrainByte,
+  normalizeWorldEngineLand,
   worldEngineElevationPalette,
 } from "../../../src/games/foundation";
 
@@ -49,15 +57,81 @@ describe("WorldEngine elevation map generation", () => {
     const seaDepth = deriveWorldEngineSeaDepth(map.elevationBuffer(), ocean, {
       seaLevel: DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.seaLevel,
     });
+    const { data: temperature } = generateWorldEngineTemperature(
+      map.elevationBuffer(),
+      ocean,
+      {
+        width: 32,
+        height: 32,
+        seed: 7,
+        latitudeEffect:
+          DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.latitudeEffect,
+        elevationCooling:
+          DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.elevationCooling,
+      },
+    );
+    const precipitation = generateWorldEnginePrecipitation(
+      map.elevationBuffer(),
+      ocean,
+      temperature,
+      {
+        width: 32,
+        height: 32,
+        seed: 7,
+        seaLevel: DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.seaLevel,
+        rainNoise: DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.rainNoise,
+        warmthRainfall:
+          DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.warmthRainfall,
+      },
+    );
+    const renderConfig = {
+      ...DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
+      width: 32,
+      height: 32,
+      seed: 7,
+    };
+    const { watermap, lakes } = generateWorldEngineWatermap(
+      map.elevationBuffer(),
+      ocean,
+      precipitation,
+      renderConfig,
+    );
+    const normalizedWatermap = normalizeWorldEngineLand(watermap, ocean);
+    const irrigation = generateWorldEngineIrrigation(
+      watermap,
+      ocean,
+      renderConfig,
+    );
+    const humidity = generateWorldEngineHumidity(
+      precipitation,
+      irrigation,
+      ocean,
+    );
+    const biome = generateWorldEngineBiome(ocean, temperature, humidity);
 
     expect(Array.from(terrainColors.slice(0, 4))).toEqual(
       Array.from(
-        buildWorldEngineTerrainColors(map.elevationBuffer(), ocean, seaDepth, {
-          width: 32,
-          height: 32,
-          seed: 7,
-          seaLevel: DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.seaLevel,
-        }).slice(0, 4),
+        buildWorldEngineTerrainColors(
+          map.elevationBuffer(),
+          ocean,
+          temperature,
+          precipitation,
+          seaDepth,
+          normalizedWatermap,
+          humidity,
+          biome,
+          lakes,
+          {
+            width: 32,
+            height: 32,
+            seed: 7,
+            seaLevel: DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.seaLevel,
+            riverWeakThreshold:
+              DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.riverWeakThreshold,
+            riverStrongThreshold:
+              DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.riverStrongThreshold,
+          },
+        ).slice(0, 4),
       ),
     );
   });
@@ -92,6 +166,82 @@ describe("WorldEngine elevation map generation", () => {
         deriveWorldEngineSeaDepth(elevation, ocean, { seaLevel: 0.5 }),
       ),
     ).toEqual([0.800000011920929, 0.6000000238418579, 0]);
+  });
+
+  it("builds priority-flood drainage from coastal ocean into enclosed basins", () => {
+    const width = 5;
+    const height = 5;
+    const elevation = new Float32Array(width * height).fill(0.8);
+    for (let x = 0; x < width; x += 1) {
+      elevation[x] = 0.1;
+      elevation[(height - 1) * width + x] = 0.1;
+    }
+    for (let y = 0; y < height; y += 1) {
+      elevation[y * width] = 0.1;
+      elevation[y * width + width - 1] = 0.1;
+    }
+    elevation[12] = 0.3;
+    const ocean = deriveWorldEngineOcean(elevation, {
+      width,
+      height,
+      seaLevel: 0.2,
+    });
+
+    const drainage = buildWorldEngineDrainage(elevation, ocean, {
+      width,
+      height,
+      seaLevel: 0.2,
+    });
+
+    expect(drainage.flowTarget[12]).toBeGreaterThanOrEqual(0);
+    expect(drainage.filled[12]).toBeCloseTo(0.8);
+  });
+
+  it("detects lakes from filled depression depth and accumulated water", () => {
+    const width = 5;
+    const height = 5;
+    const elevation = new Float32Array(width * height).fill(0.8);
+    for (let x = 0; x < width; x += 1) {
+      elevation[x] = 0.1;
+      elevation[(height - 1) * width + x] = 0.1;
+    }
+    for (let y = 0; y < height; y += 1) {
+      elevation[y * width] = 0.1;
+      elevation[y * width + width - 1] = 0.1;
+    }
+    elevation[12] = 0.3;
+    const ocean = deriveWorldEngineOcean(elevation, {
+      width,
+      height,
+      seaLevel: 0.2,
+    });
+    const precipitation = new Float32Array(width * height).fill(1);
+
+    const { watermap, lakes } = generateWorldEngineWatermap(
+      elevation,
+      ocean,
+      precipitation,
+      {
+        width,
+        height,
+        seaLevel: 0.2,
+        riverFlowRetention: 0.82,
+        lakeWaterThreshold: 0.1,
+        lakeElevationRange: 0.03,
+      },
+    );
+
+    expect(watermap[12]).toBeGreaterThan(0.1);
+    expect(lakes[12]).toBe(1);
+  });
+
+  it("normalizes accumulated land water and keeps ocean at zero", () => {
+    const normalized = normalizeWorldEngineLand(
+      new Float32Array([0, 2, 4]),
+      new Uint8Array([1, 0, 0]),
+    );
+
+    expect(Array.from(normalized)).toEqual([0, 0.5, 1]);
   });
 
   it("clears the Foundation land bit on generated ocean terrain", () => {

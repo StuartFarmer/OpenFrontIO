@@ -35,6 +35,16 @@ export interface AttackData {
   retreating: boolean;
 }
 
+export interface DirectionalBorderIntentInput {
+  ownerId: number;
+  originX: number;
+  originY: number;
+  directionX: number;
+  directionY: number;
+  distance: number;
+  sharpness: number;
+}
+
 export interface AllianceData {
   id: number;
   other: string;

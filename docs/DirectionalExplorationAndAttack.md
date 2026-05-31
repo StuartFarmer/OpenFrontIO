@@ -14,8 +14,8 @@ while making troop movement read as an intentional wave instead of an even blob.
 - The wave target is the clicked tile.
 - The vector from origin to target defines the preferred movement direction and
   approximate reach.
-- The committed troop count is displayed on a temporary arrow from origin to
-  target.
+- Hovering over unowned terrain previews the border priority colors that would
+  result from that click.
 
 For the MVP, there is still one active wilderness exploration. A second click
 reinforces and retargets that active exploration. Future multi-wave support
@@ -44,23 +44,35 @@ accepted and does not drift as territory changes.
 For a candidate frontier tile `T`:
 
 ```ts
-d = normalize(target - origin)
-p = T - origin
+d = normalize(target - origin);
+p = T - origin;
 
-forward = dot(p, d)
-lateral = abs(cross(p, d))
-distance = length(target - origin)
+forward = dot(p, d);
+lateral = abs(cross(p, d));
+distance = length(target - origin);
 ```
 
 The existing wilderness priority remains in place, including terrain and
-owned-neighbor weighting. Direction adds a soft priority term:
+owned-neighbor weighting. Direction adds a soft priority term. Distance affects
+focus through a bounded inverse-log curve, scaled by `wildernessVectorSharpness`,
+so very distant clicks do not become unrealistically narrow:
+
+```ts
+focus = clamp(
+  (1 - 1 / (1 + log1p(distance / 40))) * wildernessVectorSharpness,
+  0,
+  1,
+);
+```
+
+That focus chooses the lateral penalty and forward bias used by:
 
 ```ts
 directionPenalty =
-  lateral * lateralPenalty
-  + max(0, -forward) * backwardPenalty
-  + max(0, forward - distance) * overshootPenalty
-  - forward * forwardBias
+  lateral * lateralPenalty +
+  max(0, -forward) * backwardPenalty +
+  max(0, forward - distance) * overshootPenalty -
+  forward * forwardBias;
 ```
 
 Lower priority is claimed first. This means tiles ahead of the click vector are
@@ -72,22 +84,23 @@ growth; it only changes the order in which frontier tiles are selected.
 
 ## Visual MVP
 
-When a wilderness command is accepted:
+When the pointer hovers over a valid wilderness target:
 
-- Draw a temporary thin arrow from origin to target.
-- Use a blue -> yellow -> red gradient on the arrow to indicate direction and
-  increasing priority.
-- Place a compact label near the arrow showing committed troops.
-- The overlay should be non-interactive and expire automatically after a short
-  duration.
+- Color the current nation border in the WebGL border stamp pass.
+- Use the same directional pressure model as simulation priority.
+- Clear the preview when the pointer leaves the map, hovers an invalid target,
+  or clicks to commit a wave.
+- A committed wave does not keep border heat active in the MVP.
 
-## Border Heat Follow-Up
+## Border Heat
 
-The persistent border heat gradient should be implemented in the WebGL border
-stamp path. Border tiles can compute the same directional priority score in the
-shader using a small fixed array of active wave uniforms.
+The persistent heat gradient belongs on the nation's border, not on the arrow.
+The WebGL border stamp shader colors owned border tiles by preview pressure.
+Pressure is based on each border tile's distance to the hovered target compared
+with the closest-border distance. This makes the closest launch front red when
+the click is focused, unrelated border blue, and broad/equal pressure yellow.
 
-Recommended gradient:
+Gradient:
 
 ```css
 linear-gradient(
@@ -101,8 +114,8 @@ linear-gradient(
 Interpretation:
 
 - Blue: low directional pressure.
-- Yellow: moderate directional pressure.
-- Red: strongest active expedition pressure.
+- Yellow: equal-priority baseline across border pixels.
+- Red: strongest concentration at the likely launch border.
 
 For multi-wave support, the shader should evaluate up to a small fixed number
 of active wave intents and color each owned border tile by the strongest local

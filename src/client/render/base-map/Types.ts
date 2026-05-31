@@ -32,6 +32,16 @@ export interface BaseMapCameraState {
   readonly zoom: number;
 }
 
+export interface BaseMapDirectionalBorderIntent {
+  readonly ownerId: BaseMapOwnerId;
+  readonly originX: number;
+  readonly originY: number;
+  readonly directionX: number;
+  readonly directionY: number;
+  readonly distance: number;
+  readonly sharpness: number;
+}
+
 export interface BaseMapPointer {
   readonly screenX: number;
   readonly screenY: number;
@@ -61,8 +71,9 @@ export interface BaseMapRenderTarget {
   ): void;
   applyTerrainDelta(refs: readonly number[], terrainBytes: Uint8Array): void;
   updatePalette(paletteData: Float32Array): void;
-
-  worldToScreen?(worldX: number, worldY: number): { x: number; y: number };
+  setDirectionalBorderIntent?(
+    intent: BaseMapDirectionalBorderIntent | null,
+  ): void;
 }
 
 export interface BaseMapRendererConfig extends BaseMapSize {
@@ -96,9 +107,11 @@ export interface BaseMapRenderer {
   ): void;
   applyTerrainDeltas(deltas: readonly BaseMapTerrainDelta[]): void;
   updatePalette(palette: BaseMapPalette): void;
+  setDirectionalBorderIntent(
+    intent: BaseMapDirectionalBorderIntent | null,
+  ): void;
 
   screenToWorld(pointer: BaseMapPointer): { x: number; y: number };
-  worldToScreen(worldX: number, worldY: number): { x: number; y: number };
   screenToTile(pointer: BaseMapPointer): BaseMapTilePoint | null;
   getOwnerAtTile(ref: BaseMapTileRef): BaseMapOwnerId;
 }

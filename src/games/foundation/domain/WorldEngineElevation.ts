@@ -13,6 +13,15 @@ export interface FoundationWorldEngineMapConfig {
   mountainStrength: number;
   coastFalloff: number;
   coastRoughness: number;
+  latitudeEffect: number;
+  elevationCooling: number;
+  rainNoise: number;
+  warmthRainfall: number;
+  riverFlowRetention: number;
+  lakeWaterThreshold: number;
+  lakeElevationRange: number;
+  riverWeakThreshold: number;
+  riverStrongThreshold: number;
 }
 
 export const DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG: FoundationWorldEngineMapConfig =
@@ -25,6 +34,15 @@ export const DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG: FoundationWorldEngineMa
     mountainStrength: 0.56,
     coastFalloff: 0.78,
     coastRoughness: 0.42,
+    latitudeEffect: 0.72,
+    elevationCooling: 0.35,
+    rainNoise: 0.62,
+    warmthRainfall: 0.42,
+    riverFlowRetention: 0.82,
+    lakeWaterThreshold: 1.2,
+    lakeElevationRange: 0.03,
+    riverWeakThreshold: 0.28,
+    riverStrongThreshold: 0.48,
   };
 
 type Color = readonly [r: number, g: number, b: number];
@@ -40,10 +58,34 @@ const ELEVATION_STOPS: readonly (readonly [number, Color])[] = [
 
 const WORLD_ENGINE_GRASSLAND: Color = [134, 145, 78];
 const WORLD_ENGINE_COAST: Color = [191, 171, 105];
+const WORLD_ENGINE_LAND_DRY: Color = [205, 167, 88];
+const WORLD_ENGINE_LAND_WET: Color = [35, 112, 67];
+const WORLD_ENGINE_LAND_WARM_DRY: Color = [194, 122, 70];
+const WORLD_ENGINE_LAND_COLD: Color = [190, 211, 216];
+const WORLD_ENGINE_LAKE: Color = [55, 132, 153];
+const WORLD_ENGINE_RIVER_STRONG: Color = [72, 160, 190];
+const WORLD_ENGINE_RIVER_WEAK: Color = [63, 130, 142];
 const WORLD_ENGINE_OCEAN_SHALLOW: Color = [77, 151, 171];
 const WORLD_ENGINE_OCEAN_SHELF: Color = [38, 115, 155];
 const WORLD_ENGINE_OCEAN_DEEP: Color = [18, 74, 125];
 const WORLD_ENGINE_OCEAN_ABYSS: Color = [7, 38, 83];
+const WORLD_ENGINE_OCEAN_WARM: Color = [49, 197, 184];
+const WORLD_ENGINE_OCEAN_COLD: Color = [116, 164, 187];
+const WORLD_ENGINE_BIOME_COLORS: readonly Color[] = [
+  [18, 69, 108],
+  [220, 234, 233],
+  [143, 156, 145],
+  [111, 139, 132],
+  [153, 142, 88],
+  [87, 119, 82],
+  [52, 103, 82],
+  [190, 154, 82],
+  [134, 145, 78],
+  [55, 117, 72],
+  [178, 146, 74],
+  [49, 114, 67],
+  [31, 91, 57],
+];
 const WORLD_ENGINE_ALTITUDE_STOPS: readonly (readonly [number, Color])[] = [
   [0, [191, 171, 105]],
   [0.22, [96, 135, 72]],
@@ -62,13 +104,39 @@ export function createWorldEngineFoundationMap(
   const normalized = normalizeFoundationWorldEngineMapConfig(config);
   const elevation = generateWorldEngineElevation(normalized);
   const ocean = deriveWorldEngineOcean(elevation, normalized);
+  const { data: temperature } = generateWorldEngineTemperature(
+    elevation,
+    ocean,
+    normalized,
+  );
+  const precipitation = generateWorldEnginePrecipitation(
+    elevation,
+    ocean,
+    temperature,
+    normalized,
+  );
   const seaDepth = deriveWorldEngineSeaDepth(elevation, ocean, normalized);
+  const { watermap, lakes } = generateWorldEngineWatermap(
+    elevation,
+    ocean,
+    precipitation,
+    normalized,
+  );
+  const normalizedWatermap = normalizeWorldEngineLand(watermap, ocean);
+  const irrigation = generateWorldEngineIrrigation(watermap, ocean, normalized);
+  const humidity = generateWorldEngineHumidity(
+    precipitation,
+    irrigation,
+    ocean,
+  );
+  const biome = generateWorldEngineBiome(ocean, temperature, humidity);
   const terrain = new Uint8Array(normalized.width * normalized.height);
 
   for (let i = 0; i < elevation.length; i++) {
-    terrain[i] = ocean[i]
-      ? foundationWaterTerrainByteForElevation(elevation[i])
-      : foundationLandTerrainByteForElevation(elevation[i]);
+    terrain[i] =
+      ocean[i] || lakes[i]
+        ? foundationWaterTerrainByteForElevation(elevation[i])
+        : foundationLandTerrainByteForElevation(elevation[i]);
   }
 
   return {
@@ -82,7 +150,13 @@ export function createWorldEngineFoundationMap(
     terrainColors: buildWorldEngineTerrainColors(
       elevation,
       ocean,
+      temperature,
+      precipitation,
       seaDepth,
+      normalizedWatermap,
+      humidity,
+      biome,
+      lakes,
       normalized,
     ),
   };
@@ -137,6 +211,60 @@ export function normalizeFoundationWorldEngineMapConfig(
     coastRoughness: number(
       config.coastRoughness,
       DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.coastRoughness,
+      0,
+      1,
+    ),
+    latitudeEffect: number(
+      config.latitudeEffect,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.latitudeEffect,
+      0,
+      1,
+    ),
+    elevationCooling: number(
+      config.elevationCooling,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.elevationCooling,
+      0,
+      0.8,
+    ),
+    rainNoise: number(
+      config.rainNoise,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.rainNoise,
+      0,
+      1,
+    ),
+    warmthRainfall: number(
+      config.warmthRainfall,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.warmthRainfall,
+      0,
+      1,
+    ),
+    riverFlowRetention: number(
+      config.riverFlowRetention,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.riverFlowRetention,
+      0,
+      1,
+    ),
+    lakeWaterThreshold: number(
+      config.lakeWaterThreshold,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.lakeWaterThreshold,
+      0.1,
+      5,
+    ),
+    lakeElevationRange: number(
+      config.lakeElevationRange,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.lakeElevationRange,
+      0,
+      0.5,
+    ),
+    riverWeakThreshold: number(
+      config.riverWeakThreshold,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.riverWeakThreshold,
+      0,
+      1,
+    ),
+    riverStrongThreshold: number(
+      config.riverStrongThreshold,
+      DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG.riverStrongThreshold,
       0,
       1,
     ),
@@ -267,6 +395,297 @@ export function deriveWorldEngineSeaDepth(
   return seaDepth;
 }
 
+export function generateWorldEngineTemperature(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  params: Pick<
+    FoundationWorldEngineMapConfig,
+    "width" | "height" | "seed" | "latitudeEffect" | "elevationCooling"
+  >,
+): { data: Float32Array; mountainThreshold: number } {
+  const { width, height, seed } = params;
+  const data = new Float32Array(width * height);
+  const mountainThreshold = landQuantile(elevation, ocean, 0.9);
+
+  for (let y = 0; y < height; y += 1) {
+    const latitude = Math.abs((y / Math.max(1, height - 1)) * 2 - 1);
+    const equatorWarmth = 1 - latitude;
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      const nx = x / width;
+      const ny = y / height;
+      const thermalNoise = fbm(seed + 211, nx, ny, 3.2, 4, 0.5) - 0.5;
+      const altitude = Math.max(0, elevation[i] - mountainThreshold);
+      const value =
+        0.5 +
+        (equatorWarmth - 0.5) * params.latitudeEffect +
+        thermalNoise * 0.28 -
+        altitude * params.elevationCooling * 1.9 +
+        (ocean[i] ? 0.04 : 0);
+      data[i] = clamp(value);
+    }
+  }
+
+  return { data, mountainThreshold };
+}
+
+export function generateWorldEnginePrecipitation(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  temperature: Float32Array,
+  params: Pick<
+    FoundationWorldEngineMapConfig,
+    "width" | "height" | "seed" | "seaLevel" | "rainNoise" | "warmthRainfall"
+  >,
+): Float32Array {
+  const { width, height, seed } = params;
+  const data = new Float32Array(width * height);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      const nx = x / width;
+      const ny = y / height;
+      const rainField = fbm(seed + 419, nx, ny, 4.2, 5, 0.52);
+      const stormBand = fbm(seed + 727, nx + y * 0.002, ny, 1.8, 3, 0.6);
+      const orographic = clamp(elevation[i] - params.seaLevel, 0, 1) * 0.24;
+      const coastalMoisture = ocean[i] ? 0.18 : 0;
+      const warmRain = temperature[i] * params.warmthRainfall;
+      const value =
+        rainField * params.rainNoise +
+        stormBand * (1 - params.rainNoise) +
+        warmRain +
+        coastalMoisture +
+        orographic;
+      data[i] = clamp(value / (1.18 + params.warmthRainfall * 0.35));
+    }
+  }
+
+  return data;
+}
+
+export interface WorldEngineDrainage {
+  filled: Float32Array;
+  flowTarget: Int32Array;
+  visitOrder: Int32Array;
+  orderLength: number;
+}
+
+export function buildWorldEngineDrainage(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  params: Pick<FoundationWorldEngineMapConfig, "width" | "height" | "seaLevel">,
+): WorldEngineDrainage {
+  const { width, height, seaLevel } = params;
+  const filled = new Float32Array(elevation);
+  const flowTarget = new Int32Array(elevation.length);
+  const visitOrder = new Int32Array(elevation.length);
+  const visited = new Uint8Array(elevation.length);
+  const heap: number[] = [];
+  let orderLength = 0;
+  flowTarget.fill(-1);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      if (ocean[i] === 0) continue;
+      visited[i] = 1;
+      filled[i] = Math.min(elevation[i], seaLevel);
+      if (isCoastalOcean(ocean, x, y, width, height)) {
+        pushHeap(heap, filled, i);
+        visitOrder[orderLength] = i;
+        orderLength += 1;
+      }
+    }
+  }
+
+  while (heap.length > 0) {
+    const current = popHeap(heap, filled);
+    const x = current % width;
+    const y = Math.floor(current / width);
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        const ni = ny * width + nx;
+        if (visited[ni] !== 0) continue;
+        visited[ni] = 1;
+        filled[ni] = Math.max(elevation[ni], filled[current]);
+        flowTarget[ni] = current;
+        visitOrder[orderLength] = ni;
+        orderLength += 1;
+        pushHeap(heap, filled, ni);
+      }
+    }
+  }
+
+  return { filled, flowTarget, visitOrder, orderLength };
+}
+
+export function generateWorldEngineWatermap(
+  elevation: Float32Array,
+  ocean: Uint8Array,
+  precipitation: Float32Array,
+  params: Pick<
+    FoundationWorldEngineMapConfig,
+    | "width"
+    | "height"
+    | "seaLevel"
+    | "riverFlowRetention"
+    | "lakeWaterThreshold"
+    | "lakeElevationRange"
+  >,
+): { watermap: Float32Array; lakes: Uint8Array } {
+  const { width, height } = params;
+  const watermap = new Float32Array(elevation.length);
+  const lakes = new Uint8Array(elevation.length);
+  const lakeCandidates = new Uint8Array(elevation.length);
+  const lakeQueue: number[] = [];
+  const { filled, flowTarget, visitOrder, orderLength } =
+    buildWorldEngineDrainage(elevation, ocean, params);
+
+  for (let i = 0; i < elevation.length; i += 1) {
+    watermap[i] = ocean[i] ? 0 : precipitation[i];
+  }
+
+  for (let orderIndex = orderLength - 1; orderIndex >= 0; orderIndex -= 1) {
+    const i = visitOrder[orderIndex];
+    if (ocean[i] || watermap[i] <= 0) continue;
+    const target = flowTarget[i];
+    if (target >= 0) {
+      const moved = watermap[i] * params.riverFlowRetention;
+      if (!ocean[target]) watermap[target] += moved;
+    }
+  }
+
+  for (let i = 0; i < elevation.length; i += 1) {
+    if (ocean[i]) continue;
+    const lakeDepth = filled[i] - elevation[i];
+    if (lakeDepth <= params.lakeElevationRange) continue;
+    lakeCandidates[i] = 1;
+    if (watermap[i] > params.lakeWaterThreshold) {
+      lakes[i] = 1;
+      lakeQueue.push(i);
+    }
+  }
+
+  for (let head = 0; head < lakeQueue.length; head += 1) {
+    const current = lakeQueue[head];
+    const x = current % width;
+    const y = Math.floor(current / width);
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+        const ni = ny * width + nx;
+        if (!lakeCandidates[ni] || lakes[ni]) continue;
+        if (Math.abs(filled[ni] - filled[current]) > 0.01) continue;
+        lakes[ni] = 1;
+        lakeQueue.push(ni);
+      }
+    }
+  }
+
+  return { watermap, lakes };
+}
+
+export function normalizeWorldEngineLand(
+  values: Float32Array,
+  ocean: Uint8Array,
+): Float32Array {
+  let max = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    if (!ocean[i] && values[i] > max) max = values[i];
+  }
+  const normalized = new Float32Array(values.length);
+  if (max <= 0) return normalized;
+  for (let i = 0; i < values.length; i += 1) {
+    normalized[i] = ocean[i] ? 0 : clamp(values[i] / max);
+  }
+  return normalized;
+}
+
+export function generateWorldEngineIrrigation(
+  watermap: Float32Array,
+  ocean: Uint8Array,
+  params: Pick<FoundationWorldEngineMapConfig, "width" | "height">,
+): Float32Array {
+  const { width, height } = params;
+  const source = normalizeWorldEngineLand(watermap, ocean);
+  let current = new Float32Array(source);
+  let next = new Float32Array(source.length);
+
+  for (let pass = 0; pass < 8; pass += 1) {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = y * width + x;
+        if (ocean[i]) {
+          next[i] = 0;
+          continue;
+        }
+        let total = current[i] * 1.8;
+        let weight = 1.8;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+            const ni = ny * width + nx;
+            if (ocean[ni]) continue;
+            total += current[ni] * 0.72;
+            weight += 0.72;
+          }
+        }
+        next[i] = Math.max(source[i], total / weight);
+      }
+    }
+    [current, next] = [next, current];
+  }
+
+  return current;
+}
+
+export function generateWorldEngineHumidity(
+  precipitation: Float32Array,
+  irrigation: Float32Array,
+  ocean: Uint8Array,
+): Float32Array {
+  const data = new Float32Array(precipitation.length);
+  for (let i = 0; i < data.length; i += 1) {
+    data[i] = ocean[i]
+      ? 0
+      : clamp(precipitation[i] * 0.68 + irrigation[i] * 0.55);
+  }
+  return data;
+}
+
+export function generateWorldEngineBiome(
+  ocean: Uint8Array,
+  temperature: Float32Array,
+  humidity: Float32Array,
+): Uint8Array {
+  const biome = new Uint8Array(ocean.length);
+  for (let i = 0; i < biome.length; i += 1) {
+    if (ocean[i]) {
+      biome[i] = 0;
+      continue;
+    }
+
+    const t = temperature[i];
+    const h = humidity[i];
+    if (t < 0.2) biome[i] = h < 0.28 ? 2 : 3;
+    else if (t < 0.38) biome[i] = h < 0.25 ? 4 : h < 0.58 ? 5 : 6;
+    else if (t < 0.64) biome[i] = h < 0.2 ? 7 : h < 0.5 ? 8 : 9;
+    else biome[i] = h < 0.18 ? 7 : h < 0.46 ? 10 : h < 0.72 ? 11 : 12;
+  }
+  return biome;
+}
+
 export function buildWorldEngineElevationTerrainColors(
   elevation: Float32Array,
 ): Uint8Array {
@@ -334,15 +753,50 @@ export function buildWorldEngineLandTerrainColors(
 export function buildWorldEngineTerrainColors(
   elevation: Float32Array,
   ocean: Uint8Array,
+  temperature: Float32Array,
+  precipitation: Float32Array,
   seaDepth: Float32Array,
+  watermap: Float32Array,
+  humidity: Float32Array,
+  biome: Uint8Array,
+  lakes: Uint8Array,
   params: Pick<
     FoundationWorldEngineMapConfig,
-    "width" | "height" | "seed" | "seaLevel"
+    | "width"
+    | "height"
+    | "seed"
+    | "seaLevel"
+    | "riverWeakThreshold"
+    | "riverStrongThreshold"
   >,
 ): Uint8Array {
   const pixels = new Uint8Array(elevation.length * 4);
   const { width, height, seed, seaLevel } = params;
+  const weakRiverThreshold = Math.min(
+    params.riverWeakThreshold,
+    params.riverStrongThreshold,
+  );
+  const strongRiverThreshold = Math.max(
+    params.riverWeakThreshold,
+    params.riverStrongThreshold,
+  );
   const blurredSeaDepth = blurOceanValues(seaDepth, ocean, width, height, 4);
+  const shallowWarmth = new Float32Array(seaDepth.length);
+
+  for (let i = 0; i < seaDepth.length; i += 1) {
+    if (ocean[i] === 0) continue;
+    const shallow = clamp((0.68 - seaDepth[i]) / 0.68);
+    const warm = clamp((temperature[i] - 0.48) / 0.38);
+    shallowWarmth[i] = Math.pow(shallow, 0.7) * Math.pow(warm, 0.75);
+  }
+
+  const blurredShallowWarmth = blurOceanValues(
+    shallowWarmth,
+    ocean,
+    width,
+    height,
+    2,
+  );
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -357,12 +811,32 @@ export function buildWorldEngineTerrainColors(
           [0.7, WORLD_ENGINE_OCEAN_DEEP],
           [1, WORLD_ENGINE_OCEAN_ABYSS],
         ]);
+        color = mixColor(
+          color,
+          WORLD_ENGINE_OCEAN_WARM,
+          blurredShallowWarmth[i] * 0.58,
+        );
+        const coldWater = clamp((0.3 - temperature[i]) / 0.3);
+        if (coldWater > 0) {
+          color = mixColor(color, WORLD_ENGINE_OCEAN_COLD, coldWater * 0.35);
+        }
       } else {
+        color = WORLD_ENGINE_BIOME_COLORS[biome[i]] ?? WORLD_ENGINE_GRASSLAND;
+
+        const warm = clamp((temperature[i] - 0.58) / 0.42);
+        const cold = clamp((0.34 - temperature[i]) / 0.34);
+        const wet = clamp((humidity[i] - 0.52) / 0.48);
+        const dry = clamp((0.34 - humidity[i]) / 0.34);
+        color = mixColor(color, WORLD_ENGINE_LAND_DRY, dry * 0.36);
+        color = mixColor(color, WORLD_ENGINE_LAND_WET, wet * 0.34);
+        color = mixColor(color, WORLD_ENGINE_LAND_WARM_DRY, warm * dry * 0.24);
+        color = mixColor(color, WORLD_ENGINE_LAND_COLD, cold * 0.28);
+
         const altitude = clamp(
           (elevation[i] - seaLevel) / Math.max(0.01, 1 - seaLevel),
         );
         const altitudeColor = colorRamp(altitude, WORLD_ENGINE_ALTITUDE_STOPS);
-        color = mixColor(WORLD_ENGINE_GRASSLAND, altitudeColor, 0.42);
+        color = mixColor(color, altitudeColor, 0.42);
 
         if (
           hasOceanNeighbor(ocean, x, y, width, height) ||
@@ -390,12 +864,36 @@ export function buildWorldEngineTerrainColors(
           color = shadeColor(color, 0.88);
         }
 
+        const coldLand = clamp((0.36 - temperature[i]) / 0.36);
+        if (coldLand > 0) {
+          color = mixColor(color, WORLD_ENGINE_LAND_COLD, coldLand * 0.38);
+        }
+
         const dither = hash(seed + 3907, x, y) - 0.5;
+        const climateTexture = (precipitation[i] - 0.5) * 7 + dither * 10;
         color = [
-          clampByte(color[0] + dither * 10),
-          clampByte(color[1] + dither * 10),
-          clampByte(color[2] + dither * 10),
+          clampByte(color[0] + climateTexture),
+          clampByte(color[1] + climateTexture),
+          clampByte(color[2] + climateTexture),
         ];
+
+        if (lakes[i]) {
+          color = mixColor(color, WORLD_ENGINE_LAKE, 0.94);
+        } else if (watermap[i] > weakRiverThreshold) {
+          const riverSpan = Math.max(
+            0.01,
+            strongRiverThreshold - weakRiverThreshold,
+          );
+          const riverStrength = clamp(
+            (watermap[i] - weakRiverThreshold) / riverSpan,
+          );
+          const riverColor = mixColor(
+            WORLD_ENGINE_RIVER_WEAK,
+            WORLD_ENGINE_RIVER_STRONG,
+            riverStrength,
+          );
+          color = mixColor(color, riverColor, lerp(0.58, 0.9, riverStrength));
+        }
       }
 
       const offset = i * 4;
@@ -411,6 +909,59 @@ export function buildWorldEngineTerrainColors(
 
 export function worldEngineElevationPalette(value: number): Color {
   return colorRamp(value, ELEVATION_STOPS);
+}
+
+function landQuantile(
+  values: Float32Array,
+  ocean: Uint8Array,
+  quantile: number,
+): number {
+  const land: number[] = [];
+  for (let i = 0; i < values.length; i += 1) {
+    if (!ocean[i]) land.push(values[i]);
+  }
+  if (land.length === 0) return 1;
+  land.sort((a, b) => a - b);
+  return land[Math.floor((land.length - 1) * clamp(quantile))];
+}
+
+function pushHeap(
+  heap: number[],
+  priorities: Float32Array,
+  value: number,
+): void {
+  heap.push(value);
+  let child = heap.length - 1;
+  while (child > 0) {
+    const parent = (child - 1) >> 1;
+    if (priorities[heap[parent]] <= priorities[value]) break;
+    heap[child] = heap[parent];
+    child = parent;
+  }
+  heap[child] = value;
+}
+
+function popHeap(heap: number[], priorities: Float32Array): number {
+  const value = heap[0];
+  const last = heap.pop();
+  if (heap.length > 0 && last !== undefined) {
+    let parent = 0;
+    while (true) {
+      let child = parent * 2 + 1;
+      if (child >= heap.length) break;
+      if (
+        child + 1 < heap.length &&
+        priorities[heap[child + 1]] < priorities[heap[child]]
+      ) {
+        child += 1;
+      }
+      if (priorities[last] <= priorities[heap[child]]) break;
+      heap[parent] = heap[child];
+      parent = child;
+    }
+    heap[parent] = last;
+  }
+  return value;
 }
 
 function hash(seed: number, x: number, y: number): number {
@@ -524,6 +1075,25 @@ function hasOceanNeighbor(
       const ny = y + dy;
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
       if (ocean[ny * width + nx] !== 0) return true;
+    }
+  }
+  return false;
+}
+
+function isCoastalOcean(
+  ocean: Uint8Array,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      if (ocean[ny * width + nx] === 0) return true;
     }
   }
   return false;

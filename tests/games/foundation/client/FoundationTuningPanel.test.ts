@@ -18,6 +18,8 @@ describe("FoundationTuningPanel", () => {
 
     const text = panel.shadowRoot?.textContent ?? "";
     expect(text).toContain("Tuning");
+    expect(text).toContain("Latitude");
+    expect(text).toContain("Flow retain");
     expect(text).toContain("Base speed");
 
     const attackInput = panel.shadowRoot?.querySelector(

@@ -11,8 +11,23 @@ import {
 import { renderTroops } from "../../../client/Utils";
 import {
   FoundationEngineTileMap,
+  buildWorldEngineTerrainColors,
   createFoundationMap,
-  createWorldEngineFoundationMap,
+  deriveWorldEngineOcean,
+  deriveWorldEngineSeaDepth,
+  foundationLandTerrainByteForElevation,
+  foundationWaterTerrainByteForElevation,
+  generateWorldEngineBiome,
+  generateWorldEngineElevation,
+  generateWorldEngineHumidity,
+  generateWorldEngineIrrigation,
+  generateWorldEnginePrecipitation,
+  generateWorldEngineTemperature,
+  generateWorldEngineWatermap,
+  isLandTile,
+  normalizeFoundationWorldEngineMapConfig,
+  normalizeWorldEngineLand,
+  ownerIdFromState,
 } from "../domain";
 import {
   FoundationRuntime,
@@ -35,16 +50,16 @@ interface FoundationClientStatus {
   text: string;
 }
 
-interface FoundationWavePreview {
+interface FoundationDirectionalBorderPreview {
   originTile: number;
   targetTile: number;
-  committedTroops: number;
 }
 
-type FoundationControlTab = "world" | "mechanics";
+type FoundationControlTab = "world" | "river" | "mechanics";
 
 const FOUNDATION_CONTROL_TABS = [
   { id: "world", label: "World" },
+  { id: "river", label: "River" },
   { id: "mechanics", label: "Mechanics" },
 ];
 
@@ -230,6 +245,19 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     formula:
       "priority = (randomInt(0, 7) + 10) * (1 - ownedNeighborCount * 0.5 + (1 + elevation * priorityScale) / 2) + tick",
   },
+  wildernessVectorSharpness: {
+    does: "Scales how tightly a click vector focuses wilderness frontier priority.",
+    exists:
+      "Lets directional movement be tuned separately from troop commitment and terrain cost.",
+    represents:
+      "Operational focus: low values make broad fronts, high values make narrower pushes.",
+    increase:
+      "Makes clicked directions more decisive, with distance influence capped by inverse-log scaling.",
+    decrease:
+      "Makes exploration fill more broadly around the border before following the vector.",
+    formula:
+      "focus = clamp((1 - 1 / (1 + log1p(distance / 40))) * wildernessVectorSharpness, 0, 1)",
+  },
   wildernessAttackerLossPerTile: {
     does: "Subtracts exploration troops after each wilderness tile is claimed.",
     exists:
@@ -262,6 +290,15 @@ const FOUNDATION_RESTART_SETTING_KEYS = new Set<keyof FoundationTuningSettings>(
     "mountainStrength",
     "coastFalloff",
     "coastRoughness",
+    "latitudeEffect",
+    "elevationCooling",
+    "rainNoise",
+    "warmthRainfall",
+    "riverFlowRetention",
+    "lakeWaterThreshold",
+    "lakeElevationRange",
+    "riverWeakThreshold",
+    "riverStrongThreshold",
     "startingTroops",
     "placementRadius",
   ],
@@ -278,7 +315,7 @@ const FOUNDATION_PLAYER_PALETTE: BaseMapPalette = {
 };
 
 const FOUNDATION_AUTO_GENERATE_MAX_DIMENSION = 512;
-const FOUNDATION_GENERATED_MAP_STORAGE_KEY = "foundation.generatedMap.v2";
+const FOUNDATION_GENERATED_MAP_STORAGE_KEY = "foundation.generatedMap.v3";
 const FOUNDATION_GESTURE_EVENTS = [
   "gesturestart",
   "gesturechange",
@@ -295,17 +332,35 @@ const FOUNDATION_MAP_SETTING_KEYS = new Set<keyof FoundationTuningSettings>([
   "mountainStrength",
   "coastFalloff",
   "coastRoughness",
+  "latitudeEffect",
+  "elevationCooling",
+  "rainNoise",
+  "warmthRainfall",
+  "riverFlowRetention",
+  "lakeWaterThreshold",
+  "lakeElevationRange",
+  "riverWeakThreshold",
+  "riverStrongThreshold",
   "elevation",
   "mapGenerator",
 ]);
 
 interface FoundationGeneratedMapCache {
+  version?: number;
   signature: string;
   width: number;
   height: number;
   terrain: string;
-  elevation: string;
+  elevation?: string;
+  elevation16?: string;
   terrainColors?: string;
+  terrainColorsRgb?: string;
+}
+
+interface FoundationPreparedMap {
+  map: FoundationEngineTileMap;
+  terrainColors: Uint8Array | undefined;
+  source: "cache" | "current" | "generated";
 }
 
 @customElement("foundation-page")
@@ -329,6 +384,9 @@ export class FoundationPage extends LitElement {
   private loading = false;
 
   @state()
+  private loadingStepLabel = "Preparing world generation...";
+
+  @state()
   private tuningSettings: FoundationTuningSettings =
     DEFAULT_FOUNDATION_TUNING_SETTINGS;
 
@@ -342,14 +400,14 @@ export class FoundationPage extends LitElement {
   @state()
   private openMechanicKeys: (keyof FoundationTuningSettings)[] = [];
 
-  @state()
-  private wavePreview: FoundationWavePreview | null = null;
-
   private runtime: FoundationRuntime | null = null;
   private renderer: BaseMapWebGLAdapter | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private tickTimer: number | null = null;
-  private wavePreviewTimer: number | null = null;
+  private directionalBorderPreview: FoundationDirectionalBorderPreview | null =
+    null;
+  private currentPreparedWorld: FoundationPreparedMap | null = null;
+  private currentWorldSignature: string | null = null;
   private dragPointerId: number | null = null;
   private dragLastX = 0;
   private dragLastY = 0;
@@ -440,6 +498,12 @@ export class FoundationPage extends LitElement {
       min-height: 0;
       overflow-y: auto;
       padding-right: 2px;
+    }
+
+    .panel-scroll-disabled {
+      opacity: 0.58;
+      pointer-events: none;
+      user-select: none;
     }
 
     .control-panel[hidden] {
@@ -832,45 +896,10 @@ export class FoundationPage extends LitElement {
       line-height: 1.35;
     }
 
-    .wave-preview {
-      position: absolute;
-      inset: 0;
-      z-index: 3;
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-      pointer-events: none;
-    }
-
-    .wave-preview-line {
-      fill: none;
-      stroke: url("#foundation-wave-gradient");
-      stroke-linecap: round;
-      stroke-width: 2.5;
-      filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.65));
-    }
-
-    .wave-preview-head {
-      fill: #ed5653;
-      filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.65));
-    }
-
-    .wave-preview-label rect {
-      fill: rgb(16 20 22 / 0.9);
-      stroke: rgb(255 248 107 / 0.8);
-      stroke-width: 1;
-      rx: 4;
-    }
-
-    .wave-preview-label text {
-      fill: #fff86b;
-      font-size: 11px;
+    .board-state-step {
+      color: var(--text);
+      font-size: 12px;
       font-weight: 800;
-      paint-order: stroke;
-      stroke: rgb(0 0 0 / 0.55);
-      stroke-width: 2px;
-      text-anchor: middle;
-      dominant-baseline: middle;
     }
 
     .runtime-overlay {
@@ -991,13 +1020,10 @@ export class FoundationPage extends LitElement {
     if (this.tickTimer !== null) {
       window.clearInterval(this.tickTimer);
     }
-    if (this.wavePreviewTimer !== null) {
-      window.clearTimeout(this.wavePreviewTimer);
-    }
     this.renderer?.dispose();
     this.resizeObserver = null;
     this.tickTimer = null;
-    this.wavePreviewTimer = null;
+    this.directionalBorderPreview = null;
     this.renderer = null;
     this.runtime = null;
     super.disconnectedCallback();
@@ -1031,7 +1057,11 @@ export class FoundationPage extends LitElement {
             </hud-icon-button>
           </div>
 
-          <div class="panel-scroll">
+          <div
+            class=${`panel-scroll ${this.loading ? "panel-scroll-disabled" : ""}`}
+            ?inert=${this.loading}
+            aria-disabled=${this.loading ? "true" : "false"}
+          >
             <div
               class="control-panel"
               ?hidden=${this.activeControlTab !== "world"}
@@ -1098,6 +1128,87 @@ export class FoundationPage extends LitElement {
                   ${this.rangeInput(
                     "Coast roughness",
                     "coastRoughness",
+                    0,
+                    1,
+                    0.01,
+                    2,
+                  )}
+                `,
+              )}
+              ${this.controlSection(
+                "Climate",
+                html`
+                  ${this.rangeInput(
+                    "Latitude effect",
+                    "latitudeEffect",
+                    0,
+                    1,
+                    0.01,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Elevation cooling",
+                    "elevationCooling",
+                    0,
+                    0.8,
+                    0.01,
+                    2,
+                  )}
+                  ${this.rangeInput("Rain noise", "rainNoise", 0, 1, 0.01, 2)}
+                  ${this.rangeInput(
+                    "Warmth rainfall",
+                    "warmthRainfall",
+                    0,
+                    1,
+                    0.01,
+                    2,
+                  )}
+                `,
+              )}
+            </div>
+
+            <div
+              class="control-panel"
+              ?hidden=${this.activeControlTab !== "river"}
+            >
+              ${this.controlSection(
+                "River",
+                html`
+                  ${this.rangeInput(
+                    "Flow retention",
+                    "riverFlowRetention",
+                    0,
+                    1,
+                    0.01,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Lake water threshold",
+                    "lakeWaterThreshold",
+                    0.1,
+                    5,
+                    0.05,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Lake basin depth",
+                    "lakeElevationRange",
+                    0,
+                    0.5,
+                    0.01,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Weak river display",
+                    "riverWeakThreshold",
+                    0,
+                    1,
+                    0.01,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Strong river display",
+                    "riverStrongThreshold",
                     0,
                     1,
                     0.01,
@@ -1246,6 +1357,14 @@ export class FoundationPage extends LitElement {
                     1,
                   )}
                   ${this.rangeInput(
+                    "Vector sharpness",
+                    "wildernessVectorSharpness",
+                    0,
+                    4,
+                    0.05,
+                    2,
+                  )}
+                  ${this.rangeInput(
                     "Loss per tile",
                     "wildernessAttackerLossPerTile",
                     0,
@@ -1305,7 +1424,7 @@ export class FoundationPage extends LitElement {
               <div class="canvas-frame">
                 ${this.renderRuntimeOverlay(snapshot)}
                 <canvas aria-label="Foundation generated game board"></canvas>
-                ${this.renderWavePreview()} ${this.renderBoardStateOverlay()}
+                ${this.renderBoardStateOverlay()}
               </div>
             </hud-surface-body>
           </hud-surface>
@@ -1391,91 +1510,13 @@ export class FoundationPage extends LitElement {
     `;
   }
 
-  private renderWavePreview(): TemplateResult | null {
-    if (!this.wavePreview || !this.runtime || !this.renderer || !this.canvas) {
-      return null;
-    }
-
-    const map = this.runtime.map();
-    const originX = map.x(this.wavePreview.originTile) + 0.5;
-    const originY = map.y(this.wavePreview.originTile) + 0.5;
-    const targetX = map.x(this.wavePreview.targetTile) + 0.5;
-    const targetY = map.y(this.wavePreview.targetTile) + 0.5;
-    const origin = this.renderer.worldToScreen(originX, originY);
-    const target = this.renderer.worldToScreen(targetX, targetY);
-    const width = this.canvas.clientWidth || 1;
-    const height = this.canvas.clientHeight || 1;
-    const dx = target.x - origin.x;
-    const dy = target.y - origin.y;
-    const length = Math.hypot(dx, dy);
-    if (length < 6) {
-      return null;
-    }
-
-    const ux = dx / length;
-    const uy = dy / length;
-    const headLength = 9;
-    const headWidth = 6;
-    const lineEndX = target.x - ux * headLength;
-    const lineEndY = target.y - uy * headLength;
-    const leftX = target.x - ux * headLength - uy * headWidth;
-    const leftY = target.y - uy * headLength + ux * headWidth;
-    const rightX = target.x - ux * headLength + uy * headWidth;
-    const rightY = target.y - uy * headLength - ux * headWidth;
-    const label = renderTroops(this.wavePreview.committedTroops);
-    const labelWidth = Math.max(44, label.length * 8 + 16);
-    const labelHeight = 22;
-    const labelX = origin.x + dx * 0.58;
-    const labelY = origin.y + dy * 0.58 - 14;
-
-    return html`
-      <svg
-        class="wave-preview"
-        viewBox=${`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient
-            id="foundation-wave-gradient"
-            gradientUnits="userSpaceOnUse"
-            x1=${origin.x}
-            y1=${origin.y}
-            x2=${target.x}
-            y2=${target.y}
-          >
-            <stop offset="0%" stop-color="#287b9c"></stop>
-            <stop offset="50%" stop-color="#fff86b"></stop>
-            <stop offset="100%" stop-color="#ed5653"></stop>
-          </linearGradient>
-        </defs>
-        <path
-          class="wave-preview-line"
-          d=${`M ${origin.x} ${origin.y} L ${lineEndX} ${lineEndY}`}
-        ></path>
-        <polygon
-          class="wave-preview-head"
-          points=${`${target.x},${target.y} ${leftX},${leftY} ${rightX},${rightY}`}
-        ></polygon>
-        <g class="wave-preview-label">
-          <rect
-            x=${labelX - labelWidth / 2}
-            y=${labelY - labelHeight / 2}
-            width=${labelWidth}
-            height=${labelHeight}
-          ></rect>
-          <text x=${labelX} y=${labelY}>${label}</text>
-        </g>
-      </svg>
-    `;
-  }
-
   private renderBoardStateOverlay(): TemplateResult | null {
     if (this.loading) {
       return html`
         <div class="board-state-overlay" aria-live="polite">
           <div class="board-state-panel">
             <hud-loading-state label="Generating world"></hud-loading-state>
+            <div class="board-state-step">${this.loadingStepLabel}</div>
             <p>Inputs are locked while the terrain and renderer are rebuilt.</p>
           </div>
         </div>
@@ -1536,7 +1577,12 @@ export class FoundationPage extends LitElement {
   };
 
   private readonly handleCanvasPointerMove = (event: PointerEvent): void => {
-    if (this.dragPointerId !== event.pointerId || !this.renderer) {
+    if (!this.renderer) {
+      return;
+    }
+
+    if (this.dragPointerId !== event.pointerId) {
+      this.updateDirectionalBorderPreviewForPointer(event);
       return;
     }
 
@@ -1563,9 +1609,7 @@ export class FoundationPage extends LitElement {
 
     const worldPerCssPx = (window.devicePixelRatio || 1) / zoom;
     this.renderer.panBy(-deltaX * worldPerCssPx, -deltaY * worldPerCssPx);
-    if (this.wavePreview) {
-      this.requestUpdate();
-    }
+    this.clearDirectionalBorderPreview();
   };
 
   private readonly handleCanvasPointerUp = (event: PointerEvent): void => {
@@ -1621,7 +1665,7 @@ export class FoundationPage extends LitElement {
     );
 
     this.applyMapUpdate(result.update.map);
-    this.updateWavePreviewFromCommandResult(result);
+    this.clearDirectionalBorderPreview();
     this.snapshot = this.runtime.snapshot();
     this.status = this.statusFromCommandResult(result, tile);
   };
@@ -1634,6 +1678,9 @@ export class FoundationPage extends LitElement {
 
     const growthEvent = update.events.find(
       (event) => event.type === "foundation.territory_grown",
+    );
+    const completed = update.events.some(
+      (event) => event.type === "foundation.wilderness_exploration_completed",
     );
     if (growthEvent) {
       const claimedTileCount =
@@ -1652,11 +1699,7 @@ export class FoundationPage extends LitElement {
       return;
     }
 
-    if (
-      update.events.some(
-        (event) => event.type === "foundation.wilderness_exploration_completed",
-      )
-    ) {
+    if (completed) {
       this.status = {
         tone: "idle",
         text: "Wilderness exploration completed.",
@@ -1675,9 +1718,7 @@ export class FoundationPage extends LitElement {
   private readonly handleRestartSimulation = (): void => {
     if (this.loading || !this.runtime) return;
     this.paused = true;
-    void this.generateWorld("Simulation restarted with current parameters.", {
-      force: true,
-    });
+    void this.restartSimulationWithCurrentWorld();
   };
 
   private readonly handleGenerate = (): void => {
@@ -1740,7 +1781,11 @@ export class FoundationPage extends LitElement {
     event: CustomEvent<{ id: string }>,
   ): void => {
     this.activeControlTab =
-      event.detail.id === "mechanics" ? "mechanics" : "world";
+      event.detail.id === "mechanics"
+        ? "mechanics"
+        : event.detail.id === "river"
+          ? "river"
+          : "world";
   };
 
   private controlSection(
@@ -2073,6 +2118,9 @@ export class FoundationPage extends LitElement {
     saveFoundationTuningSettings(this.tuningSettings);
     this.configureTickTimer();
     this.runtime?.updateParameters(this.tuningSettings);
+    if (changedKeys.includes("wildernessVectorSharpness")) {
+      this.updateDirectionalBorderIntent(this.directionalBorderPreview);
+    }
 
     const requiresRestart = changedKeys.some((key) =>
       FOUNDATION_RESTART_SETTING_KEYS.has(key),
@@ -2148,6 +2196,12 @@ export class FoundationPage extends LitElement {
 
   private async maybeAutoGenerateWorld(): Promise<void> {
     if (!this.tuningSettings.autoGenerateWorld) return;
+    if (
+      this.currentWorldSignature ===
+      foundationGeneratedMapSignature(this.tuningSettings)
+    ) {
+      return;
+    }
     if (!this.mapWithinAutoGenerateLimit()) {
       this.status = {
         tone: "idle",
@@ -2158,41 +2212,202 @@ export class FoundationPage extends LitElement {
     await this.generateWorld("Generated world with current parameters.");
   }
 
-  private updateWavePreviewFromCommandResult(
-    result: ReturnType<FoundationRuntime["dispatch"]>,
-  ): void {
-    const event = result.update.events.find(
-      (candidate) =>
-        candidate.type === "foundation.wilderness_exploration_started",
-    );
-    if (!result.ok || !event || typeof event.payload !== "object") {
+  private async restartSimulationWithCurrentWorld(): Promise<void> {
+    const signature = foundationGeneratedMapSignature(this.tuningSettings);
+    if (this.currentPreparedWorld && this.currentWorldSignature === signature) {
+      this.resetRuntime(
+        "Simulation restarted with current parameters.",
+        clonePreparedMap(this.currentPreparedWorld, "current"),
+      );
       return;
     }
-    const payload = event.payload as {
-      originTile?: unknown;
-      targetTile?: unknown;
-      committedTroops?: unknown;
-    };
+
+    await this.generateWorld("Simulation restarted with current parameters.", {
+      force: true,
+    });
+  }
+
+  private updateDirectionalBorderIntent(
+    preview: FoundationDirectionalBorderPreview | null,
+  ): void {
+    if (!preview || !this.runtime || !this.renderer) {
+      this.renderer?.setDirectionalBorderIntent(null);
+      return;
+    }
+
+    const map = this.runtime.map();
+    const originX = map.x(preview.originTile) + 0.5;
+    const originY = map.y(preview.originTile) + 0.5;
+    const targetX = map.x(preview.targetTile) + 0.5;
+    const targetY = map.y(preview.targetTile) + 0.5;
+    const rawDx = targetX - originX;
+    const rawDy = targetY - originY;
+    const distance = Math.hypot(rawDx, rawDy);
+    if (distance <= 0) {
+      this.renderer.setDirectionalBorderIntent(null);
+      return;
+    }
+
+    this.renderer.setDirectionalBorderIntent({
+      ownerId: this.runtime.player().ownerId,
+      originX,
+      originY,
+      directionX: rawDx / distance,
+      directionY: rawDy / distance,
+      distance,
+      sharpness: this.tuningSettings.wildernessVectorSharpness,
+    });
+  }
+
+  private updateDirectionalBorderPreviewForPointer(event: PointerEvent): void {
+    if (this.loading || !this.runtime || !this.renderer || !this.canvas) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
     if (
-      typeof payload.originTile !== "number" ||
-      typeof payload.targetTile !== "number" ||
-      typeof payload.committedTroops !== "number"
+      screenX < 0 ||
+      screenY < 0 ||
+      screenX >= rect.width ||
+      screenY >= rect.height
+    ) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    const targetTile = this.renderer.screenToTile({ screenX, screenY });
+    if (targetTile === null) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    const preview = this.createDirectionalBorderPreview(targetTile.ref);
+    if (preview === null) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    if (
+      this.directionalBorderPreview?.originTile === preview.originTile &&
+      this.directionalBorderPreview.targetTile === preview.targetTile
     ) {
       return;
     }
 
-    this.wavePreview = {
-      originTile: payload.originTile,
-      targetTile: payload.targetTile,
-      committedTroops: payload.committedTroops,
-    };
-    if (this.wavePreviewTimer !== null) {
-      window.clearTimeout(this.wavePreviewTimer);
+    this.directionalBorderPreview = preview;
+    this.updateDirectionalBorderIntent(preview);
+  }
+
+  private createDirectionalBorderPreview(
+    targetTile: number,
+  ): FoundationDirectionalBorderPreview | null {
+    if (!this.runtime) {
+      return null;
     }
-    this.wavePreviewTimer = window.setTimeout(() => {
-      this.wavePreview = null;
-      this.wavePreviewTimer = null;
-    }, 2200);
+
+    const map = this.runtime.map();
+    const player = this.runtime.player();
+    if (
+      !player.placement ||
+      !map.isValidRef(targetTile) ||
+      !isLandTile(map, targetTile) ||
+      ownerIdFromState(map.stateBuffer()[targetTile]) === player.ownerId
+    ) {
+      return null;
+    }
+
+    const originTile = this.closestOwnedBorderTile(targetTile);
+    if (originTile === null) {
+      return null;
+    }
+
+    return { originTile, targetTile };
+  }
+
+  private closestOwnedBorderTile(targetTile: number): number | null {
+    if (!this.runtime) {
+      return null;
+    }
+
+    const map = this.runtime.map();
+    const player = this.runtime.player();
+    const placement = player.placement;
+    if (!placement) {
+      return null;
+    }
+
+    const targetX = map.x(targetTile);
+    const targetY = map.y(targetTile);
+    let closestTile: number | null = null;
+    let closestDistanceSq = Number.POSITIVE_INFINITY;
+
+    for (const tile of placement.claimedTiles) {
+      if (!this.isOwnedBorderTile(tile)) {
+        continue;
+      }
+
+      const dx = map.x(tile) - targetX;
+      const dy = map.y(tile) - targetY;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq < closestDistanceSq) {
+        closestTile = tile;
+        closestDistanceSq = distanceSq;
+      }
+    }
+
+    return closestTile ?? placement.selectedTile;
+  }
+
+  private isOwnedBorderTile(tile: number): boolean {
+    if (!this.runtime) {
+      return false;
+    }
+
+    const map = this.runtime.map();
+    const player = this.runtime.player();
+    if (ownerIdFromState(map.stateBuffer()[tile]) !== player.ownerId) {
+      return false;
+    }
+
+    let border = false;
+    this.forEachCardinalNeighbor(tile, (neighbor) => {
+      if (
+        !border &&
+        isLandTile(map, neighbor) &&
+        ownerIdFromState(map.stateBuffer()[neighbor]) !== player.ownerId
+      ) {
+        border = true;
+      }
+    });
+    return border;
+  }
+
+  private forEachCardinalNeighbor(
+    tile: number,
+    callback: (neighbor: number) => void,
+  ): void {
+    if (!this.runtime) {
+      return;
+    }
+
+    const map = this.runtime.map();
+    const x = map.x(tile);
+    const y = map.y(tile);
+    if (x > 0) callback(map.ref(x - 1, y));
+    if (x + 1 < map.width()) callback(map.ref(x + 1, y));
+    if (y > 0) callback(map.ref(x, y - 1));
+    if (y + 1 < map.height()) callback(map.ref(x, y + 1));
+  }
+
+  private clearDirectionalBorderPreview(): void {
+    if (this.directionalBorderPreview === null) {
+      return;
+    }
+    this.directionalBorderPreview = null;
+    this.renderer?.setDirectionalBorderIntent(null);
   }
 
   private async generateWorld(
@@ -2203,19 +2418,27 @@ export class FoundationPage extends LitElement {
     if (!options.force && !this.shouldAutoGenerateCurrentMap()) return;
     this.paused = true;
     this.loading = true;
+    this.loadingStepLabel = "Preparing world generation...";
     this.status = {
       tone: "idle",
-      text: "Generating world.",
+      text: this.loadingStepLabel,
     };
     await this.updateComplete;
     await nextAnimationFrame();
 
     try {
-      const source = this.resetRuntime(statusText);
-      if (source === "cache") {
+      const foundationMap = await this.createMapForCurrentSettings();
+      await this.showGenerationStep("Uploading terrain to WebGL...");
+      this.resetRuntime(statusText, foundationMap);
+      if (foundationMap.source === "cache") {
         this.status = {
           tone: "idle",
           text: "Loaded generated world from local cache.",
+        };
+      } else if (foundationMap.source === "current") {
+        this.status = {
+          tone: "idle",
+          text: "Reused current generated world.",
         };
       }
     } catch (error) {
@@ -2228,6 +2451,7 @@ export class FoundationPage extends LitElement {
       };
     } finally {
       this.loading = false;
+      this.loadingStepLabel = "Preparing world generation...";
     }
   }
 
@@ -2300,17 +2524,22 @@ export class FoundationPage extends LitElement {
     this.renderer.resize(rect.width, rect.height);
   }
 
-  private resetRuntime(statusText: string): "cache" | "generated" {
-    if (this.wavePreviewTimer !== null) {
-      window.clearTimeout(this.wavePreviewTimer);
-      this.wavePreviewTimer = null;
-    }
-    this.wavePreview = null;
+  private resetRuntime(
+    statusText: string,
+    foundationMap: FoundationPreparedMap,
+  ): void {
+    this.directionalBorderPreview = null;
+    this.updateDirectionalBorderIntent(null);
     this.renderer?.dispose();
     this.renderer = null;
-    const foundationMap = this.createMapForCurrentSettings();
+    const preparedWorld = clonePreparedMap(foundationMap, foundationMap.source);
+    this.currentPreparedWorld = preparedWorld;
+    this.currentWorldSignature = foundationGeneratedMapSignature(
+      this.tuningSettings,
+    );
+    const runtimeWorld = clonePreparedMap(preparedWorld, preparedWorld.source);
     this.runtime = createFoundationRuntime({
-      map: foundationMap.map,
+      map: runtimeWorld.map,
       parameters: this.tuningSettings,
     });
     this.snapshot = this.runtime.snapshot();
@@ -2320,7 +2549,7 @@ export class FoundationPage extends LitElement {
       width: map.width(),
       height: map.height(),
       terrainBytes: map.terrainBuffer(),
-      terrainColors: foundationMap.terrainColors,
+      terrainColors: runtimeWorld.terrainColors,
       tileState: map.stateBuffer(),
       palette: FOUNDATION_PLAYER_PALETTE,
       canvas: this.canvas,
@@ -2331,17 +2560,19 @@ export class FoundationPage extends LitElement {
       tone: "idle",
       text: statusText,
     };
-    return foundationMap.source;
   }
 
-  private createMapForCurrentSettings(): {
-    map: FoundationEngineTileMap;
-    terrainColors: Uint8Array | undefined;
-    source: "cache" | "generated";
-  } {
+  private async createMapForCurrentSettings(): Promise<FoundationPreparedMap> {
     const signature = foundationGeneratedMapSignature(this.tuningSettings);
+    if (this.currentPreparedWorld && this.currentWorldSignature === signature) {
+      await this.showGenerationStep("Reusing current generated world...");
+      saveGeneratedMapCache(signature, this.currentPreparedWorld);
+      return clonePreparedMap(this.currentPreparedWorld, "current");
+    }
+
     const cached = loadGeneratedMapCache(signature);
     if (cached !== null) {
+      await this.showGenerationStep("Loading generated world from cache...");
       return {
         ...cached,
         source: "cache",
@@ -2350,20 +2581,133 @@ export class FoundationPage extends LitElement {
 
     const generated =
       this.tuningSettings.mapGenerator === "world-engine"
-        ? createWorldEngineFoundationMap(this.tuningSettings)
-        : {
-            map: createFoundationMap({
-              width: this.tuningSettings.width,
-              height: this.tuningSettings.height,
-              elevation: this.tuningSettings.elevation,
-            }),
-            terrainColors: undefined,
-          };
+        ? await this.createWorldEngineFoundationMapWithProgress()
+        : await this.createFoundationMapWithProgress();
+    await this.showGenerationStep("Saving generated world cache...");
     saveGeneratedMapCache(signature, generated);
     return {
       ...generated,
       source: "generated",
     };
+  }
+
+  private async createFoundationMapWithProgress(): Promise<
+    Omit<FoundationPreparedMap, "source">
+  > {
+    await this.showGenerationStep("Generating terrain map...");
+    return {
+      map: createFoundationMap({
+        width: this.tuningSettings.width,
+        height: this.tuningSettings.height,
+        elevation: this.tuningSettings.elevation,
+      }),
+      terrainColors: undefined,
+    };
+  }
+
+  private async createWorldEngineFoundationMapWithProgress(): Promise<
+    Omit<FoundationPreparedMap, "source">
+  > {
+    const normalized = normalizeFoundationWorldEngineMapConfig(
+      this.tuningSettings,
+    );
+
+    await this.showGenerationStep("Generating elevation map...");
+    const elevation = generateWorldEngineElevation(normalized);
+
+    await this.showGenerationStep("Generating oceans...");
+    const ocean = deriveWorldEngineOcean(elevation, normalized);
+
+    await this.showGenerationStep("Calculating temperature...");
+    const { data: temperature } = generateWorldEngineTemperature(
+      elevation,
+      ocean,
+      normalized,
+    );
+
+    await this.showGenerationStep("Generating rainfall...");
+    const precipitation = generateWorldEnginePrecipitation(
+      elevation,
+      ocean,
+      temperature,
+      normalized,
+    );
+
+    await this.showGenerationStep("Calculating sea depth...");
+    const seaDepth = deriveWorldEngineSeaDepth(elevation, ocean, normalized);
+
+    await this.showGenerationStep("Calculating hydrology...");
+    const { watermap, lakes } = generateWorldEngineWatermap(
+      elevation,
+      ocean,
+      precipitation,
+      normalized,
+    );
+
+    await this.showGenerationStep("Normalizing river flow...");
+    const normalizedWatermap = normalizeWorldEngineLand(watermap, ocean);
+
+    await this.showGenerationStep("Calculating irrigation...");
+    const irrigation = generateWorldEngineIrrigation(
+      watermap,
+      ocean,
+      normalized,
+    );
+
+    await this.showGenerationStep("Calculating humidity...");
+    const humidity = generateWorldEngineHumidity(
+      precipitation,
+      irrigation,
+      ocean,
+    );
+
+    await this.showGenerationStep("Classifying biomes...");
+    const biome = generateWorldEngineBiome(ocean, temperature, humidity);
+
+    await this.showGenerationStep("Painting terrain...");
+    const terrain = new Uint8Array(normalized.width * normalized.height);
+    for (let i = 0; i < elevation.length; i++) {
+      terrain[i] =
+        ocean[i] || lakes[i]
+          ? foundationWaterTerrainByteForElevation(elevation[i])
+          : foundationLandTerrainByteForElevation(elevation[i]);
+    }
+
+    await this.showGenerationStep("Coloring terrain...");
+    const terrainColors = buildWorldEngineTerrainColors(
+      elevation,
+      ocean,
+      temperature,
+      precipitation,
+      seaDepth,
+      normalizedWatermap,
+      humidity,
+      biome,
+      lakes,
+      normalized,
+    );
+
+    await this.showGenerationStep("Building game board...");
+    return {
+      map: new FoundationEngineTileMap(
+        normalized.width,
+        normalized.height,
+        terrain,
+        undefined,
+        elevation,
+      ),
+      terrainColors,
+    };
+  }
+
+  private async showGenerationStep(label: string): Promise<void> {
+    this.loadingStepLabel = label;
+    this.status = {
+      tone: "idle",
+      text: label,
+    };
+    await this.updateComplete;
+    await nextAnimationFrame();
   }
 
   private configureTickTimer(): void {
@@ -2445,6 +2789,15 @@ function foundationGeneratedMapSignature(
     mountainStrength: settings.mountainStrength,
     coastFalloff: settings.coastFalloff,
     coastRoughness: settings.coastRoughness,
+    latitudeEffect: settings.latitudeEffect,
+    elevationCooling: settings.elevationCooling,
+    rainNoise: settings.rainNoise,
+    warmthRainfall: settings.warmthRainfall,
+    riverFlowRetention: settings.riverFlowRetention,
+    lakeWaterThreshold: settings.lakeWaterThreshold,
+    lakeElevationRange: settings.lakeElevationRange,
+    riverWeakThreshold: settings.riverWeakThreshold,
+    riverStrongThreshold: settings.riverStrongThreshold,
   });
 }
 
@@ -2462,11 +2815,27 @@ function loadGeneratedMapCache(signature: string): {
     const cache = JSON.parse(stored) as FoundationGeneratedMapCache;
     if (cache.signature !== signature) return null;
     const terrain = base64ToUint8Array(cache.terrain);
-    const elevation = base64ToFloat32Array(cache.elevation);
+    const elevation =
+      typeof cache.elevation16 === "string"
+        ? base64ToNormalizedFloat32Array(cache.elevation16)
+        : typeof cache.elevation === "string"
+          ? base64ToFloat32Array(cache.elevation)
+          : null;
+    if (elevation === null) return null;
     const terrainColors =
-      cache.terrainColors === undefined
-        ? undefined
-        : base64ToUint8Array(cache.terrainColors);
+      typeof cache.terrainColorsRgb === "string"
+        ? rgbBase64ToRgbaUint8Array(cache.terrainColorsRgb)
+        : typeof cache.terrainColors === "string"
+          ? base64ToUint8Array(cache.terrainColors)
+          : undefined;
+    if (terrain.length !== cache.width * cache.height) return null;
+    if (elevation.length !== cache.width * cache.height) return null;
+    if (
+      terrainColors !== undefined &&
+      terrainColors.length !== cache.width * cache.height * 4
+    ) {
+      return null;
+    }
     return {
       map: new FoundationEngineTileMap(
         cache.width,
@@ -2517,15 +2886,20 @@ function saveGeneratedMapCache(
 
   try {
     const cache: FoundationGeneratedMapCache = {
+      version: 2,
       signature,
       width,
       height,
       terrain: uint8ArrayToBase64(generated.map.terrainBuffer()),
-      elevation: float32ArrayToBase64(generated.map.elevationBuffer()),
+      elevation16: normalizedFloat32ArrayToBase64(
+        generated.map.elevationBuffer(),
+      ),
       terrainColors:
+        generated.terrainColors === undefined ? undefined : undefined,
+      terrainColorsRgb:
         generated.terrainColors === undefined
           ? undefined
-          : uint8ArrayToBase64(generated.terrainColors),
+          : rgbaUint8ArrayToRgbBase64(generated.terrainColors),
     };
     window.localStorage.setItem(
       FOUNDATION_GENERATED_MAP_STORAGE_KEY,
@@ -2534,6 +2908,80 @@ function saveGeneratedMapCache(
   } catch {
     window.localStorage.removeItem(FOUNDATION_GENERATED_MAP_STORAGE_KEY);
   }
+}
+
+function clonePreparedMap(
+  prepared: FoundationPreparedMap,
+  source: FoundationPreparedMap["source"],
+): FoundationPreparedMap {
+  const map = prepared.map;
+  return {
+    source,
+    map: new FoundationEngineTileMap(
+      map.width(),
+      map.height(),
+      new Uint8Array(map.terrainBuffer()),
+      undefined,
+      new Float32Array(map.elevationBuffer()),
+    ),
+    terrainColors:
+      prepared.terrainColors === undefined
+        ? undefined
+        : new Uint8Array(prepared.terrainColors),
+  };
+}
+
+function normalizedFloat32ArrayToBase64(values: Float32Array): string {
+  const quantized = new Uint16Array(values.length);
+  for (let i = 0; i < values.length; i += 1) {
+    quantized[i] = Math.round(Math.max(0, Math.min(1, values[i])) * 65535);
+  }
+  return uint8ArrayToBase64(new Uint8Array(quantized.buffer.slice(0)));
+}
+
+function base64ToNormalizedFloat32Array(value: string): Float32Array {
+  const bytes = base64ToUint8Array(value);
+  if (bytes.byteLength % 2 !== 0) {
+    throw new Error("invalid quantized elevation cache");
+  }
+  const quantized = new Uint16Array(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  );
+  const values = new Float32Array(quantized.length);
+  for (let i = 0; i < quantized.length; i += 1) {
+    values[i] = quantized[i] / 65535;
+  }
+  return values;
+}
+
+function rgbaUint8ArrayToRgbBase64(values: Uint8Array): string {
+  if (values.length % 4 !== 0) {
+    throw new Error("invalid RGBA terrain color buffer");
+  }
+  const rgb = new Uint8Array((values.length / 4) * 3);
+  for (let source = 0, target = 0; source < values.length; source += 4) {
+    rgb[target] = values[source];
+    rgb[target + 1] = values[source + 1];
+    rgb[target + 2] = values[source + 2];
+    target += 3;
+  }
+  return uint8ArrayToBase64(rgb);
+}
+
+function rgbBase64ToRgbaUint8Array(value: string): Uint8Array {
+  const rgb = base64ToUint8Array(value);
+  if (rgb.length % 3 !== 0) {
+    throw new Error("invalid RGB terrain color cache");
+  }
+  const rgba = new Uint8Array((rgb.length / 3) * 4);
+  for (let source = 0, target = 0; source < rgb.length; source += 3) {
+    rgba[target] = rgb[source];
+    rgba[target + 1] = rgb[source + 1];
+    rgba[target + 2] = rgb[source + 2];
+    rgba[target + 3] = 255;
+    target += 4;
+  }
+  return rgba;
 }
 
 function uint8ArrayToBase64(bytes: Uint8Array): string {

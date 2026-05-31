@@ -6,6 +6,7 @@
  * from the BorderComputePass RGBA8 buffer.
  */
 
+import type { DirectionalBorderIntentInput } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
 import { getPaletteSize } from "../utils/ColorUtils";
 import { createMapQuad, createProgram, shaderSrc } from "../utils/GlUtils";
@@ -31,6 +32,12 @@ export class BorderStampPass {
   private uEmberColorBright: WebGLUniformLocation;
   private uEmberStrengthUnowned: WebGLUniformLocation;
   private uAltView: WebGLUniformLocation;
+  private uDirectionalBorderActive: WebGLUniformLocation;
+  private uDirectionalBorderOwner: WebGLUniformLocation;
+  private uDirectionalBorderOrigin: WebGLUniformLocation;
+  private uDirectionalBorderDirection: WebGLUniformLocation;
+  private uDirectionalBorderDistance: WebGLUniformLocation;
+  private uDirectionalBorderSharpness: WebGLUniformLocation;
 
   private vao: WebGLVertexArrayObject;
   private tileTex: WebGLTexture;
@@ -38,6 +45,7 @@ export class BorderStampPass {
   private borderTex: WebGLTexture;
   private affiliationTex: WebGLTexture | null = null;
   private altView = false;
+  private directionalIntent: DirectionalBorderIntentInput | null = null;
 
   constructor(
     gl: WebGL2RenderingContext,
@@ -95,6 +103,30 @@ export class BorderStampPass {
       "uEmberStrengthUnowned",
     )!;
     this.uAltView = gl.getUniformLocation(this.program, "uAltView")!;
+    this.uDirectionalBorderActive = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderActive",
+    )!;
+    this.uDirectionalBorderOwner = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderOwner",
+    )!;
+    this.uDirectionalBorderOrigin = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderOrigin",
+    )!;
+    this.uDirectionalBorderDirection = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderDirection",
+    )!;
+    this.uDirectionalBorderDistance = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderDistance",
+    )!;
+    this.uDirectionalBorderSharpness = gl.getUniformLocation(
+      this.program,
+      "uDirectionalBorderSharpness",
+    )!;
 
     gl.useProgram(this.program);
     gl.uniform1i(gl.getUniformLocation(this.program, "uTileTex"), 0);
@@ -110,6 +142,9 @@ export class BorderStampPass {
   }
   setAffiliationTex(tex: WebGLTexture): void {
     this.affiliationTex = tex;
+  }
+  setDirectionalIntent(intent: DirectionalBorderIntentInput | null): void {
+    this.directionalIntent = intent;
   }
 
   /** Draw borders + defense checkerboard + embers. Blending must be enabled. */
@@ -138,6 +173,7 @@ export class BorderStampPass {
     );
     gl.uniform1f(this.uEmberStrengthUnowned, mo.emberStrengthUnowned);
     gl.uniform1i(this.uAltView, this.altView ? 1 : 0);
+    this.uploadDirectionalIntent();
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.tileTex);
@@ -152,6 +188,32 @@ export class BorderStampPass {
 
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  private uploadDirectionalIntent(): void {
+    const gl = this.gl;
+    const intent = this.directionalIntent;
+    if (
+      !intent ||
+      intent.distance <= 0 ||
+      intent.sharpness <= 0 ||
+      !Number.isFinite(intent.directionX) ||
+      !Number.isFinite(intent.directionY)
+    ) {
+      gl.uniform1i(this.uDirectionalBorderActive, 0);
+      return;
+    }
+
+    gl.uniform1i(this.uDirectionalBorderActive, 1);
+    gl.uniform1ui(this.uDirectionalBorderOwner, intent.ownerId);
+    gl.uniform2f(this.uDirectionalBorderOrigin, intent.originX, intent.originY);
+    gl.uniform2f(
+      this.uDirectionalBorderDirection,
+      intent.directionX,
+      intent.directionY,
+    );
+    gl.uniform1f(this.uDirectionalBorderDistance, intent.distance);
+    gl.uniform1f(this.uDirectionalBorderSharpness, intent.sharpness);
   }
 
   dispose(): void {

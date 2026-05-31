@@ -13,6 +13,7 @@ import type {
   BonusEvent,
   ConquestFx,
   DeadUnitFx,
+  DirectionalBorderIntentInput,
   GhostPreviewData,
   NameEntry,
   NukeTelegraphData,
@@ -138,10 +139,6 @@ export class GameView {
     return this.renderer.screenToWorld(screenX, screenY);
   }
 
-  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-    return this.renderer.worldToScreen(worldX, worldY);
-  }
-
   panTo(worldX: number, worldY: number): void {
     this.renderer.panTo(worldX, worldY);
   }
@@ -224,6 +221,11 @@ export class GameView {
   }
   updatePalette(paletteData: Float32Array): void {
     this.renderer.updatePalette(paletteData);
+  }
+  setDirectionalBorderIntent(
+    intent: DirectionalBorderIntentInput | null,
+  ): void {
+    this.renderer.setDirectionalBorderIntent(intent);
   }
   addPlayers(
     players: PlayerStatic[],

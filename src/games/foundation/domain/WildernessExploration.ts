@@ -42,6 +42,7 @@ export type FoundationWildernessRuntimeParameters = Pick<
   | "minToblerSpeedMultiplier"
   | "maxToblerSpeedMultiplier"
   | "terrainPriorityElevationScale"
+  | "wildernessVectorSharpness"
   | "wildernessAttackerLossPerTile"
   | "wildernessTilesPerTickMultiplier"
 >;
@@ -281,7 +282,12 @@ function addWildernessNeighbors(
     const priority =
       (randomInt(rng, 0, 7) + 10) *
         (1 - numOwnedByMe * 0.5 + terrainPriorityWeight / 2) +
-      directionalPriorityPenalty(map, neighbor, frontierState.intent) +
+      directionalPriorityPenalty(
+        map,
+        neighbor,
+        frontierState.intent,
+        frontierState.parameters,
+      ) +
       tick;
 
     frontierState.attack.enqueue(neighbor, priority);
@@ -378,6 +384,7 @@ function directionalPriorityPenalty(
   map: EngineTileMap,
   tile: TileRef,
   intent: WildernessExplorationIntent | undefined,
+  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): number {
   if (!intent || intent.distance <= 0) {
     return 0;
@@ -387,7 +394,10 @@ function directionalPriorityPenalty(
   const py = map.y(tile) - map.y(intent.originTile);
   const forward = px * intent.dx + py * intent.dy;
   const lateral = Math.abs(px * intent.dy - py * intent.dx);
-  const focus = clamp(intent.distance / DIRECTIONAL_FOCUS_DISTANCE, 0, 1);
+  const focus = vectorSharpnessFocus(
+    intent.distance,
+    parameters.wildernessVectorSharpness,
+  );
   const lateralPenalty = lerp(
     DIRECTIONAL_LATERAL_PENALTY_MIN,
     DIRECTIONAL_LATERAL_PENALTY_MAX,
@@ -405,6 +415,19 @@ function directionalPriorityPenalty(
     Math.max(0, forward - intent.distance) * DIRECTIONAL_OVERSHOOT_PENALTY -
     forward * forwardBias
   );
+}
+
+export function vectorSharpnessFocus(
+  distance: number,
+  sharpness: number,
+): number {
+  if (distance <= 0 || sharpness <= 0) {
+    return 0;
+  }
+
+  const inverseLogDistance =
+    1 - 1 / (1 + Math.log1p(distance / DIRECTIONAL_FOCUS_DISTANCE));
+  return clamp(inverseLogDistance * sharpness, 0, 1);
 }
 
 function isOwnedBorderNeighbor(
