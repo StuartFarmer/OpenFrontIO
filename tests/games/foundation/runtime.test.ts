@@ -6,6 +6,7 @@ import {
   createFoundationRuntime,
   createGrowTerritoryCommand,
   createPlacePlayerCommand,
+  foodProductionForTileCount,
   foundationWaterTerrainByteForElevation,
   maxTroopsForTileCount,
   ownerIdFromState,
@@ -202,7 +203,7 @@ describe("Foundation runtime", () => {
     expect(ownerIdFromState(map.stateBuffer()[secondTile])).toBe(0);
   });
 
-  it("keeps original OpenFront starting troops after placement", () => {
+  it("keeps starting troops below food support after placement", () => {
     const map = createFoundationMap({ width: 32, height: 32 });
     const runtime = createFoundationRuntime({ map });
 
@@ -211,22 +212,49 @@ describe("Foundation runtime", () => {
 
     expect(snapshot.player.troops).toBe(25_000);
     expect(snapshot.player.maxTroops).toBeGreaterThan(snapshot.player.troops);
+    expect(snapshot.player.foodProduction).toBeGreaterThan(
+      snapshot.player.foodDemand,
+    );
+    expect(snapshot.player.foodSupportedTroops).toBe(snapshot.player.maxTroops);
+    expect(snapshot.player.foodDeficit).toBe(0);
     expect(snapshot.player.troopIncreaseRate).toBeGreaterThan(0);
   });
 
-  it("uses the original OpenFront troop regen curve", () => {
+  it("uses food-supported capacity in the troop regen curve", () => {
     const map = createFoundationMap({ width: 32, height: 32 });
     const runtime = createFoundationRuntime({ map });
 
     runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
     const snapshot = runtime.snapshot();
+    const foodProduction = foodProductionForTileCount(
+      snapshot.player.claimedTileCount,
+    );
     const maxTroops = maxTroopsForTileCount(snapshot.player.claimedTileCount);
     const expectedGrowth =
       (10 + Math.pow(snapshot.player.troops, 0.73) / 4) *
       (1 - snapshot.player.troops / maxTroops);
 
+    expect(snapshot.player.foodProduction).toBe(foodProduction);
+    expect(snapshot.player.foodSupportedTroops).toBe(maxTroops);
     expect(snapshot.player.maxTroops).toBe(maxTroops);
     expect(troopIncreaseRate(runtime.player())).toBeCloseTo(expectedGrowth, 5);
+  });
+
+  it("derives supported troops from food production and food per troop", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({
+      map,
+      parameters: { foodPerTroop: 2 },
+    });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    const snapshot = runtime.snapshot();
+
+    expect(snapshot.player.foodDemand).toBe(snapshot.player.troops * 2);
+    expect(snapshot.player.foodSupportedTroops).toBe(
+      snapshot.player.foodProduction / 2,
+    );
+    expect(snapshot.player.maxTroops).toBe(snapshot.player.foodSupportedTroops);
   });
 
   it("regenerates troops with the original OpenFront curve after placement", () => {
@@ -348,6 +376,46 @@ describe("Foundation runtime", () => {
     );
   });
 
+  it("keeps existing wilderness fronts active when adding an opposite push", () => {
+    const map = createFoundationMap({ width: 64, height: 64 });
+    const runtime = createFoundationRuntime({
+      map,
+      parameters: {
+        startingTroops: 1_000_000,
+        wildernessAttackerLossPerTile: 0,
+        wildernessTilesPerTickMultiplier: 8,
+      },
+    });
+    const startTile = map.ref(32, 32);
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: startTile }));
+    runtime.dispatch(
+      createGrowTerritoryCommand({
+        turnNumber: 1,
+        targetTileRef: map.ref(58, 32),
+        troopRatio: 0.2,
+      }),
+    );
+    runtime.dispatch(
+      createGrowTerritoryCommand({
+        turnNumber: 2,
+        targetTileRef: map.ref(6, 32),
+        troopRatio: 0.2,
+      }),
+    );
+
+    const claimedTiles: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      claimedTiles.push(
+        ...Array.from(runtime.advanceTick().map?.changedTiles ?? []),
+      );
+    }
+
+    const claimedXs = claimedTiles.map((tile) => map.x(tile));
+    expect(Math.max(...claimedXs)).toBeGreaterThan(36);
+    expect(Math.min(...claimedXs)).toBeLessThan(28);
+  });
+
   it("grinds wilderness exploration over ticks with troop growth and map deltas", () => {
     const map = createFoundationMap({ width: 64, height: 64 });
     const runtime = createFoundationRuntime({ map });
@@ -372,6 +440,9 @@ describe("Foundation runtime", () => {
     );
     expect(runtime.snapshot().player.troops).toBeGreaterThan(20_000);
     expect(runtime.snapshot().player.maxTroops).toBeGreaterThan(100_000);
+    expect(runtime.snapshot().player.foodSupportedTroops).toBe(
+      runtime.snapshot().player.maxTroops,
+    );
     expect(runtime.snapshot().player.troopIncreaseRate).toBeGreaterThan(0);
     expect(runtime.snapshot().player.exploringTroops).toBeLessThan(
       committedTroops,

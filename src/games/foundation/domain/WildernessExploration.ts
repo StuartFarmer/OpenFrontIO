@@ -70,8 +70,18 @@ export function startWildernessExploration(
   const intent = createWildernessExplorationIntent(map, player, targetTile);
 
   const rng = createWildernessRandom(player.activeExploration?.randomState);
-  const attack = new ExplorationAttack();
-  refreshWildernessFrontier(
+  const activeExploration = player.activeExploration;
+  const activeTroops = activeExploration?.troops ?? 0;
+  const totalExplorationTroops = activeTroops + committedTroops;
+  const attack = activeExploration
+    ? ExplorationAttack.fromExploration(activeExploration)
+    : new ExplorationAttack();
+
+  if (activeExploration) {
+    attack.scaleTroopShares(activeTroops / totalExplorationTroops);
+  }
+
+  appendWildernessFrontier(
     map,
     player,
     attack,
@@ -79,19 +89,19 @@ export function startWildernessExploration(
     tick,
     intent,
     options.parameters,
+    committedTroops / totalExplorationTroops,
   );
   const attackState = attack.toState();
-  const activeTroops = player.activeExploration?.troops ?? 0;
 
   return {
     player: {
       ...player,
       troops: player.troops - committedTroops,
       activeExploration: {
-        id: player.activeExploration?.id ?? `explore-${targetTile}`,
+        id: activeExploration?.id ?? `explore-${targetTile}`,
         targetTile,
         intent,
-        troops: activeTroops + committedTroops,
+        troops: totalExplorationTroops,
         frontier: attackState.frontier,
         borderTiles: attackState.borderTiles,
         randomState: serializeRandomState(rng),
@@ -241,6 +251,28 @@ function refreshWildernessFrontier(
   parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
 ): void {
   attack.clearBorder();
+  appendWildernessFrontier(
+    map,
+    player,
+    attack,
+    rng,
+    tick,
+    intent,
+    parameters,
+    1,
+  );
+}
+
+function appendWildernessFrontier(
+  map: EngineTileMap,
+  player: Player,
+  attack: ExplorationAttack,
+  rng: StatefulRandom,
+  tick: number,
+  intent: WildernessExplorationIntent,
+  parameters: FoundationWildernessRuntimeParameters = DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS,
+  troopShareScale = 1,
+): void {
   const frontShares = createDistanceFrontShareMap(
     map,
     player.ownerId,
@@ -253,6 +285,7 @@ function refreshWildernessFrontier(
       intent,
       parameters,
       frontShares,
+      troopShareScale,
     });
   }
 }
@@ -269,6 +302,7 @@ function addWildernessNeighbors(
     parameters?: FoundationWildernessRuntimeParameters;
     frontShares?: ReadonlyMap<TileRef, number>;
     troopShare?: number;
+    troopShareScale?: number;
   },
 ): void {
   const sourceShare =
@@ -290,7 +324,8 @@ function addWildernessNeighbors(
     return;
   }
 
-  const neighborShare = sourceShare / neighbors.length;
+  const neighborShare =
+    (sourceShare / neighbors.length) * (frontierState.troopShareScale ?? 1);
   for (const neighbor of neighbors) {
     frontierState.attack.addBorderTile(neighbor);
     let numOwnedByMe = 0;

@@ -101,6 +101,14 @@ export class ExplorationAttack {
     this.border.clear();
   }
 
+  scaleTroopShares(factor: number): void {
+    for (const entry of this.frontier) {
+      if (entry.troopShare !== undefined) {
+        entry.troopShare *= factor;
+      }
+    }
+  }
+
   borderSize(): number {
     return this.border.size;
   }

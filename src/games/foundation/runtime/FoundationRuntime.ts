@@ -4,6 +4,11 @@ import {
   createPlayer,
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
+  foodDeficitForPlayer,
+  foodDemandForPlayer,
+  foodProductionForPlayer,
+  foodSupportedTroopsForPlayer,
+  foodSurplusForPlayer,
   FoundationSimulationParameters,
   maxTroopsForPlayer,
   normalizeFoundationSimulationParameters,
@@ -46,6 +51,11 @@ export interface FoundationRuntimeSnapshot {
     claimedTileCount: number;
     troops: number;
     maxTroops: number;
+    foodProduction: number;
+    foodDemand: number;
+    foodSupportedTroops: number;
+    foodSurplus: number;
+    foodDeficit: number;
     troopIncreaseRate: number;
     exploringTroops: number;
   };
@@ -105,6 +115,14 @@ export class FoundationRuntime {
         claimedTileCount: placement?.claimedTileCount ?? 0,
         troops: this.player_.troops,
         maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
+        foodProduction: foodProductionForPlayer(this.player_, this.parameters),
+        foodDemand: foodDemandForPlayer(this.player_, this.parameters),
+        foodSupportedTroops: foodSupportedTroopsForPlayer(
+          this.player_,
+          this.parameters,
+        ),
+        foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
+        foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
         troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
         exploringTroops: this.player_.activeExploration?.troops ?? 0,
       },
@@ -193,6 +211,14 @@ export class FoundationRuntime {
       troops: this.player_.troops,
       troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
       maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
+      foodProduction: foodProductionForPlayer(this.player_, this.parameters),
+      foodDemand: foodDemandForPlayer(this.player_, this.parameters),
+      foodSupportedTroops: foodSupportedTroopsForPlayer(
+        this.player_,
+        this.parameters,
+      ),
+      foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
+      foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
       exploringTroops: this.player_.activeExploration?.troops ?? 0,
     };
   }

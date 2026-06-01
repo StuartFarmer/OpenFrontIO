@@ -5,9 +5,11 @@ export const FOUNDATION_CITY_TROOP_INCREASE = 250_000;
 export const FOUNDATION_TROOP_REGEN_BASE = 10;
 export const FOUNDATION_TROOP_REGEN_EXPONENT = 0.73;
 export const FOUNDATION_TROOP_REGEN_DIVISOR = 4;
+export const FOUNDATION_FOOD_PER_TROOP = 1;
 
 export interface FoundationTroopParameters {
   startingTroops: number;
+  foodPerTroop: number;
   maxTroopMultiplier: number;
   maxTroopTileExponent: number;
   maxTroopTileScale: number;
@@ -19,6 +21,7 @@ export interface FoundationTroopParameters {
 
 export const DEFAULT_FOUNDATION_TROOP_PARAMETERS: FoundationTroopParameters = {
   startingTroops: FOUNDATION_STARTING_TROOPS,
+  foodPerTroop: FOUNDATION_FOOD_PER_TROOP,
   maxTroopMultiplier: 2,
   maxTroopTileExponent: 0.6,
   maxTroopTileScale: 1000,
@@ -35,6 +38,10 @@ export function normalizeFoundationTroopParameters(
     startingTroops: nonNegativeNumber(
       parameters.startingTroops,
       DEFAULT_FOUNDATION_TROOP_PARAMETERS.startingTroops,
+    ),
+    foodPerTroop: positiveNumber(
+      parameters.foodPerTroop,
+      DEFAULT_FOUNDATION_TROOP_PARAMETERS.foodPerTroop,
     ),
     maxTroopMultiplier: positiveNumber(
       parameters.maxTroopMultiplier,
@@ -67,7 +74,7 @@ export function normalizeFoundationTroopParameters(
   };
 }
 
-export function maxTroopsForTileCount(
+export function foodProductionForTileCount(
   tileCount: number,
   parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
 ): number {
@@ -79,12 +86,75 @@ export function maxTroopsForTileCount(
   );
 }
 
-export function maxTroopsForPlayer(
+export function foodSupportedTroopsForTileCount(
+  tileCount: number,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  if (parameters.foodPerTroop <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return (
+    foodProductionForTileCount(tileCount, parameters) / parameters.foodPerTroop
+  );
+}
+
+export function maxTroopsForTileCount(
+  tileCount: number,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return foodSupportedTroopsForTileCount(tileCount, parameters);
+}
+
+export function foodProductionForPlayer(
   player: Player,
   parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
 ): number {
   const tilesOwned = player.placement?.claimedTileCount ?? 0;
-  return maxTroopsForTileCount(tilesOwned, parameters);
+  return foodProductionForTileCount(tilesOwned, parameters);
+}
+
+export function foodDemandForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return player.troops * parameters.foodPerTroop;
+}
+
+export function foodSupportedTroopsForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  const tilesOwned = player.placement?.claimedTileCount ?? 0;
+  return foodSupportedTroopsForTileCount(tilesOwned, parameters);
+}
+
+export function foodSurplusForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return Math.max(
+    0,
+    foodProductionForPlayer(player, parameters) -
+      foodDemandForPlayer(player, parameters),
+  );
+}
+
+export function foodDeficitForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return Math.max(
+    0,
+    foodDemandForPlayer(player, parameters) -
+      foodProductionForPlayer(player, parameters),
+  );
+}
+
+export function maxTroopsForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return foodSupportedTroopsForPlayer(player, parameters);
 }
 
 export function troopIncreaseRate(
@@ -94,7 +164,7 @@ export function troopIncreaseRate(
   if (!player.placement) {
     return 0;
   }
-  const max = maxTroopsForPlayer(player, parameters);
+  const max = foodSupportedTroopsForPlayer(player, parameters);
   const troops = player.troops;
   if (max <= 0) {
     return -troops;

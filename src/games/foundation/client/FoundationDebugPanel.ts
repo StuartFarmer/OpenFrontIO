@@ -172,8 +172,15 @@ export class FoundationDebugPanel extends LitElement {
           <dd>${snapshot?.player.claimedTileCount.toLocaleString() ?? "0"}</dd>
           <dt>Troops</dt>
           <dd>${formatTroops(snapshot?.player.troops)}</dd>
-          <dt>Max troops</dt>
-          <dd>${formatTroops(snapshot?.player.maxTroops)}</dd>
+          <dt>Food support</dt>
+          <dd>${formatTroops(snapshot?.player.foodSupportedTroops)}</dd>
+          <dt>Food surplus</dt>
+          <dd>
+            ${formatFoodDelta(
+              snapshot?.player.foodSurplus,
+              snapshot?.player.foodDeficit,
+            )}
+          </dd>
           <dt>Troop rate</dt>
           <dd>${formatTroopRate(snapshot?.player.troopIncreaseRate)}</dd>
           <dt>Exploring</dt>
@@ -219,6 +226,18 @@ function formatTroops(value: number | undefined): string {
 
 function formatTroopRate(value: number | undefined): string {
   return `${renderTroops((value ?? 0) * 10)}/s`;
+}
+
+function formatFoodDelta(
+  surplus: number | undefined,
+  deficit: number | undefined,
+): string {
+  const foodSurplus = surplus ?? 0;
+  const foodDeficit = deficit ?? 0;
+  if (foodDeficit > 0) {
+    return `-${renderTroops(foodDeficit)}/tick`;
+  }
+  return `+${renderTroops(foodSurplus)}/tick`;
 }
 
 declare global {

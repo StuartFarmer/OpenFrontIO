@@ -23,6 +23,11 @@ function snapshot(
       claimedTileCount: 317,
       troops: 25000,
       maxTroops: 163000,
+      foodProduction: 163000,
+      foodDemand: 25000,
+      foodSupportedTroops: 163000,
+      foodSurplus: 138000,
+      foodDeficit: 0,
       troopIncreaseRate: 300,
       exploringTroops: 5000,
     },
@@ -51,12 +56,12 @@ describe("FoundationDebugPanel", () => {
     expect(text).toContain("317");
     expect(text).toContain("2.50K");
     expect(text).toContain("16.3K");
+    expect(text).toContain("+13.8K/tick");
     expect(text).toContain("300/s");
     expect(text).toContain("500");
     expect(text).toContain("Placed player at 128, 128.");
     expect(text).toContain("Pause");
     expect(text).toContain("Reset");
-    expect(text).not.toContain("Food");
     expect(text).not.toContain("Population");
     panel.remove();
   });
@@ -102,6 +107,11 @@ describe("FoundationDebugPanel", () => {
         claimedTileCount: 0,
         troops: 25000,
         maxTroops: 100000,
+        foodProduction: 100000,
+        foodDemand: 25000,
+        foodSupportedTroops: 100000,
+        foodSurplus: 75000,
+        foodDeficit: 0,
         troopIncreaseRate: 0,
         exploringTroops: 0,
       },

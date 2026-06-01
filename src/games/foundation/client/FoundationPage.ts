@@ -140,7 +140,7 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     decrease:
       "Makes growth depend more on the scaling term and current troop count.",
     formula:
-      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / maxTroops), maxTroops) - troops",
+      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / foodSupportedTroops), foodSupportedTroops) - troops",
   },
   troopRegenExponent: {
     does: "Controls how strongly current troops amplify troop regeneration.",
@@ -153,7 +153,7 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     decrease:
       "Flattens growth so small and large populations recover more similarly.",
     formula:
-      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / maxTroops), maxTroops) - troops",
+      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / foodSupportedTroops), foodSupportedTroops) - troops",
   },
   troopRegenDivisor: {
     does: "Divides the current-troop scaling term in the regen formula.",
@@ -162,47 +162,46 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     increase: "Slows troop growth from the scaling term.",
     decrease: "Accelerates scaling growth and can make recovery much faster.",
     formula:
-      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / maxTroops), maxTroops) - troops",
+      "troopDelta = min(troops + (regenBase + troops^regenExponent / regenDivisor) * (1 - troops / foodSupportedTroops), foodSupportedTroops) - troops",
   },
   maxTroopMultiplier: {
-    does: "Multiplies the whole maximum troop capacity formula.",
+    does: "Multiplies the whole food production formula.",
     exists:
-      "Provides one global handle for how many troops a territory can support.",
-    represents: "Overall carrying capacity of the society.",
-    increase: "Raises troop caps at every territory size.",
-    decrease: "Lowers caps and makes the capacity damping hit sooner.",
+      "Provides one global handle for how much food a territory can produce.",
+    represents: "Overall agricultural capacity of the society.",
+    increase: "Raises food support at every territory size.",
+    decrease: "Lowers food support and makes the capacity damping hit sooner.",
     formula:
-      "maxTroops = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
+      "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
   maxTroopTileExponent: {
-    does: "Sets how strongly owned tile count curves into maximum troop capacity.",
+    does: "Sets how strongly owned tile count curves into food production.",
     exists:
       "Controls whether land rewards flatten or accelerate as empires grow.",
     represents: "Economies of scale from holding more territory.",
     increase:
-      "Makes large territories gain much more capacity from extra land.",
-    decrease:
-      "Makes each additional tile add less long-term capacity advantage.",
+      "Makes large territories gain much more food production from extra land.",
+    decrease: "Makes each additional tile add less long-term food advantage.",
     formula:
-      "maxTroops = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
+      "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
   maxTroopTileScale: {
-    does: "Scales the land-based part of maximum troop capacity.",
+    does: "Scales the land-based part of food production.",
     exists: "Separates land value from the fixed base capacity.",
     represents: "How productive each controlled tile is for supporting troops.",
-    increase: "Makes territorial growth raise the troop cap more strongly.",
+    increase: "Makes territorial growth raise food production more strongly.",
     decrease: "Makes the base cap dominate and reduces the reward for land.",
     formula:
-      "maxTroops = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
+      "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
   maxTroopBase: {
-    does: "Adds fixed capacity before the global max troop multiplier is applied.",
-    exists: "Gives small settlements a minimum support capacity.",
+    does: "Adds fixed food production before the global food multiplier is applied.",
+    exists: "Gives small settlements a minimum food output.",
     represents: "Core settlement infrastructure independent of land area.",
-    increase: "Raises the minimum cap, especially early in the game.",
-    decrease: "Makes small territories hit low caps sooner.",
+    increase: "Raises the minimum food support, especially early in the game.",
+    decrease: "Makes small territories hit food limits sooner.",
     formula:
-      "maxTroops = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
+      "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
   wildernessBaseSpeed: {
     does: "Sets the flat-terrain reference used when slope scales frontier velocity.",
@@ -1444,7 +1443,7 @@ export class FoundationPage extends LitElement {
                     1,
                   )}
                   ${this.rangeInput(
-                    "Max multiplier",
+                    "Food multiplier",
                     "maxTroopMultiplier",
                     0.1,
                     6,
@@ -1452,7 +1451,7 @@ export class FoundationPage extends LitElement {
                     1,
                   )}
                   ${this.rangeInput(
-                    "Max tile exponent",
+                    "Food tile exponent",
                     "maxTroopTileExponent",
                     0,
                     1.5,
@@ -1460,7 +1459,7 @@ export class FoundationPage extends LitElement {
                     2,
                   )}
                   ${this.rangeInput(
-                    "Max tile scale",
+                    "Food tile scale",
                     "maxTroopTileScale",
                     0,
                     5000,
@@ -1468,7 +1467,7 @@ export class FoundationPage extends LitElement {
                     0,
                   )}
                   ${this.rangeInput(
-                    "Max base",
+                    "Food base",
                     "maxTroopBase",
                     0,
                     200000,
@@ -1674,8 +1673,15 @@ export class FoundationPage extends LitElement {
               value=${formatTroops(snapshot?.player.troops)}
             ></hud-stat>
             <hud-stat
-              label="Max troops"
-              value=${formatTroops(snapshot?.player.maxTroops)}
+              label="Food support"
+              value=${formatTroops(snapshot?.player.foodSupportedTroops)}
+            ></hud-stat>
+            <hud-stat
+              label="Food surplus"
+              value=${formatFoodDelta(
+                snapshot?.player.foodSurplus,
+                snapshot?.player.foodDeficit,
+              )}
             ></hud-stat>
             <hud-stat
               label="Troop rate"
@@ -3423,6 +3429,18 @@ function formatTroops(value: number | undefined): string {
 
 function formatTroopRate(value: number | undefined): string {
   return `${renderTroops((value ?? 0) * 10)}/s`;
+}
+
+function formatFoodDelta(
+  surplus: number | undefined,
+  deficit: number | undefined,
+): string {
+  const foodSurplus = surplus ?? 0;
+  const foodDeficit = deficit ?? 0;
+  if (foodDeficit > 0) {
+    return `-${renderTroops(foodDeficit)}/tick`;
+  }
+  return `+${renderTroops(foodSurplus)}/tick`;
 }
 
 function formatControlValue(value: number, precision: number): string {

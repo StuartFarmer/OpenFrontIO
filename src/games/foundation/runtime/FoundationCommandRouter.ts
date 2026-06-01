@@ -1,12 +1,17 @@
 import {
   EngineTileMap,
+  foodDeficitForPlayer,
+  foodDemandForPlayer,
+  foodProductionForPlayer,
+  foodSupportedTroopsForPlayer,
+  foodSurplusForPlayer,
   FoundationSimulationParameters,
-  Player,
-  TileRef,
   isLandTile,
   maxTroopsForPlayer,
   placePlayer,
+  Player,
   startWildernessExploration,
+  TileRef,
   troopIncreaseRate,
 } from "../domain";
 import {
@@ -230,6 +235,14 @@ function createUpdate(
       troops: player.troops,
       troopIncreaseRate: troopIncreaseRate(player, state.parameters),
       maxTroops: maxTroopsForPlayer(player, state.parameters),
+      foodProduction: foodProductionForPlayer(player, state.parameters),
+      foodDemand: foodDemandForPlayer(player, state.parameters),
+      foodSupportedTroops: foodSupportedTroopsForPlayer(
+        player,
+        state.parameters,
+      ),
+      foodSurplus: foodSurplusForPlayer(player, state.parameters),
+      foodDeficit: foodDeficitForPlayer(player, state.parameters),
       exploringTroops: player.activeExploration?.troops ?? 0,
     },
   };
