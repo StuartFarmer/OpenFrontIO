@@ -15,6 +15,8 @@ interface FoundationPageHarness {
   inputDrafts: Record<string, string>;
   tuningSettings: FoundationTuningSettings;
   commitNumberInput: (key: string) => void;
+  generateWorld: (statusText: string, options?: { force?: boolean }) => void;
+  handleGenerate: () => void;
   maybeAutoGenerateWorld: () => Promise<void>;
 }
 
@@ -129,6 +131,53 @@ describe("FoundationPage client tuning", () => {
     );
     expect(stored.attackRatio).toBe(0.35);
     expect(stored.mapGenerator).toBe("foundation");
+  });
+
+  it("generates or loads the map after committing a seed change", () => {
+    const page = document.createElement(
+      "foundation-page",
+    ) as unknown as FoundationPageHarness;
+    const generateWorld = vi.fn();
+    page.generateWorld = generateWorld;
+    page.tuningSettings = {
+      ...DEFAULT_FOUNDATION_TUNING_SETTINGS,
+      autoGenerateWorld: false,
+      seed: 1337,
+    };
+    page.inputDrafts = { seed: "42" };
+
+    page.commitNumberInput("seed");
+
+    expect(page.tuningSettings.seed).toBe(42);
+    expect(generateWorld).toHaveBeenCalledWith(
+      "Generated world with current parameters.",
+      { force: true },
+    );
+  });
+
+  it("commits pending dimensions before manual world generation", () => {
+    const page = document.createElement(
+      "foundation-page",
+    ) as unknown as FoundationPageHarness;
+    const generateWorld = vi.fn();
+    page.generateWorld = generateWorld;
+    page.tuningSettings = {
+      ...DEFAULT_FOUNDATION_TUNING_SETTINGS,
+      autoGenerateWorld: false,
+      width: 256,
+      height: 256,
+    };
+    page.inputDrafts = { width: "1024", height: "1024" };
+
+    page.handleGenerate();
+
+    expect(page.tuningSettings.width).toBe(1024);
+    expect(page.tuningSettings.height).toBe(1024);
+    expect(page.inputDrafts).toEqual({});
+    expect(generateWorld).toHaveBeenCalledWith(
+      "Generated world with current parameters.",
+      { force: true },
+    );
   });
 });
 

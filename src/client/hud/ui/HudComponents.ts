@@ -4050,7 +4050,7 @@ export class HudMenu extends HudScopedElement {
         min-width: var(--hud-menu-min-width, 180px);
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.42);
-        border-radius: 4px;
+        border-radius: var(--hud-menu-radius, 4px);
         background: rgba(15, 23, 42, 0.96);
         box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
         color: #e2e8f0;
@@ -4082,16 +4082,16 @@ export class HudMenuItem extends HudScopedElement {
         width: 100%;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 8px;
+        gap: var(--hud-menu-item-gap, 8px);
         border: 0;
-        border-radius: 3px;
+        border-radius: var(--hud-menu-item-radius, 3px);
         background: transparent;
         color: inherit;
         cursor: pointer;
         font: inherit;
-        font-size: 11px;
+        font-size: var(--hud-menu-item-font-size, 11px);
         line-height: 1;
-        padding: 6px 7px;
+        padding: var(--hud-menu-item-padding, 6px 7px);
         text-align: left;
       }
 
@@ -4105,7 +4105,10 @@ export class HudMenuItem extends HudScopedElement {
       }
 
       :host([selected]) button {
-        background: rgba(14, 165, 233, 0.18);
+        background: var(
+          --hud-menu-item-selected-background,
+          rgba(14, 165, 233, 0.18)
+        );
         color: #e0f2fe;
       }
 

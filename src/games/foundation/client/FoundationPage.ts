@@ -1,7 +1,26 @@
 import { LitElement, css, html, type TemplateResult } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { Copy, Dice5, Pause, Play, RotateCcw } from "lucide";
+import {
+  Boxes,
+  ChevronRight,
+  Copy,
+  Dice5,
+  Fuel,
+  Gem,
+  Hammer,
+  Package,
+  Pause,
+  Play,
+  RotateCcw,
+  Save,
+  Trash2,
+  Upload,
+  Warehouse,
+  Wheat,
+  type IconNode,
+} from "lucide";
 import "../../../client/hud/ui";
+import type { HudSelectOption } from "../../../client/hud/ui/HudComponents";
 import { renderLucideIcon } from "../../../client/hud/ui/LucideIcon";
 import {
   BaseMapWebGLAdapter,
@@ -44,6 +63,19 @@ import {
   type FoundationRuntimeSnapshot,
 } from "../runtime";
 import {
+  FOUNDATION_GAME_MECHANIC_PRESET_KEYS,
+  FOUNDATION_WORLD_GENERATION_PRESET_KEYS,
+  FOUNDATION_WORLD_MAP_PRESET_KEYS,
+  applyGameMechanicPresetData,
+  applyWorldGenerationPresetData,
+  applyWorldMapPresetData,
+  createFoundationPreset,
+  loadFoundationPresets,
+  saveFoundationPresets,
+  type FoundationPresetKind,
+  type FoundationStoredPreset,
+} from "./FoundationPresets";
+import {
   DEFAULT_FOUNDATION_TUNING_SETTINGS,
   FoundationTuningSettings,
   loadFoundationTuningSettings,
@@ -63,10 +95,81 @@ interface FoundationDirectionalBorderPreview {
   targetTile: number;
 }
 
+interface FoundationContextMenuItem {
+  id: string;
+  label: string;
+  icon: IconNode;
+  meta?: string;
+  disabled?: boolean;
+  children?: FoundationContextMenuItem[];
+}
+
+interface FoundationContextMenuPosition {
+  left: number;
+  top: number;
+}
+
+interface FoundationContextMenuLayout {
+  compact: boolean;
+  main: FoundationContextMenuPosition;
+  sub: FoundationContextMenuPosition;
+  detail: FoundationContextMenuPosition;
+}
+
+interface FoundationPlacedBuilding {
+  id: string;
+  label: string;
+  tileRef: number;
+}
+
 const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 0;
 const FOUNDATION_BORDER_HEAT_BUCKETS = 100;
 const FOUNDATION_VECTOR_LINE_BASE_ALPHA = 0.025;
 const FOUNDATION_VECTOR_LINE_WEIGHT_ALPHA = 0.22;
+const FOUNDATION_CONTEXT_MENU_MAIN_WIDTH = 160;
+const FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH = 160;
+const FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH = 210;
+const FOUNDATION_CONTEXT_MENU_GAP = 0;
+const FOUNDATION_CONTEXT_MENU_EDGE_GAP = 8;
+const FOUNDATION_BUILDING_TILE_SIZE = 4;
+
+const FOUNDATION_STORAGE_BUILDINGS: readonly FoundationContextMenuItem[] = [
+  { id: "grain-silo", label: "Grain Silo", icon: Wheat, meta: "Food" },
+  { id: "oil-tank", label: "Oil Tank", icon: Fuel, meta: "Fuel" },
+  {
+    id: "mineral-stockpile",
+    label: "Mineral Stockpile",
+    icon: Gem,
+    meta: "Ore",
+  },
+];
+
+const FOUNDATION_CONTEXT_BUILD_MENU: FoundationContextMenuItem = {
+  id: "build",
+  label: "Build",
+  icon: Hammer,
+  children: [
+    {
+      id: "storage",
+      label: "Storage",
+      icon: Warehouse,
+      children: [...FOUNDATION_STORAGE_BUILDINGS],
+    },
+  ],
+};
+
+const FOUNDATION_CONTEXT_ROOT_MENU: readonly FoundationContextMenuItem[] = [
+  FOUNDATION_CONTEXT_BUILD_MENU,
+  { id: "section-two", label: "Section 2", icon: Package, disabled: true },
+  { id: "section-three", label: "Section 3", icon: Boxes, disabled: true },
+  { id: "section-four", label: "Section 4", icon: Warehouse, disabled: true },
+];
+
+const FOUNDATION_BUILDING_COLOR_BY_ID: Readonly<Record<string, string>> = {
+  "grain-silo": "rgb(214 162 58)",
+  "oil-tank": "rgb(5 7 8)",
+  "mineral-stockpile": "rgb(185 193 199)",
+};
 
 type FoundationControlTab = "world" | "river" | "combat" | "ecology";
 
@@ -76,6 +179,11 @@ const FOUNDATION_CONTROL_TABS = [
   { id: "combat", label: "Combat" },
   { id: "ecology", label: "Ecology" },
 ];
+
+interface FoundationUpdateSettingsOptions {
+  generateOnCommit?: boolean;
+  forceGenerateOnCommit?: boolean;
+}
 
 interface FoundationMechanicBreakdown {
   readonly does: string;
@@ -487,6 +595,45 @@ export class FoundationPage extends LitElement {
   @state()
   private openMechanicKeys: (keyof FoundationTuningSettings)[] = [];
 
+  @state()
+  private presets: FoundationStoredPreset[] = [];
+
+  @state()
+  private selectedWorldPresetId = "";
+
+  @state()
+  private selectedWorldMapPresetId = "";
+
+  @state()
+  private selectedMechanicPresetId = "";
+
+  @state()
+  private contextMenuOpen = false;
+
+  @state()
+  private contextMenuX = 0;
+
+  @state()
+  private contextMenuY = 0;
+
+  @state()
+  private contextMenuActiveRootId = "";
+
+  @state()
+  private contextMenuActiveBuildId = "";
+
+  @state()
+  private selectedContextBuilding = "Grain Silo";
+
+  @state()
+  private activeBuildPlacementItem: FoundationContextMenuItem | null = null;
+
+  @state()
+  private buildPlacementTileRef: number | null = null;
+
+  @state()
+  private placedBuildings: FoundationPlacedBuilding[] = [];
+
   private runtime: FoundationRuntime | null = null;
   private renderer: BaseMapWebGLAdapter | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -680,6 +827,39 @@ export class FoundationPage extends LitElement {
       grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       margin-bottom: 14px;
+    }
+
+    .preset-section {
+      display: block;
+      margin-bottom: 14px;
+      --hud-radius: 8px;
+      --hud-surface-header-min-height: 36px;
+      --hud-surface-header-padding: 9px 12px;
+      --hud-surface-body-padding: 10px 12px;
+    }
+
+    .preset-section::part(surface) {
+      border: 1px solid rgb(48 56 61 / 0.86);
+      background: rgb(24 29 32 / 0.78);
+    }
+
+    .preset-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preset-tools hud-select {
+      min-width: 0;
+    }
+
+    .preset-inline-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
     }
 
     .control-table {
@@ -1102,6 +1282,113 @@ export class FoundationPage extends LitElement {
       image-rendering: auto;
     }
 
+    .context-menu-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .context-menu-panel {
+      position: absolute;
+      width: var(--foundation-context-menu-width);
+      pointer-events: auto;
+    }
+
+    hud-menu.context-menu-menu {
+      width: 100%;
+      --hud-menu-min-width: 0;
+      --hud-menu-radius: 0;
+      --hud-menu-item-font-size: 10px;
+      --hud-menu-item-gap: 6px;
+      --hud-menu-item-padding: 4px 6px;
+      --hud-menu-item-radius: 0;
+    }
+
+    hud-menu.context-menu-menu hud-surface-header {
+      --hud-surface-header-min-height: 22px;
+      --hud-surface-header-padding: 4px 6px;
+    }
+
+    hud-menu.context-menu-menu hud-menu-item {
+      --hud-menu-item-selected-background: rgb(125 200 166 / 0.16);
+    }
+
+    .context-menu-title,
+    .context-menu-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      color: var(--accent);
+    }
+
+    .context-menu-title {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .context-menu-svg {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 auto;
+    }
+
+    .context-menu-indent-1 {
+      --hud-menu-item-padding: 4px 6px 4px 18px;
+    }
+
+    .context-menu-indent-2 {
+      --hud-menu-item-padding: 4px 6px 4px 32px;
+    }
+
+    .build-placement-preview {
+      position: absolute;
+      z-index: 4;
+      border: 1px solid rgb(230 191 99 / 0.95);
+      background: rgb(230 191 99 / 0.18);
+      box-shadow:
+        0 0 0 1px rgb(5 7 8 / 0.8),
+        inset 0 0 10px rgb(230 191 99 / 0.22);
+      pointer-events: none;
+    }
+
+    .build-placement-label {
+      position: absolute;
+      left: 0;
+      top: -22px;
+      max-width: 180px;
+      overflow: hidden;
+      border: 1px solid rgb(157 170 177 / 0.42);
+      background: rgb(16 20 22 / 0.95);
+      color: var(--accent-2);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      padding: 4px 6px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .placed-building {
+      position: absolute;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgb(157 170 177 / 0.58);
+      background:
+        linear-gradient(rgb(255 255 255 / 0.07), rgb(255 255 255 / 0)),
+        var(--foundation-building-color, rgb(28 35 35));
+      box-shadow:
+        inset 0 0 0 1px rgb(5 7 8 / 0.72),
+        0 1px 0 rgb(255 255 255 / 0.06);
+      pointer-events: none;
+      transform: translateZ(0);
+    }
+
     @media (max-width: 820px) {
       :host {
         position: static;
@@ -1134,9 +1421,11 @@ export class FoundationPage extends LitElement {
   `;
 
   firstUpdated(): void {
+    this.contextMenuOpen = false;
     this.tuningSettings = loadFoundationTuningSettings(
       foundationTuningOverridesFromLocation(),
     );
+    this.presets = loadFoundationPresets();
 
     this.canvas.addEventListener("click", this.handleCanvasClick);
     this.canvas.addEventListener("pointerdown", this.handleCanvasPointerDown);
@@ -1146,6 +1435,7 @@ export class FoundationPage extends LitElement {
     window.addEventListener("pointermove", this.handleCanvasPointerMove);
     window.addEventListener("pointerup", this.handleCanvasPointerUp);
     window.addEventListener("pointercancel", this.handleCanvasPointerUp);
+    window.addEventListener("keydown", this.handleWindowKeydown);
     for (const eventName of FOUNDATION_GESTURE_EVENTS) {
       document.addEventListener(eventName, this.preventPageGestureZoom, {
         passive: false,
@@ -1175,6 +1465,7 @@ export class FoundationPage extends LitElement {
     window.removeEventListener("pointermove", this.handleCanvasPointerMove);
     window.removeEventListener("pointerup", this.handleCanvasPointerUp);
     window.removeEventListener("pointercancel", this.handleCanvasPointerUp);
+    window.removeEventListener("keydown", this.handleWindowKeydown);
     for (const eventName of FOUNDATION_GESTURE_EVENTS) {
       document.removeEventListener(eventName, this.preventPageGestureZoom);
     }
@@ -1245,12 +1536,19 @@ export class FoundationPage extends LitElement {
                   Generate World
                 </hud-button>
               </div>
+              ${this.renderPresetControls("world-generation")}
               ${this.controlSection(
                 "World",
                 html`
+                  ${this.renderPresetTableRow("world-map", "Saved maps")}
                   ${this.seedInput()}
                   ${this.numberInput("Width", "width", 32, 1024, 1)}
                   ${this.numberInput("Height", "height", 32, 1024, 1)}
+                `,
+              )}
+              ${this.controlSection(
+                "Elevation",
+                html`
                   ${this.rangeInput(
                     "Sea level",
                     "seaLevel",
@@ -1259,11 +1557,6 @@ export class FoundationPage extends LitElement {
                     0.01,
                     2,
                   )}
-                `,
-              )}
-              ${this.controlSection(
-                "Elevation",
-                html`
                   ${this.rangeInput(
                     "Continent scale",
                     "continentScale",
@@ -1385,6 +1678,7 @@ export class FoundationPage extends LitElement {
               class="control-panel"
               ?hidden=${this.activeControlTab !== "combat"}
             >
+              ${this.renderPresetControls("game-mechanics")}
               ${this.controlSection(
                 "Simulation",
                 html`
@@ -1523,6 +1817,7 @@ export class FoundationPage extends LitElement {
               class="control-panel"
               ?hidden=${this.activeControlTab !== "ecology"}
             >
+              ${this.renderPresetControls("game-mechanics")}
               ${this.controlSection(
                 "Wilderness Exploration",
                 html`
@@ -1607,13 +1902,20 @@ export class FoundationPage extends LitElement {
               </div>
             </hud-surface-header>
             <hud-surface-body class="canvas-frame-host">
-              <div class="canvas-frame">
+              <div
+                class="canvas-frame"
+                @pointerdown=${this.handleCanvasFramePointerDown}
+                @contextmenu=${this.handleCanvasContextMenu}
+              >
                 ${this.renderRuntimeOverlay(snapshot)}
                 <canvas
                   class="board-canvas"
                   aria-label="Foundation generated game board"
                 ></canvas>
                 <canvas class="vector-overlay" aria-hidden="true"></canvas>
+                ${this.renderContextMenu()}
+                ${this.renderBuildPlacementPreview()}
+                ${this.renderPlacedBuildings()}
                 ${this.renderResourceLayerOverlay()}
                 ${this.renderBoardStateOverlay()}
               </div>
@@ -1621,6 +1923,229 @@ export class FoundationPage extends LitElement {
           </hud-surface>
         </section>
       </main>
+    `;
+  }
+
+  private renderContextMenu(): TemplateResult | null {
+    if (!this.contextMenuOpen) {
+      return null;
+    }
+
+    const layout = this.contextMenuLayout();
+    const buildItems =
+      this.contextMenuActiveRootId === "build"
+        ? FOUNDATION_CONTEXT_BUILD_MENU.children
+        : [];
+    const buildingItems =
+      this.contextMenuActiveRootId === "build" &&
+      this.contextMenuActiveBuildId === "storage"
+        ? FOUNDATION_STORAGE_BUILDINGS
+        : [];
+
+    return html`
+      <div class="context-menu-layer">
+        ${layout.compact
+          ? this.renderCompactContextMenu(layout)
+          : html`
+              ${this.renderContextMenuPanel(
+                "Sections",
+                FOUNDATION_CONTEXT_ROOT_MENU,
+                FOUNDATION_CONTEXT_MENU_MAIN_WIDTH,
+                layout.main,
+                this.contextMenuActiveRootId,
+                (item) => this.selectContextRoot(item),
+              )}
+              ${buildItems?.length
+                ? this.renderContextMenuPanel(
+                    "Build",
+                    buildItems,
+                    FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH,
+                    layout.sub,
+                    this.contextMenuActiveBuildId,
+                    (item) => this.selectContextBuild(item),
+                  )
+                : null}
+              ${buildingItems.length
+                ? this.renderContextMenuPanel(
+                    "Storage",
+                    buildingItems,
+                    FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH,
+                    layout.detail,
+                    "",
+                    () => {},
+                  )
+                : null}
+            `}
+      </div>
+    `;
+  }
+
+  private renderBuildPlacementPreview(): TemplateResult | null {
+    if (
+      !this.activeBuildPlacementItem ||
+      this.buildPlacementTileRef === null ||
+      !this.runtime ||
+      !this.renderer ||
+      !this.canvas
+    ) {
+      return null;
+    }
+
+    const bounds = this.tileOverlayBounds(this.buildPlacementTileRef);
+    if (!bounds) {
+      return null;
+    }
+
+    return html`
+      <div
+        class="build-placement-preview"
+        style="left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; height: ${bounds.height}px;"
+      >
+        <span class="build-placement-label"
+          >${this.activeBuildPlacementItem.label}</span
+        >
+      </div>
+    `;
+  }
+
+  private renderPlacedBuildings(): TemplateResult | null {
+    if (!this.runtime || !this.renderer || this.placedBuildings.length === 0) {
+      return null;
+    }
+
+    return html`
+      ${this.placedBuildings.map((building) => {
+        const bounds = this.tileOverlayBounds(building.tileRef);
+        const color = FOUNDATION_BUILDING_COLOR_BY_ID[building.id];
+        if (!bounds || !color) {
+          return null;
+        }
+
+        return html`
+          <div
+            class="placed-building"
+            title=${building.label}
+            aria-label=${building.label}
+            style="--foundation-building-color: ${color}; left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; height: ${bounds.height}px;"
+          ></div>
+        `;
+      })}
+    `;
+  }
+
+  private renderCompactContextMenu(
+    layout: FoundationContextMenuLayout,
+  ): TemplateResult {
+    return html`
+      <div
+        class="context-menu-panel"
+        style="--foundation-context-menu-width: min(${FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH}px, calc(100% - 16px)); left: ${layout
+          .main.left}px; top: ${layout.main.top}px;"
+      >
+        <hud-menu class="context-menu-menu">
+          <hud-surface-header>
+            <span class="context-menu-title">
+              ${renderLucideIcon(Hammer, "context-menu-svg")} Sections
+            </span>
+          </hud-surface-header>
+          ${FOUNDATION_CONTEXT_ROOT_MENU.map((item) =>
+            this.renderCompactContextMenuItem(item, 0, () =>
+              this.selectContextRoot(item),
+            ),
+          )}
+          ${this.contextMenuActiveRootId === "build"
+            ? FOUNDATION_CONTEXT_BUILD_MENU.children?.map((item) =>
+                this.renderCompactContextMenuItem(item, 1, () =>
+                  this.selectContextBuild(item),
+                ),
+              )
+            : null}
+          ${this.contextMenuActiveRootId === "build" &&
+          this.contextMenuActiveBuildId === "storage"
+            ? FOUNDATION_STORAGE_BUILDINGS.map((item) =>
+                this.renderCompactContextMenuItem(item, 2, () => {}),
+              )
+            : null}
+        </hud-menu>
+      </div>
+    `;
+  }
+
+  private renderCompactContextMenuItem(
+    item: FoundationContextMenuItem,
+    depth: number,
+    onHover: () => void,
+  ): TemplateResult {
+    const selected = item.label === this.selectedContextBuilding;
+    const active =
+      item.id === this.contextMenuActiveRootId ||
+      item.id === this.contextMenuActiveBuildId;
+    return html`
+      <hud-menu-item
+        class=${depth > 0 ? `context-menu-indent-${depth}` : ""}
+        ?disabled=${item.disabled}
+        ?selected=${selected || active}
+        @pointerenter=${onHover}
+        @menu-select=${() => {
+          if (!item.children) this.selectContextBuilding(item);
+        }}
+      >
+        <span slot="icon" class="context-menu-icon">
+          ${renderLucideIcon(item.icon, "context-menu-svg")}
+        </span>
+        ${item.label}
+        ${item.children
+          ? html`<span slot="meta">
+              ${renderLucideIcon(ChevronRight, "context-menu-svg")}
+            </span>`
+          : html`<span slot="meta">${item.meta ?? ""}</span>`}
+      </hud-menu-item>
+    `;
+  }
+
+  private renderContextMenuPanel(
+    title: string,
+    items: readonly FoundationContextMenuItem[],
+    width: number,
+    position: FoundationContextMenuPosition,
+    activeId: string,
+    onHover: (item: FoundationContextMenuItem) => void,
+  ): TemplateResult {
+    return html`
+      <div
+        class="context-menu-panel"
+        style="--foundation-context-menu-width: ${width}px; left: ${position.left}px; top: ${position.top}px;"
+      >
+        <hud-menu class="context-menu-menu">
+          <hud-surface-header>
+            <span class="context-menu-title">${title}</span>
+          </hud-surface-header>
+          ${items.map((item) => {
+            const active = item.id === activeId;
+            const selected = item.label === this.selectedContextBuilding;
+            return html`
+              <hud-menu-item
+                ?disabled=${item.disabled}
+                ?selected=${active || selected}
+                @pointerenter=${() => onHover(item)}
+                @menu-select=${() => {
+                  if (!item.children) this.selectContextBuilding(item);
+                }}
+              >
+                <span slot="icon" class="context-menu-icon">
+                  ${renderLucideIcon(item.icon, "context-menu-svg")}
+                </span>
+                ${item.label}
+                ${item.children
+                  ? html`<span slot="meta">
+                      ${renderLucideIcon(ChevronRight, "context-menu-svg")}
+                    </span>`
+                  : html`<span slot="meta">${item.meta ?? ""}</span>`}
+              </hud-menu-item>
+            `;
+          })}
+        </hud-menu>
+      </div>
     `;
   }
 
@@ -1798,6 +2323,327 @@ export class FoundationPage extends LitElement {
     event.preventDefault();
   };
 
+  private readonly handleCanvasContextMenu = (event: MouseEvent): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.activeBuildPlacementItem) {
+      this.cancelBuildPlacement();
+      return;
+    }
+    if (this.contextMenuOpen) {
+      this.closeContextMenu();
+      return;
+    }
+    if (this.eventPathIncludesContextMenu(event)) {
+      return;
+    }
+    const frame = this.canvas.parentElement;
+    const rect = (frame ?? this.canvas).getBoundingClientRect();
+    this.contextMenuX = event.clientX - rect.left;
+    this.contextMenuY = event.clientY - rect.top;
+    this.contextMenuOpen = true;
+    this.contextMenuActiveRootId = "";
+    this.contextMenuActiveBuildId = "";
+  };
+
+  private readonly handleCanvasFramePointerDown = (
+    event: PointerEvent,
+  ): void => {
+    if (event.button === 2) {
+      return;
+    }
+
+    if (this.eventPathIncludesContextMenu(event)) {
+      return;
+    }
+
+    if (this.contextMenuOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.composedPath().includes(this.canvas)) {
+        this.suppressNextCanvasClick = true;
+      }
+      this.closeContextMenu();
+    }
+  };
+
+  private eventPathIncludesContextMenu(event: Event): boolean {
+    return event.composedPath().some((target) => {
+      return (
+        target instanceof HTMLElement &&
+        target.classList.contains("context-menu-panel")
+      );
+    });
+  }
+
+  private selectContextRoot(item: FoundationContextMenuItem): void {
+    if (item.disabled) {
+      this.contextMenuActiveRootId = "";
+      this.contextMenuActiveBuildId = "";
+      return;
+    }
+    this.contextMenuActiveRootId = item.id;
+    this.contextMenuActiveBuildId = "";
+  }
+
+  private selectContextBuild(item: FoundationContextMenuItem): void {
+    if (item.disabled) return;
+    this.contextMenuActiveBuildId = item.id;
+  }
+
+  private selectContextBuilding(item: FoundationContextMenuItem): void {
+    if (item.disabled || item.children) return;
+    this.selectedContextBuilding = item.label;
+    this.startBuildPlacement(item);
+  }
+
+  private closeContextMenu(): void {
+    this.contextMenuOpen = false;
+    this.contextMenuActiveRootId = "";
+    this.contextMenuActiveBuildId = "";
+  }
+
+  private startBuildPlacement(item: FoundationContextMenuItem): void {
+    this.closeContextMenu();
+    this.activeBuildPlacementItem = item;
+    this.updateBuildPlacementPreviewFromLastPointer();
+    this.canvas.style.cursor = "crosshair";
+    this.status = {
+      tone: "idle",
+      text: `${item.label} placement selected.`,
+    };
+  }
+
+  private cancelBuildPlacement(): void {
+    const label = this.activeBuildPlacementItem?.label;
+    this.activeBuildPlacementItem = null;
+    this.buildPlacementTileRef = null;
+    this.canvas.style.cursor = "";
+    if (label) {
+      this.status = {
+        tone: "idle",
+        text: `${label} placement cancelled.`,
+      };
+    }
+  }
+
+  private confirmBuildPlacement(tile: { x: number; y: number; ref: number }) {
+    const item = this.activeBuildPlacementItem;
+    if (!item) return;
+    const anchorTile = this.anchorTileForBuilding(tile);
+    if (!anchorTile) {
+      return;
+    }
+    this.activeBuildPlacementItem = null;
+    this.buildPlacementTileRef = null;
+    this.selectedContextBuilding = item.label;
+    this.placedBuildings = [
+      ...this.placedBuildings.filter(
+        (building) => building.tileRef !== anchorTile.ref,
+      ),
+      {
+        id: item.id,
+        label: item.label,
+        tileRef: anchorTile.ref,
+      },
+    ];
+    this.canvas.style.cursor = "";
+    this.status = {
+      tone: "ok",
+      text: `Built ${item.label} at ${anchorTile.x}, ${anchorTile.y}.`,
+    };
+  }
+
+  private tileOverlayBounds(tileRef: number): {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null {
+    if (!this.runtime || !this.renderer || !this.canvas) {
+      return null;
+    }
+    const map = this.runtime.map();
+    if (!map.isValidRef(tileRef)) {
+      return null;
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const tileX = map.x(tileRef);
+    const tileY = map.y(tileRef);
+    const topLeft = this.worldToOverlayScreen(tileX, tileY, rect);
+    const bottomRight = this.worldToOverlayScreen(
+      tileX + FOUNDATION_BUILDING_TILE_SIZE,
+      tileY + FOUNDATION_BUILDING_TILE_SIZE,
+      rect,
+    );
+    return {
+      left: Math.min(topLeft.x, bottomRight.x),
+      top: Math.min(topLeft.y, bottomRight.y),
+      width: Math.max(1, Math.abs(bottomRight.x - topLeft.x)),
+      height: Math.max(1, Math.abs(bottomRight.y - topLeft.y)),
+    };
+  }
+
+  private readonly handleWindowKeydown = (event: KeyboardEvent): void => {
+    if (!this.activeBuildPlacementItem) return;
+    if (event.key !== "Escape" && event.key !== "Enter") return;
+    event.preventDefault();
+    this.cancelBuildPlacement();
+  };
+
+  private updateBuildPlacementPreviewFromLastPointer(): void {
+    if (!this.renderer) return;
+    const tile = this.renderer.screenToTile({
+      screenX: this.contextMenuX,
+      screenY: this.contextMenuY,
+    });
+    this.buildPlacementTileRef = tile
+      ? (this.anchorTileForBuilding(tile)?.ref ?? null)
+      : null;
+  }
+
+  private updateBuildPlacementPreviewForPointer(event: PointerEvent): void {
+    const tile = this.tileFromClientPoint(event.clientX, event.clientY);
+    this.buildPlacementTileRef = tile
+      ? (this.anchorTileForBuilding(tile)?.ref ?? null)
+      : null;
+  }
+
+  private anchorTileForBuilding(tile: {
+    x: number;
+    y: number;
+    ref: number;
+  }): { x: number; y: number; ref: number } | null {
+    if (!this.runtime) {
+      return null;
+    }
+    const map = this.runtime.map();
+    const x = clampFoundationNumber(
+      tile.x,
+      0,
+      Math.max(0, map.width() - FOUNDATION_BUILDING_TILE_SIZE),
+    );
+    const y = clampFoundationNumber(
+      tile.y,
+      0,
+      Math.max(0, map.height() - FOUNDATION_BUILDING_TILE_SIZE),
+    );
+    return { x, y, ref: map.ref(x, y) };
+  }
+
+  private tileFromClientPoint(
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number; ref: number } | null {
+    if (!this.renderer || !this.canvas) {
+      return null;
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = clientX - rect.left;
+    const screenY = clientY - rect.top;
+    if (
+      screenX < 0 ||
+      screenY < 0 ||
+      screenX >= rect.width ||
+      screenY >= rect.height
+    ) {
+      return null;
+    }
+    return this.renderer.screenToTile({ screenX, screenY });
+  }
+
+  private contextMenuLayout(): FoundationContextMenuLayout {
+    const frame = this.canvas?.parentElement;
+    const rect = frame?.getBoundingClientRect();
+    const width = rect?.width ?? 900;
+    const height = rect?.height ?? 600;
+    const fullWidth =
+      FOUNDATION_CONTEXT_MENU_MAIN_WIDTH +
+      FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH +
+      FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH +
+      FOUNDATION_CONTEXT_MENU_GAP * 2;
+    const compact = width < fullWidth + FOUNDATION_CONTEXT_MENU_EDGE_GAP * 2;
+    const mainHeight = compact ? 138 : 118;
+    const top = clampFoundationNumber(
+      this.contextMenuY,
+      FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+      Math.max(
+        FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+        height - mainHeight - FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+      ),
+    );
+
+    if (compact) {
+      return {
+        compact,
+        main: {
+          left: clampFoundationNumber(
+            this.contextMenuX,
+            FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+            Math.max(
+              FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+              width -
+                FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH -
+                FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+            ),
+          ),
+          top,
+        },
+        sub: { left: FOUNDATION_CONTEXT_MENU_EDGE_GAP, top },
+        detail: { left: FOUNDATION_CONTEXT_MENU_EDGE_GAP, top },
+      };
+    }
+
+    const enoughRight =
+      this.contextMenuX + fullWidth <= width - FOUNDATION_CONTEXT_MENU_EDGE_GAP;
+    const minLeftForLeftFlyout =
+      FOUNDATION_CONTEXT_MENU_EDGE_GAP +
+      FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH +
+      FOUNDATION_CONTEXT_MENU_GAP +
+      FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH +
+      FOUNDATION_CONTEXT_MENU_GAP;
+    const maxMainLeft =
+      width -
+      FOUNDATION_CONTEXT_MENU_MAIN_WIDTH -
+      FOUNDATION_CONTEXT_MENU_EDGE_GAP;
+    const mainLeft = enoughRight
+      ? clampFoundationNumber(
+          this.contextMenuX,
+          FOUNDATION_CONTEXT_MENU_EDGE_GAP,
+          maxMainLeft,
+        )
+      : clampFoundationNumber(
+          this.contextMenuX,
+          minLeftForLeftFlyout,
+          maxMainLeft,
+        );
+    const direction = enoughRight ? 1 : -1;
+    const subLeft =
+      direction === 1
+        ? mainLeft +
+          FOUNDATION_CONTEXT_MENU_MAIN_WIDTH +
+          FOUNDATION_CONTEXT_MENU_GAP
+        : mainLeft -
+          FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH -
+          FOUNDATION_CONTEXT_MENU_GAP;
+    const detailLeft =
+      direction === 1
+        ? subLeft +
+          FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH +
+          FOUNDATION_CONTEXT_MENU_GAP
+        : subLeft -
+          FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH -
+          FOUNDATION_CONTEXT_MENU_GAP;
+
+    return {
+      compact,
+      main: { left: mainLeft, top },
+      sub: { left: subLeft, top },
+      detail: { left: detailLeft, top },
+    };
+  }
+
   private readonly handleCanvasWheel = (event: WheelEvent): void => {
     event.preventDefault();
 
@@ -1821,6 +2667,17 @@ export class FoundationPage extends LitElement {
   };
 
   private readonly handleCanvasPointerDown = (event: PointerEvent): void => {
+    if (this.contextMenuOpen) {
+      event.preventDefault();
+      this.suppressNextCanvasClick = true;
+      return;
+    }
+
+    if (this.activeBuildPlacementItem) {
+      event.preventDefault();
+      return;
+    }
+
     if (event.button !== 0 || this.loading || !this.renderer) {
       return;
     }
@@ -1836,6 +2693,11 @@ export class FoundationPage extends LitElement {
 
   private readonly handleCanvasPointerMove = (event: PointerEvent): void => {
     if (!this.renderer) {
+      return;
+    }
+
+    if (this.activeBuildPlacementItem) {
+      this.updateBuildPlacementPreviewForPointer(event);
       return;
     }
 
@@ -1868,6 +2730,7 @@ export class FoundationPage extends LitElement {
     const worldPerCssPx = (window.devicePixelRatio || 1) / zoom;
     this.renderer.panBy(-deltaX * worldPerCssPx, -deltaY * worldPerCssPx);
     this.clearDirectionalBorderPreview();
+    this.requestUpdate();
   };
 
   private readonly handleCanvasPointerUp = (event: PointerEvent): void => {
@@ -1876,7 +2739,7 @@ export class FoundationPage extends LitElement {
     }
 
     this.dragPointerId = null;
-    this.canvas.style.cursor = "crosshair";
+    this.canvas.style.cursor = "";
 
     if (this.dragMoved) {
       this.suppressNextCanvasClick = true;
@@ -1894,17 +2757,19 @@ export class FoundationPage extends LitElement {
 
     if (this.loading || !this.runtime || !this.renderer) return;
 
-    const rect = this.canvas.getBoundingClientRect();
-    const tile = this.renderer.screenToTile({
-      screenX: event.clientX - rect.left,
-      screenY: event.clientY - rect.top,
-    });
+    const tile = this.tileFromClientPoint(event.clientX, event.clientY);
 
     if (tile === null) {
       this.status = {
         tone: "error",
         text: "Click landed outside the map bounds.",
       };
+      return;
+    }
+
+    if (this.activeBuildPlacementItem) {
+      event.preventDefault();
+      this.confirmBuildPlacement(tile);
       return;
     }
 
@@ -1985,6 +2850,7 @@ export class FoundationPage extends LitElement {
 
   private readonly handleGenerate = (): void => {
     if (this.generateWorldButtonDisabled()) return;
+    this.commitNumberInputDrafts(undefined, { generateOnCommit: false });
     void this.generateWorld("Generated world with current parameters.", {
       force: true,
     });
@@ -2006,7 +2872,7 @@ export class FoundationPage extends LitElement {
     const seed = Math.floor(Math.random() * 2_000_000_000);
     this.updateSettings(
       { seed, mapGenerator: "world-engine" },
-      { generateOnCommit: true },
+      { generateOnCommit: true, forceGenerateOnCommit: true },
     );
   };
 
@@ -2025,6 +2891,96 @@ export class FoundationPage extends LitElement {
         text: "Could not copy parameters.",
       };
     }
+  };
+
+  private readonly saveCurrentPreset = (kind: FoundationPresetKind): void => {
+    if (this.loading) return;
+    this.commitNumberInputDrafts(undefined, { generateOnCommit: false });
+    const name = window.prompt(
+      presetPromptLabel(kind),
+      defaultPresetName(kind),
+    );
+    if (name === null) {
+      return;
+    }
+
+    const preset = createFoundationPreset(kind, name, this.tuningSettings);
+    this.presets = [...this.presets, preset];
+    saveFoundationPresets(this.presets);
+    this.setSelectedPresetId(kind, preset.id);
+    this.status = {
+      tone: "ok",
+      text: `${presetStatusLabel(kind)} saved.`,
+    };
+  };
+
+  private readonly applySelectedPreset = (kind: FoundationPresetKind): void => {
+    if (this.loading) return;
+    const preset = this.selectedPreset(kind);
+    if (!preset) {
+      return;
+    }
+
+    if (preset.kind === "world-generation") {
+      const next = applyWorldGenerationPresetData(
+        this.tuningSettings,
+        preset.data,
+      );
+      this.clearInputDraftKeys(FOUNDATION_WORLD_GENERATION_PRESET_KEYS);
+      this.updateSettings(presetPatch(this.tuningSettings, next), {
+        generateOnCommit: true,
+        forceGenerateOnCommit: true,
+      });
+      this.status = {
+        tone: "ok",
+        text: "World generation preset applied. Seed and map size were preserved.",
+      };
+      return;
+    }
+
+    if (preset.kind === "world-map") {
+      const next = applyWorldMapPresetData(this.tuningSettings, preset.data);
+      this.clearInputDraftKeys(FOUNDATION_WORLD_MAP_PRESET_KEYS);
+      this.updateSettings(presetPatch(this.tuningSettings, next), {
+        generateOnCommit: true,
+        forceGenerateOnCommit: true,
+      });
+      this.status = {
+        tone: "ok",
+        text: "Saved map applied.",
+      };
+      return;
+    }
+
+    const next = applyGameMechanicPresetData(this.tuningSettings, preset.data);
+    this.clearInputDraftKeys(FOUNDATION_GAME_MECHANIC_PRESET_KEYS);
+    this.updateSettings(presetPatch(this.tuningSettings, next));
+    this.status = {
+      tone: "ok",
+      text: "Game mechanic preset applied.",
+    };
+  };
+
+  private readonly deleteSelectedPreset = (
+    kind: FoundationPresetKind,
+  ): void => {
+    if (this.loading) return;
+    const preset = this.selectedPreset(kind);
+    if (!preset) {
+      return;
+    }
+    if (!window.confirm(`Delete preset "${preset.name}"?`)) {
+      return;
+    }
+    this.presets = this.presets.filter(
+      (candidate) => candidate.id !== preset.id,
+    );
+    saveFoundationPresets(this.presets);
+    this.setSelectedPresetId(kind, "");
+    this.status = {
+      tone: "ok",
+      text: `${presetStatusLabel(kind)} deleted.`,
+    };
   };
 
   private readonly handleAutoGenerateToggle = (event: Event): void => {
@@ -2052,6 +3008,61 @@ export class FoundationPage extends LitElement {
             : "world";
   };
 
+  private readonly handlePresetSelection = (
+    kind: FoundationPresetKind,
+    event: CustomEvent<{ value: string }>,
+  ): void => {
+    this.setSelectedPresetId(kind, event.detail.value);
+  };
+
+  private presetsForKind(kind: FoundationPresetKind): FoundationStoredPreset[] {
+    return this.presets
+      .filter((preset) => preset.kind === kind)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  private selectedPreset(
+    kind: FoundationPresetKind,
+  ): FoundationStoredPreset | null {
+    const id = this.selectedPresetId(kind);
+    return (
+      this.presets.find((preset) => preset.id === id && preset.kind === kind) ??
+      null
+    );
+  }
+
+  private selectedPresetId(kind: FoundationPresetKind): string {
+    if (kind === "world-generation") {
+      return this.selectedWorldPresetId;
+    }
+    if (kind === "world-map") {
+      return this.selectedWorldMapPresetId;
+    }
+    return this.selectedMechanicPresetId;
+  }
+
+  private setSelectedPresetId(kind: FoundationPresetKind, id: string): void {
+    if (kind === "world-generation") {
+      this.selectedWorldPresetId = id;
+      return;
+    }
+    if (kind === "world-map") {
+      this.selectedWorldMapPresetId = id;
+      return;
+    }
+    this.selectedMechanicPresetId = id;
+  }
+
+  private clearInputDraftKeys(
+    keys: readonly (keyof FoundationTuningSettings)[],
+  ): void {
+    const drafts = { ...this.inputDrafts };
+    for (const key of keys) {
+      delete drafts[key];
+    }
+    this.inputDrafts = drafts;
+  }
+
   private controlSection(
     title: string,
     content: TemplateResult,
@@ -2072,6 +3083,133 @@ export class FoundationPage extends LitElement {
         </hud-surface-body>
       </hud-surface>
     `;
+  }
+
+  private renderPresetControls(kind: FoundationPresetKind): TemplateResult {
+    const title =
+      kind === "world-generation" ? "Generation Presets" : "Mechanic Presets";
+    const selectedId = this.selectedPresetId(kind);
+    const selected = this.selectedPreset(kind);
+    const noun = presetActionNoun(kind);
+    return html`
+      <hud-surface class="preset-section">
+        <hud-surface-header>
+          <span class="section-title">${title}</span>
+        </hud-surface-header>
+        <hud-surface-body>
+          <div class="preset-tools">
+            <hud-select
+              data-preset-kind=${kind}
+              .options=${this.presetOptions(kind)}
+              .value=${selectedId}
+              ?disabled=${this.loading}
+              @value-change=${(event: CustomEvent<{ value: string }>) =>
+                this.handlePresetSelection(kind, event)}
+            ></hud-select>
+            <hud-icon-button
+              label=${`Save current ${noun} preset`}
+              title=${`Save current ${noun} preset`}
+              ?disabled=${this.loading}
+              @click=${() => this.saveCurrentPreset(kind)}
+            >
+              ${renderLucideIcon(Save, "control-icon")}
+            </hud-icon-button>
+            <hud-icon-button
+              label=${`Apply ${noun} preset`}
+              title=${`Apply ${noun} preset`}
+              ?disabled=${this.loading || !selected}
+              @click=${() => this.applySelectedPreset(kind)}
+            >
+              ${renderLucideIcon(Upload, "control-icon")}
+            </hud-icon-button>
+            <hud-icon-button
+              label=${`Delete ${noun} preset`}
+              title=${`Delete ${noun} preset`}
+              variant="danger"
+              ?disabled=${this.loading || !selected}
+              @click=${() => this.deleteSelectedPreset(kind)}
+            >
+              ${renderLucideIcon(Trash2, "control-icon")}
+            </hud-icon-button>
+          </div>
+        </hud-surface-body>
+      </hud-surface>
+    `;
+  }
+
+  private renderPresetTableRow(
+    kind: FoundationPresetKind,
+    label: string,
+  ): TemplateResult {
+    const selectedId = this.selectedPresetId(kind);
+    const selected = this.selectedPreset(kind);
+    const noun = presetActionNoun(kind);
+    return html`
+      <div class="control-row" role="row">
+        <span class="control-name" role="cell">${label}</span>
+        <span class="control-widget" role="cell">
+          <span class="preset-inline-tools">
+            <hud-select
+              data-preset-kind=${kind}
+              .options=${this.presetOptions(kind)}
+              .value=${selectedId}
+              ?disabled=${this.loading}
+              @value-change=${(event: CustomEvent<{ value: string }>) =>
+                this.handlePresetSelection(kind, event)}
+            ></hud-select>
+            <hud-icon-button
+              label=${`Save current ${noun} preset`}
+              title=${`Save current ${noun} preset`}
+              ?disabled=${this.loading}
+              @click=${() => this.saveCurrentPreset(kind)}
+            >
+              ${renderLucideIcon(Save, "control-icon")}
+            </hud-icon-button>
+            <hud-icon-button
+              label=${`Apply ${noun} preset`}
+              title=${`Apply ${noun} preset`}
+              ?disabled=${this.loading || !selected}
+              @click=${() => this.applySelectedPreset(kind)}
+            >
+              ${renderLucideIcon(Upload, "control-icon")}
+            </hud-icon-button>
+            <hud-icon-button
+              label=${`Delete ${noun} preset`}
+              title=${`Delete ${noun} preset`}
+              variant="danger"
+              ?disabled=${this.loading || !selected}
+              @click=${() => this.deleteSelectedPreset(kind)}
+            >
+              ${renderLucideIcon(Trash2, "control-icon")}
+            </hud-icon-button>
+          </span>
+        </span>
+      </div>
+    `;
+  }
+
+  private presetOptions(kind: FoundationPresetKind): HudSelectOption[] {
+    const presets = this.presetsForKind(kind);
+    if (presets.length === 0) {
+      return [
+        {
+          label: "No presets saved",
+          value: "",
+          disabled: true,
+        },
+      ];
+    }
+    return [
+      {
+        label: "Select preset...",
+        value: "",
+        disabled: true,
+      },
+      ...presets.map((preset) => ({
+        label: preset.name,
+        value: preset.id,
+      })),
+    ];
   }
 
   private renderControlName(
@@ -2117,6 +3255,7 @@ export class FoundationPage extends LitElement {
             ?disabled=${this.loading}
             @value-change=${(event: CustomEvent<{ value: string | number }>) =>
               this.handleNumberDraft(event, key)}
+            @blur=${() => this.commitNumberInput(key)}
             @keydown=${(event: KeyboardEvent) =>
               this.handleNumberKeydown(event, key)}
           ></hud-input>
@@ -2142,6 +3281,7 @@ export class FoundationPage extends LitElement {
               @value-change=${(
                 event: CustomEvent<{ value: string | number }>,
               ) => this.handleNumberDraft(event, "seed")}
+              @blur=${() => this.commitNumberInput("seed")}
               @keydown=${(event: KeyboardEvent) =>
                 this.handleNumberKeydown(event, "seed")}
             ></hud-input>
@@ -2349,21 +3489,34 @@ export class FoundationPage extends LitElement {
   }
 
   private commitNumberInput(key: keyof FoundationTuningSettings): void {
-    const draft = this.inputDrafts[key];
-    if (draft === undefined) return;
-    const value = Number(draft);
-    if (!Number.isFinite(value)) return;
+    this.commitNumberInputDrafts([key], {
+      generateOnCommit: true,
+      forceGenerateOnCommit: true,
+    });
+  }
+
+  private commitNumberInputDrafts(
+    keys?: Iterable<keyof FoundationTuningSettings>,
+    options: FoundationUpdateSettingsOptions = {},
+  ): void {
+    const draftKeys =
+      keys ??
+      (Object.keys(this.inputDrafts) as (keyof FoundationTuningSettings)[]);
     const nextDrafts = { ...this.inputDrafts };
-    delete nextDrafts[key];
+    const patch: Partial<FoundationTuningSettings> = {};
+
+    for (const key of draftKeys) {
+      const draft = this.inputDrafts[key];
+      if (draft === undefined) continue;
+      const value = Number(draft);
+      if (!Number.isFinite(value)) continue;
+      delete nextDrafts[key];
+      Object.assign(patch, { [key]: value });
+    }
+
+    if (Object.keys(patch).length === 0) return;
     this.inputDrafts = nextDrafts;
-    this.updateSettings(
-      {
-        [key]: value,
-      },
-      {
-        generateOnCommit: true,
-      },
-    );
+    this.updateSettings(patch, options);
   }
 
   private handleNumberValue(
@@ -2404,7 +3557,9 @@ export class FoundationPage extends LitElement {
 
   private handleControlCommit(key: keyof FoundationTuningSettings): void {
     if (!FOUNDATION_MAP_SETTING_KEYS.has(key)) return;
-    void this.maybeAutoGenerateWorld();
+    void this.generateWorld("Generated world with current parameters.", {
+      force: true,
+    });
   }
 
   private statusPillTone(): "blue" | "green" | "red" {
@@ -2421,11 +3576,11 @@ export class FoundationPage extends LitElement {
 
   private updateSettings(
     patch: Partial<FoundationTuningSettings>,
-    options: { generateOnCommit?: boolean } = {},
+    options: FoundationUpdateSettingsOptions = {},
   ): void {
-    const changedKeys = Object.keys(
-      patch,
-    ) as (keyof FoundationTuningSettings)[];
+    const changedKeys = (
+      Object.keys(patch) as (keyof FoundationTuningSettings)[]
+    ).filter((key) => this.tuningSettings[key] !== patch[key]);
     this.tuningSettings = normalizeFoundationTuningSettings({
       ...this.tuningSettings,
       ...patch,
@@ -2443,12 +3598,19 @@ export class FoundationPage extends LitElement {
         : "Mechanics applied to the running simulation.",
     };
 
-    if (
-      options.generateOnCommit &&
-      changedKeys.some((key) => FOUNDATION_MAP_SETTING_KEYS.has(key))
-    ) {
-      void this.maybeAutoGenerateWorld();
+    if (!options.generateOnCommit) {
+      return;
     }
+    if (!changedKeys.some((key) => FOUNDATION_MAP_SETTING_KEYS.has(key))) {
+      return;
+    }
+    if (options.forceGenerateOnCommit) {
+      void this.generateWorld("Generated world with current parameters.", {
+        force: true,
+      });
+      return;
+    }
+    void this.maybeAutoGenerateWorld();
   }
 
   private initialGenerationStatus(
@@ -3156,6 +4318,7 @@ export class FoundationPage extends LitElement {
     const rect = this.canvas.getBoundingClientRect();
     this.renderer.resize(rect.width, rect.height);
     this.drawDistanceVectorOverlay(this.directionalBorderPreview);
+    this.requestUpdate();
   }
 
   private resetRuntime(
@@ -3163,6 +4326,9 @@ export class FoundationPage extends LitElement {
     foundationMap: FoundationPreparedMap,
   ): void {
     this.directionalBorderPreview = null;
+    this.activeBuildPlacementItem = null;
+    this.buildPlacementTileRef = null;
+    this.placedBuildings = [];
     this.updateDirectionalBorderIntent(null);
     this.clearVectorOverlay();
     this.renderer?.dispose();
@@ -3447,6 +4613,43 @@ function formatControlValue(value: number, precision: number): string {
   return precision === 0
     ? Math.round(value).toLocaleString()
     : value.toFixed(precision);
+}
+
+function presetPatch(
+  current: FoundationTuningSettings,
+  next: FoundationTuningSettings,
+): Partial<FoundationTuningSettings> {
+  const patch: Partial<FoundationTuningSettings> = {};
+  for (const key of Object.keys(next) as (keyof FoundationTuningSettings)[]) {
+    if (current[key] !== next[key]) {
+      Object.assign(patch, { [key]: next[key] });
+    }
+  }
+  return patch;
+}
+
+function presetPromptLabel(kind: FoundationPresetKind): string {
+  if (kind === "world-generation") return "Generation preset name";
+  if (kind === "world-map") return "Saved map name";
+  return "Game mechanic preset name";
+}
+
+function defaultPresetName(kind: FoundationPresetKind): string {
+  if (kind === "world-generation") return "Generation preset";
+  if (kind === "world-map") return "Saved map";
+  return "Mechanic preset";
+}
+
+function presetStatusLabel(kind: FoundationPresetKind): string {
+  if (kind === "world-generation") return "Generation preset";
+  if (kind === "world-map") return "Saved map";
+  return "Game mechanic preset";
+}
+
+function presetActionNoun(kind: FoundationPresetKind): string {
+  if (kind === "world-generation") return "generation";
+  if (kind === "world-map") return "map";
+  return "mechanic";
 }
 
 function foundationZoomDeltaFromWheelEvent(event: WheelEvent): number | null {
@@ -3819,10 +5022,6 @@ function base64ToUint8Array(value: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
-}
-
-function float32ArrayToBase64(values: Float32Array): string {
-  return uint8ArrayToBase64(new Uint8Array(values.buffer.slice(0)));
 }
 
 function base64ToFloat32Array(value: string): Float32Array {
