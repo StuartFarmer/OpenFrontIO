@@ -30,6 +30,7 @@ import {
 import { renderTroops } from "../../../client/Utils";
 import {
   FoundationEngineTileMap,
+  applyLogisticProductionModifier,
   buildWorldEngineTerrainColors,
   createFoundationMap,
   deriveFoundationWorldEngineResourceConfig,
@@ -172,6 +173,7 @@ const FOUNDATION_BUILDING_COLOR_BY_ID: Readonly<Record<string, string>> = {
 };
 
 type FoundationControlTab = "world" | "river" | "combat" | "ecology";
+type FoundationYieldResource = "food" | "oil" | "metal";
 
 const FOUNDATION_CONTROL_TABS = [
   { id: "world", label: "World" },
@@ -179,6 +181,43 @@ const FOUNDATION_CONTROL_TABS = [
   { id: "combat", label: "Combat" },
   { id: "ecology", label: "Ecology" },
 ];
+
+interface FoundationYieldResourceDefinition {
+  resource: FoundationYieldResource;
+  label: string;
+  inputLabel: string;
+  minKey: keyof FoundationTuningSettings;
+  maxKey: keyof FoundationTuningSettings;
+  kKey: keyof FoundationTuningSettings;
+}
+
+const FOUNDATION_YIELD_RESOURCE_DEFINITIONS: readonly FoundationYieldResourceDefinition[] =
+  [
+    {
+      resource: "food",
+      label: "Food",
+      inputLabel: "crop",
+      minKey: "foodYieldMin",
+      maxKey: "foodYieldMax",
+      kKey: "foodYieldK",
+    },
+    {
+      resource: "oil",
+      label: "Oil",
+      inputLabel: "oil",
+      minKey: "oilYieldMin",
+      maxKey: "oilYieldMax",
+      kKey: "oilYieldK",
+    },
+    {
+      resource: "metal",
+      label: "Metal",
+      inputLabel: "metal",
+      minKey: "metalYieldMin",
+      maxKey: "metalYieldMax",
+      kKey: "metalYieldK",
+    },
+  ];
 
 interface FoundationUpdateSettingsOptions {
   generateOnCommit?: boolean;
@@ -227,6 +266,23 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "Makes the opening stronger and supports larger first explorations.",
     decrease: "Makes the opening leaner and can delay viable expansion.",
     formula: "initialTroops = startingTroops",
+  },
+  startingFoodStorage: {
+    does: "Sets the food stock when a new runtime is created.",
+    exists: "Lets scenarios start with empty or pre-stocked food reserves.",
+    represents: "Initial food stock available to the settlement.",
+    increase: "Gives the player more reserve food at the start.",
+    decrease: "Makes the player start closer to empty.",
+    formula: "initialFoodStock = startingFoodStorage",
+  },
+  baseFoodStorageCapacity: {
+    does: "Caps the food stock before storage buildings are counted.",
+    exists:
+      "Turns surplus into a bounded stock instead of an unlimited number.",
+    represents: "Starter granary and warehouse capacity.",
+    increase: "Allows more surplus food to be saved before overflow is lost.",
+    decrease: "Makes surplus food overflow sooner.",
+    formula: "foodStockCapacity = baseFoodStorageCapacity + storageBuildings",
   },
   placementRadius: {
     does: "Sets the radius of tiles claimed around the first clicked tile.",
@@ -310,6 +366,83 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     decrease: "Makes small territories hit food limits sooner.",
     formula:
       "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
+  },
+  foodYieldMin: {
+    does: "Sets food per tick when a tile's crop suitability is 0.",
+    exists:
+      "Keeps poor farmland tunable instead of forcing bad land to produce nothing.",
+    represents: "Minimum crop yield from controlled land.",
+    increase: "Raises the floor for marginal, dry, steep, or cold farm tiles.",
+    decrease: "Makes weak crop land less useful for food production.",
+    formula: "tileFood = logisticModifier(crop, minYield, maxYield, k)",
+  },
+  foodYieldMax: {
+    does: "Sets food per tick when a tile's crop suitability is 1.",
+    exists: "Defines the production ceiling for ideal farmland.",
+    represents: "Maximum crop yield from controlled land.",
+    increase: "Makes high-crop tiles more valuable.",
+    decrease: "Compresses the difference between good and poor farmland.",
+    formula: "tileFood = logisticModifier(crop, minYield, maxYield, k)",
+  },
+  foodYieldK: {
+    does: "Controls the bend between poor and excellent crop suitability.",
+    exists:
+      "Lets crop value move between linear scaling and sharp threshold behavior.",
+    represents:
+      "How strongly food yield accelerates around medium crop suitability.",
+    increase:
+      "Creates a steeper midpoint knee where good land pulls away faster.",
+    decrease: "Moves the curve toward a linear crop-to-food conversion.",
+    formula: "k = 0: linear; k > 0: normalized logistic curve",
+  },
+  oilYieldMin: {
+    does: "Sets oil per tick when a tile's oil suitability is 0.",
+    exists: "Uses the same yield curve abstraction as food.",
+    represents: "Minimum oil yield from controlled oil-producing land.",
+    increase: "Raises low-quality oil tile output.",
+    decrease: "Makes weak oil tiles less productive.",
+    formula: "tileOil = logisticModifier(oil, minYield, maxYield, k)",
+  },
+  oilYieldMax: {
+    does: "Sets oil per tick when a tile's oil suitability is 1.",
+    exists: "Defines the production ceiling for ideal oil deposits.",
+    represents: "Maximum oil yield from controlled oil-producing land.",
+    increase: "Makes high-oil tiles more valuable.",
+    decrease: "Compresses oil output across deposit quality.",
+    formula: "tileOil = logisticModifier(oil, minYield, maxYield, k)",
+  },
+  oilYieldK: {
+    does: "Controls the bend between poor and excellent oil suitability.",
+    exists: "Uses one shared curve shape for resource output.",
+    represents: "How sharply oil output accelerates around medium suitability.",
+    increase: "Creates a steeper midpoint knee for oil deposits.",
+    decrease: "Moves oil yield toward linear scaling.",
+    formula: "k = 0: linear; k > 0: normalized logistic curve",
+  },
+  metalYieldMin: {
+    does: "Sets metal per tick when a tile's metal suitability is 0.",
+    exists: "Uses the same yield curve abstraction as food.",
+    represents: "Minimum metal yield from controlled metal-producing land.",
+    increase: "Raises low-quality metal tile output.",
+    decrease: "Makes weak metal tiles less productive.",
+    formula: "tileMetal = logisticModifier(metal, minYield, maxYield, k)",
+  },
+  metalYieldMax: {
+    does: "Sets metal per tick when a tile's metal suitability is 1.",
+    exists: "Defines the production ceiling for ideal metal deposits.",
+    represents: "Maximum metal yield from controlled metal-producing land.",
+    increase: "Makes high-metal tiles more valuable.",
+    decrease: "Compresses metal output across deposit quality.",
+    formula: "tileMetal = logisticModifier(metal, minYield, maxYield, k)",
+  },
+  metalYieldK: {
+    does: "Controls the bend between poor and excellent metal suitability.",
+    exists: "Uses one shared curve shape for resource output.",
+    represents:
+      "How sharply metal output accelerates around medium suitability.",
+    increase: "Creates a steeper midpoint knee for metal deposits.",
+    decrease: "Moves metal yield toward linear scaling.",
+    formula: "k = 0: linear; k > 0: normalized logistic curve",
   },
   wildernessBaseSpeed: {
     does: "Sets the flat-terrain reference used when slope scales frontier velocity.",
@@ -587,6 +720,9 @@ export class FoundationPage extends LitElement {
 
   @state()
   private activeControlTab: FoundationControlTab = "world";
+
+  @state()
+  private activeYieldResource: FoundationYieldResource = "food";
 
   @state()
   private inputDrafts: Partial<Record<keyof FoundationTuningSettings, string>> =
@@ -1011,6 +1147,84 @@ export class FoundationPage extends LitElement {
       font-variant-numeric: tabular-nums;
       overflow: hidden;
       text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modifier-curve-row {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+      margin-top: 2px;
+      border: 1px solid rgb(48 56 61 / 0.72);
+      border-radius: 6px;
+      background: rgb(16 20 22 / 0.48);
+      padding: 8px;
+    }
+
+    .modifier-curve-chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 3 / 1;
+      overflow: visible;
+    }
+
+    .modifier-curve-axis {
+      stroke: rgb(157 170 177 / 0.34);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .modifier-curve-guide {
+      stroke: rgb(157 170 177 / 0.18);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .modifier-curve-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .modifier-curve-points {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .modifier-curve-point {
+      min-width: 0;
+      border: 1px solid rgb(48 56 61 / 0.72);
+      border-radius: 5px;
+      background: rgb(32 38 42 / 0.68);
+      padding: 6px;
+      overflow: hidden;
+    }
+
+    .modifier-curve-point-label {
+      display: block;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .modifier-curve-point-value {
+      display: block;
+      margin-top: 4px;
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -1819,6 +2033,58 @@ export class FoundationPage extends LitElement {
             >
               ${this.renderPresetControls("game-mechanics")}
               ${this.controlSection(
+                "Yields",
+                html`
+                  ${this.renderYieldResourceSelect()}
+                  ${this.rangeInput(
+                    "Min yield",
+                    this.activeYieldResourceDefinition().minKey,
+                    0,
+                    100,
+                    0.25,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Max yield",
+                    this.activeYieldResourceDefinition().maxKey,
+                    0,
+                    100,
+                    0.25,
+                    2,
+                  )}
+                  ${this.rangeInput(
+                    "Yield k",
+                    this.activeYieldResourceDefinition().kKey,
+                    0,
+                    30,
+                    0.1,
+                    1,
+                  )}
+                  ${this.renderYieldCurve()}
+                `,
+              )}
+              ${this.controlSection(
+                "Food Stock",
+                html`
+                  ${this.rangeInput(
+                    "Starting food",
+                    "startingFoodStorage",
+                    0,
+                    100000,
+                    500,
+                    0,
+                  )}
+                  ${this.rangeInput(
+                    "Base capacity",
+                    "baseFoodStorageCapacity",
+                    0,
+                    200000,
+                    1000,
+                    0,
+                  )}
+                `,
+              )}
+              ${this.controlSection(
                 "Wilderness Exploration",
                 html`
                   ${this.rangeInput(
@@ -2207,6 +2473,17 @@ export class FoundationPage extends LitElement {
                 snapshot?.player.foodSurplus,
                 snapshot?.player.foodDeficit,
               )}
+            ></hud-stat>
+            <hud-stat
+              label="Food stock"
+              value=${formatFoodStock(
+                snapshot?.player.foodStock,
+                snapshot?.player.foodStockCapacity,
+              )}
+            ></hud-stat>
+            <hud-stat
+              label="Food flow"
+              value=${formatFoodStockFlow(snapshot)}
             ></hud-stat>
             <hud-stat
               label="Troop rate"
@@ -3008,6 +3285,14 @@ export class FoundationPage extends LitElement {
             : "world";
   };
 
+  private readonly handleYieldResourceChange = (
+    event: CustomEvent<{ value: string }>,
+  ): void => {
+    const next = event.detail.value;
+    this.activeYieldResource =
+      next === "oil" || next === "metal" ? next : "food";
+  };
+
   private readonly handlePresetSelection = (
     kind: FoundationPresetKind,
     event: CustomEvent<{ value: string }>,
@@ -3061,6 +3346,120 @@ export class FoundationPage extends LitElement {
       delete drafts[key];
     }
     this.inputDrafts = drafts;
+  }
+
+  private renderYieldResourceSelect(): TemplateResult {
+    return html`
+      <div class="control-row" role="row">
+        <span class="control-name" role="cell">Resource</span>
+        <span class="control-widget" role="cell">
+          <hud-select
+            .options=${FOUNDATION_YIELD_RESOURCE_DEFINITIONS.map(
+              ({ resource, label }) => ({
+                label,
+                value: resource,
+              }),
+            )}
+            .value=${this.activeYieldResource}
+            ?disabled=${this.loading}
+            @value-change=${(event: CustomEvent<{ value: string }>) =>
+              this.handleYieldResourceChange(event)}
+          ></hud-select>
+        </span>
+      </div>
+    `;
+  }
+
+  private renderYieldCurve(): TemplateResult {
+    const definition = this.activeYieldResourceDefinition();
+    const min = Number(this.tuningSettings[definition.minKey]);
+    const max = Number(this.tuningSettings[definition.maxKey]);
+    const k = Number(this.tuningSettings[definition.kKey]);
+    const width = 180;
+    const height = 62;
+    const left = 8;
+    const right = 172;
+    const top = 8;
+    const bottom = 54;
+    const points = Array.from({ length: 80 }, (_, index) => {
+      const x = index / 79;
+      const value = applyLogisticProductionModifier(x, { min, max, k });
+      const t = max === min ? 0.5 : (value - min) / (max - min);
+      const px = left + x * (right - left);
+      const py = bottom - t * (bottom - top);
+      return `${px.toFixed(2)},${py.toFixed(2)}`;
+    }).join(" ");
+    const samples = [0, 0.5, 1] as const;
+
+    return html`
+      <div class="modifier-curve-row" role="row">
+        <svg
+          class="modifier-curve-chart"
+          viewBox="0 0 ${width} ${height}"
+          role="img"
+          aria-label=${`${definition.label} yield curve`}
+          preserveAspectRatio="none"
+        >
+          <line
+            class="modifier-curve-axis"
+            x1=${left}
+            y1=${bottom}
+            x2=${right}
+            y2=${bottom}
+          ></line>
+          <line
+            class="modifier-curve-axis"
+            x1=${left}
+            y1=${top}
+            x2=${left}
+            y2=${bottom}
+          ></line>
+          <line
+            class="modifier-curve-guide"
+            x1=${left}
+            y1=${(top + bottom) / 2}
+            x2=${right}
+            y2=${(top + bottom) / 2}
+          ></line>
+          <line
+            class="modifier-curve-guide"
+            x1=${(left + right) / 2}
+            y1=${top}
+            x2=${(left + right) / 2}
+            y2=${bottom}
+          ></line>
+          <polyline class="modifier-curve-line" points=${points}></polyline>
+        </svg>
+        <div class="modifier-curve-points">
+          ${samples.map((sample) => {
+            const value = applyLogisticProductionModifier(sample, {
+              min,
+              max,
+              k,
+            });
+            return html`
+              <div class="modifier-curve-point">
+                <span class="modifier-curve-point-label"
+                  >${definition.inputLabel}
+                  ${formatControlValue(sample, sample === 0.5 ? 1 : 0)}</span
+                >
+                <span class="modifier-curve-point-value"
+                  >${formatControlValue(value, 2)}/tick</span
+                >
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  private activeYieldResourceDefinition(): FoundationYieldResourceDefinition {
+    return (
+      FOUNDATION_YIELD_RESOURCE_DEFINITIONS.find(
+        ({ resource }) => resource === this.activeYieldResource,
+      ) ?? FOUNDATION_YIELD_RESOURCE_DEFINITIONS[0]
+    );
   }
 
   private controlSection(
@@ -4607,6 +5006,31 @@ function formatFoodDelta(
     return `-${renderTroops(foodDeficit)}/tick`;
   }
   return `+${renderTroops(foodSurplus)}/tick`;
+}
+
+function formatFoodStock(
+  stock: number | undefined,
+  capacity: number | undefined,
+): string {
+  return `${renderTroops(stock ?? 0)} / ${renderTroops(capacity ?? 0)}`;
+}
+
+function formatFoodStockFlow(
+  snapshot: FoundationRuntimeSnapshot | null,
+): string {
+  const delta = snapshot?.player.foodStockDelta ?? 0;
+  const overflow = snapshot?.player.foodStockOverflow ?? 0;
+  if (overflow > 0) {
+    return `${formatSignedFood(delta)}, ${renderTroops(overflow)} lost`;
+  }
+  return formatSignedFood(delta);
+}
+
+function formatSignedFood(value: number): string {
+  if (value < 0) {
+    return `-${renderTroops(Math.abs(value))}`;
+  }
+  return `+${renderTroops(value)}`;
 }
 
 function formatControlValue(value: number, precision: number): string {

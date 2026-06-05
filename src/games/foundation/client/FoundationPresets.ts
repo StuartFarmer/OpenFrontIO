@@ -48,6 +48,8 @@ export type FoundationGameMechanicPresetData = Pick<
   | "tickIntervalMs"
   | "attackRatio"
   | "startingTroops"
+  | "startingFoodStorage"
+  | "baseFoodStorageCapacity"
   | "placementRadius"
   | "foodPerTroop"
   | "maxTroopMultiplier"
@@ -66,6 +68,15 @@ export type FoundationGameMechanicPresetData = Pick<
   | "wildernessFrontCapacity"
   | "wildernessAttackerLossPerTile"
   | "wildernessTilesPerTickMultiplier"
+  | "foodYieldMin"
+  | "foodYieldMax"
+  | "foodYieldK"
+  | "oilYieldMin"
+  | "oilYieldMax"
+  | "oilYieldK"
+  | "metalYieldMin"
+  | "metalYieldMax"
+  | "metalYieldK"
 >;
 
 export type FoundationStoredPreset =
@@ -105,6 +116,8 @@ export const FOUNDATION_GAME_MECHANIC_PRESET_KEYS = [
   "tickIntervalMs",
   "attackRatio",
   "startingTroops",
+  "startingFoodStorage",
+  "baseFoodStorageCapacity",
   "placementRadius",
   "foodPerTroop",
   "maxTroopMultiplier",
@@ -123,6 +136,15 @@ export const FOUNDATION_GAME_MECHANIC_PRESET_KEYS = [
   "wildernessFrontCapacity",
   "wildernessAttackerLossPerTile",
   "wildernessTilesPerTickMultiplier",
+  "foodYieldMin",
+  "foodYieldMax",
+  "foodYieldK",
+  "oilYieldMin",
+  "oilYieldMax",
+  "oilYieldK",
+  "metalYieldMin",
+  "metalYieldMax",
+  "metalYieldK",
 ] as const satisfies readonly (keyof FoundationGameMechanicPresetData)[];
 
 export function loadFoundationPresets(): FoundationStoredPreset[] {

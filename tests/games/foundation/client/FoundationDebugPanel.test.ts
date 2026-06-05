@@ -28,6 +28,10 @@ function snapshot(
       foodSupportedTroops: 163000,
       foodSurplus: 138000,
       foodDeficit: 0,
+      foodStock: 12_000,
+      foodStockCapacity: 20_000,
+      foodStockDelta: 8_000,
+      foodStockOverflow: 7_000,
       troopIncreaseRate: 300,
       exploringTroops: 5000,
     },
@@ -57,6 +61,8 @@ describe("FoundationDebugPanel", () => {
     expect(text).toContain("2.50K");
     expect(text).toContain("16.3K");
     expect(text).toContain("+13.8K/tick");
+    expect(text).toContain("1.20K / 2.00K");
+    expect(text).toContain("+800, 700 lost");
     expect(text).toContain("300/s");
     expect(text).toContain("500");
     expect(text).toContain("Placed player at 128, 128.");
@@ -112,6 +118,10 @@ describe("FoundationDebugPanel", () => {
         foodSupportedTroops: 100000,
         foodSurplus: 75000,
         foodDeficit: 0,
+        foodStock: 0,
+        foodStockCapacity: 20_000,
+        foodStockDelta: 0,
+        foodStockOverflow: 0,
         troopIncreaseRate: 0,
         exploringTroops: 0,
       },

@@ -107,6 +107,10 @@ export interface FoundationUpdateMetrics {
   foodSupportedTroops?: number;
   foodSurplus?: number;
   foodDeficit?: number;
+  foodStock?: number;
+  foodStockCapacity?: number;
+  foodStockDelta?: number;
+  foodStockOverflow?: number;
   exploringTroops?: number;
 }
 

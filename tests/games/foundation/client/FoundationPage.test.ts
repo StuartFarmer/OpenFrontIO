@@ -27,6 +27,20 @@ describe("FoundationPage client tuning", () => {
     vi.restoreAllMocks();
   });
 
+  it("uses the default resource yield profiles", () => {
+    expect(DEFAULT_FOUNDATION_TUNING_SETTINGS).toMatchObject({
+      foodYieldMin: 1,
+      foodYieldMax: 3,
+      foodYieldK: 10,
+      oilYieldMin: 1,
+      oilYieldMax: 1,
+      oilYieldK: 0,
+      metalYieldMin: 1,
+      metalYieldMax: 1,
+      metalYieldK: 0,
+    });
+  });
+
   it("does not auto-generate the map when committing a mechanics-only number", () => {
     const page = document.createElement(
       "foundation-page",

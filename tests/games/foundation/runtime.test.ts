@@ -586,7 +586,7 @@ describe("Foundation runtime", () => {
     expect(result.update.map).toBeUndefined();
   });
 
-  it("does not expose population or food ticking in the MVP snapshot/update", () => {
+  it("exposes food stock without exposing a separate population stock", () => {
     const runtime = createFoundationRuntime({
       map: createFoundationMap({ width: 8, height: 8 }),
     });
@@ -596,11 +596,73 @@ describe("Foundation runtime", () => {
     const after = runtime.snapshot();
 
     expect(before.player).not.toHaveProperty("population");
-    expect(before.player).not.toHaveProperty("food");
     expect(after.player).not.toHaveProperty("population");
-    expect(after.player).not.toHaveProperty("food");
+    expect(before.player.foodStock).toBe(0);
+    expect(before.player.foodStockCapacity).toBe(20_000);
+    expect(after.player.foodStock).toBe(0);
+    expect(after.player.foodStockCapacity).toBe(20_000);
     expect(result.update.metrics).toMatchObject({ pendingTurns: 0 });
     expect(result.update.metrics).not.toHaveProperty("population");
-    expect(result.update.metrics).not.toHaveProperty("food");
+    expect(result.update.metrics).toMatchObject({
+      foodStock: 0,
+      foodStockCapacity: 20_000,
+    });
+  });
+
+  it("adds production, subtracts demand, and clamps food stock to capacity", () => {
+    const map = createFoundationMap({ width: 16, height: 16 });
+    const runtime = createFoundationRuntime({
+      map,
+      parameters: {
+        startingTroops: 10,
+        foodPerTroop: 1,
+        maxTroopMultiplier: 1,
+        maxTroopTileExponent: 0,
+        maxTroopTileScale: 0,
+        maxTroopBase: 100,
+        startingFoodStorage: 0,
+        baseFoodStorageCapacity: 50,
+      },
+    });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(8, 8) }));
+    const update = runtime.advanceTick();
+    const snapshot = runtime.snapshot();
+
+    expect(snapshot.player.foodStock).toBe(50);
+    expect(snapshot.player.foodStockCapacity).toBe(50);
+    expect(snapshot.player.foodStockDelta).toBe(50);
+    expect(snapshot.player.foodStockOverflow).toBe(40);
+    expect(update.metrics).toMatchObject({
+      foodStock: 50,
+      foodStockCapacity: 50,
+      foodStockDelta: 50,
+      foodStockOverflow: 40,
+    });
+  });
+
+  it("draws down food stock when population demand exceeds production", () => {
+    const map = createFoundationMap({ width: 16, height: 16 });
+    const runtime = createFoundationRuntime({
+      map,
+      parameters: {
+        startingTroops: 100,
+        foodPerTroop: 1,
+        maxTroopMultiplier: 1,
+        maxTroopTileExponent: 0,
+        maxTroopTileScale: 0,
+        maxTroopBase: 10,
+        startingFoodStorage: 20,
+        baseFoodStorageCapacity: 50,
+      },
+    });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(8, 8) }));
+    runtime.advanceTick();
+    const snapshot = runtime.snapshot();
+
+    expect(snapshot.player.foodStock).toBe(0);
+    expect(snapshot.player.foodStockDelta).toBe(-20);
+    expect(snapshot.player.foodStockOverflow).toBe(0);
   });
 });

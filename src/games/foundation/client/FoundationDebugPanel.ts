@@ -181,6 +181,15 @@ export class FoundationDebugPanel extends LitElement {
               snapshot?.player.foodDeficit,
             )}
           </dd>
+          <dt>Food stock</dt>
+          <dd>
+            ${formatFoodStock(
+              snapshot?.player.foodStock,
+              snapshot?.player.foodStockCapacity,
+            )}
+          </dd>
+          <dt>Food flow</dt>
+          <dd>${formatFoodStockFlow(snapshot)}</dd>
           <dt>Troop rate</dt>
           <dd>${formatTroopRate(snapshot?.player.troopIncreaseRate)}</dd>
           <dt>Exploring</dt>
@@ -238,6 +247,31 @@ function formatFoodDelta(
     return `-${renderTroops(foodDeficit)}/tick`;
   }
   return `+${renderTroops(foodSurplus)}/tick`;
+}
+
+function formatFoodStock(
+  stock: number | undefined,
+  capacity: number | undefined,
+): string {
+  return `${renderTroops(stock ?? 0)} / ${renderTroops(capacity ?? 0)}`;
+}
+
+function formatFoodStockFlow(
+  snapshot: FoundationRuntimeSnapshot | null,
+): string {
+  const delta = snapshot?.player.foodStockDelta ?? 0;
+  const overflow = snapshot?.player.foodStockOverflow ?? 0;
+  if (overflow > 0) {
+    return `${formatSignedFood(delta)}, ${renderTroops(overflow)} lost`;
+  }
+  return formatSignedFood(delta);
+}
+
+function formatSignedFood(value: number): string {
+  if (value < 0) {
+    return `-${renderTroops(Math.abs(value))}`;
+  }
+  return `+${renderTroops(value)}`;
 }
 
 declare global {

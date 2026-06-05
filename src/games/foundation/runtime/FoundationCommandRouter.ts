@@ -1,8 +1,10 @@
 import {
+  DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
   foodDeficitForPlayer,
   foodDemandForPlayer,
   foodProductionForPlayer,
+  foodStockCapacityForPlayer,
   foodSupportedTroopsForPlayer,
   foodSurplusForPlayer,
   FoundationSimulationParameters,
@@ -225,6 +227,8 @@ function createUpdate(
     Partial<Pick<FoundationUpdateEnvelope, "map">> & { player?: Player },
 ): FoundationUpdateEnvelope {
   const player = options.player ?? state.player;
+  const parameters =
+    state.parameters ?? DEFAULT_FOUNDATION_SIMULATION_PARAMETERS;
   const update: FoundationUpdateEnvelope = {
     moduleId: FOUNDATION_MODULE_ID,
     tick: state.tick,
@@ -233,16 +237,15 @@ function createUpdate(
     metrics: {
       pendingTurns: 0,
       troops: player.troops,
-      troopIncreaseRate: troopIncreaseRate(player, state.parameters),
-      maxTroops: maxTroopsForPlayer(player, state.parameters),
-      foodProduction: foodProductionForPlayer(player, state.parameters),
-      foodDemand: foodDemandForPlayer(player, state.parameters),
-      foodSupportedTroops: foodSupportedTroopsForPlayer(
-        player,
-        state.parameters,
-      ),
-      foodSurplus: foodSurplusForPlayer(player, state.parameters),
-      foodDeficit: foodDeficitForPlayer(player, state.parameters),
+      troopIncreaseRate: troopIncreaseRate(player, parameters),
+      maxTroops: maxTroopsForPlayer(player, parameters),
+      foodProduction: foodProductionForPlayer(player, parameters),
+      foodDemand: foodDemandForPlayer(player, parameters),
+      foodSupportedTroops: foodSupportedTroopsForPlayer(player, parameters),
+      foodSurplus: foodSurplusForPlayer(player, parameters),
+      foodDeficit: foodDeficitForPlayer(player, parameters),
+      foodStock: player.foodStock,
+      foodStockCapacity: foodStockCapacityForPlayer(player, parameters),
       exploringTroops: player.activeExploration?.troops ?? 0,
     },
   };

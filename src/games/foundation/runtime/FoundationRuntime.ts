@@ -1,5 +1,6 @@
 import {
   addTroopGrowth,
+  createEmptyFoundationFoodStockMetrics,
   createFoundationMap,
   createPlayer,
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
@@ -7,12 +8,15 @@ import {
   foodDeficitForPlayer,
   foodDemandForPlayer,
   foodProductionForPlayer,
+  foodStockCapacityForPlayer,
   foodSupportedTroopsForPlayer,
   foodSurplusForPlayer,
+  FoundationFoodStockMetrics,
   FoundationSimulationParameters,
   maxTroopsForPlayer,
   normalizeFoundationSimulationParameters,
   Player,
+  tickFoundationFood,
   tickWildernessExploration,
   troopIncreaseRate,
 } from "../domain";
@@ -56,6 +60,10 @@ export interface FoundationRuntimeSnapshot {
     foodSupportedTroops: number;
     foodSurplus: number;
     foodDeficit: number;
+    foodStock: number;
+    foodStockCapacity: number;
+    foodStockDelta: number;
+    foodStockOverflow: number;
     troopIncreaseRate: number;
     exploringTroops: number;
   };
@@ -66,6 +74,7 @@ export class FoundationRuntime {
   private readonly router: FoundationCommandRouter;
   private parameters: FoundationSimulationParameters;
   private player_: Player;
+  private lastFoodStock: FoundationFoodStockMetrics;
   private tick_ = 0;
   private updateCount_ = 0;
 
@@ -76,7 +85,14 @@ export class FoundationRuntime {
     );
     this.player_ =
       options.player ??
-      createPlayer("player-1", { troops: this.parameters.startingTroops });
+      createPlayer("player-1", {
+        troops: this.parameters.startingTroops,
+        foodStock: this.parameters.startingFoodStorage,
+      });
+    this.lastFoodStock = createEmptyFoundationFoodStockMetrics(
+      this.player_,
+      this.parameters,
+    );
     this.router = new FoundationCommandRouter();
   }
 
@@ -93,6 +109,10 @@ export class FoundationRuntime {
       ...this.parameters,
       ...parameters,
     });
+    this.lastFoodStock = {
+      ...this.lastFoodStock,
+      stockCapacity: foodStockCapacityForPlayer(this.player_, this.parameters),
+    };
   }
 
   snapshot(): FoundationRuntimeSnapshot {
@@ -123,6 +143,13 @@ export class FoundationRuntime {
         ),
         foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
         foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
+        foodStock: this.player_.foodStock,
+        foodStockCapacity: foodStockCapacityForPlayer(
+          this.player_,
+          this.parameters,
+        ),
+        foodStockDelta: this.lastFoodStock.stockDelta,
+        foodStockOverflow: this.lastFoodStock.overflow,
         troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
         exploringTroops: this.player_.activeExploration?.troops ?? 0,
       },
@@ -156,7 +183,9 @@ export class FoundationRuntime {
     this.tick_++;
     this.updateCount_++;
 
-    let nextPlayer = addTroopGrowth(this.player_, this.parameters);
+    const foodTick = tickFoundationFood(this.player_, this.parameters);
+    this.lastFoodStock = foodTick.metrics;
+    let nextPlayer = addTroopGrowth(foodTick.player, this.parameters);
     const explorationTargetTile =
       nextPlayer.activeExploration?.targetTile ?? -1;
     const exploration = tickWildernessExploration(
@@ -219,6 +248,13 @@ export class FoundationRuntime {
       ),
       foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
       foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
+      foodStock: this.player_.foodStock,
+      foodStockCapacity: foodStockCapacityForPlayer(
+        this.player_,
+        this.parameters,
+      ),
+      foodStockDelta: this.lastFoodStock.stockDelta,
+      foodStockOverflow: this.lastFoodStock.overflow,
       exploringTroops: this.player_.activeExploration?.troops ?? 0,
     };
   }

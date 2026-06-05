@@ -37,19 +37,26 @@ export interface Player {
   ownerId: number;
   name: string;
   troops: number;
+  foodStock: number;
   placement: PlayerPlacement | null;
   activeExploration: WildernessExploration | null;
 }
 
 export function createPlayer(
   id: string,
-  options: { ownerId?: number; name?: string; troops?: number } = {},
+  options: {
+    ownerId?: number;
+    name?: string;
+    troops?: number;
+    foodStock?: number;
+  } = {},
 ): Player {
   return {
     id,
     ownerId: options.ownerId ?? 1,
     name: options.name ?? "Player",
     troops: options.troops ?? FOUNDATION_STARTING_TROOPS,
+    foodStock: options.foodStock ?? 0,
     placement: null,
     activeExploration: null,
   };
