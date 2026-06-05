@@ -133,6 +133,9 @@ const FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH = 210;
 const FOUNDATION_CONTEXT_MENU_GAP = 0;
 const FOUNDATION_CONTEXT_MENU_EDGE_GAP = 8;
 const FOUNDATION_BUILDING_TILE_SIZE = 4;
+const FOUNDATION_BUILDING_CENTER_OFFSET = Math.floor(
+  FOUNDATION_BUILDING_TILE_SIZE / 2,
+);
 
 const FOUNDATION_STORAGE_BUILDINGS: readonly FoundationContextMenuItem[] = [
   { id: "grain-silo", label: "Grain Silo", icon: Wheat, meta: "Food" },
@@ -2797,12 +2800,12 @@ export class FoundationPage extends LitElement {
     }
     const map = this.runtime.map();
     const x = clampFoundationNumber(
-      tile.x,
+      tile.x - FOUNDATION_BUILDING_CENTER_OFFSET,
       0,
       Math.max(0, map.width() - FOUNDATION_BUILDING_TILE_SIZE),
     );
     const y = clampFoundationNumber(
-      tile.y,
+      tile.y - FOUNDATION_BUILDING_CENTER_OFFSET,
       0,
       Math.max(0, map.height() - FOUNDATION_BUILDING_TILE_SIZE),
     );

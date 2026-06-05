@@ -18,6 +18,10 @@ import {
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
 } from "../core/game/UserSettings";
+import {
+  isFoundationDynamicsLocation,
+  isFoundationLocation,
+} from "../games/foundation/client/FoundationRoutes";
 import "./AccountModal";
 import { userAuth } from "./Auth";
 import "./ClanModal";
@@ -488,7 +492,7 @@ class Client {
 
     const clientID = generateID();
     const gameID = generateID();
-    const username = this.usernameInput?.getUsername() || genAnonUsername();
+    const username = this.usernameInput?.getUsername() ?? genAnonUsername();
     const clanTag = this.usernameInput?.getClanTag() ?? null;
 
     document.dispatchEvent(
@@ -834,10 +838,9 @@ const isQuickGameTuningSandboxRoute = () =>
   window.location.pathname === "/quick-game-tuning" ||
   window.location.search.includes("quick-game-tuning");
 
-const isFoundationRoute = () =>
-  window.location.pathname === "/foundation" ||
-  window.location.pathname === "/foundation.html" ||
-  window.location.search.includes("foundation");
+const isFoundationDynamicsRoute = () => isFoundationDynamicsLocation();
+
+const isFoundationRoute = () => isFoundationLocation();
 
 const renderHudDemo = () => {
   document.body.innerHTML = "<hud-panel-workbench></hud-panel-workbench>";
@@ -936,8 +939,22 @@ const renderFoundation = async () => {
   document.body.append(document.createElement("foundation-page"));
 };
 
+const renderFoundationDynamics = async () => {
+  await import("../games/foundation/client/FoundationDynamicsPage");
+  removeExistingGameSurfaces();
+  document.body.classList.remove("in-game");
+  document.body.innerHTML = "";
+  document.body.append(document.createElement("foundation-dynamics-page"));
+};
+
 // Initialize the client when the DOM is loaded
 const bootstrap = async () => {
+  if (isFoundationDynamicsRoute()) {
+    await renderFoundationDynamics();
+    installSafariPinchZoomBlocker();
+    return;
+  }
+
   if (isFoundationRoute()) {
     await renderFoundation();
     installSafariPinchZoomBlocker();

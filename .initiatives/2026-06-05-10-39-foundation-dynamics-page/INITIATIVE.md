@@ -60,6 +60,7 @@ The existing codebase already has a generic stock-flow runtime under `src/core/s
 
 Medium-high. The stock-flow domain is well-contained, but introducing React/React Flow into a Lit/Vite codebase adds dependency, bundling, testing, and lifecycle risk. The safest path is to isolate React Flow behind a thin custom element and keep all graph schema, compilation, simulation, and persistence logic in framework-neutral TypeScript.
 
-## Next Step
+## Completion
 
-Use `PLAN.md` for execution sequencing. Do not implement until a wave or ticket is selected for execution.
+Execution completed on 2026-06-05. See `deliverables/DELIVERABLES.md`,
+`waves/done/`, and `tasks/done/` for the completed scope and validation notes.
