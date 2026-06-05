@@ -1,24 +1,6 @@
-import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, query, state } from "lit/decorators.js";
-import {
-  runDynamicsSimulation,
-  SIMPLE_FOOD_STOCK_TEMPLATE,
-  type DynamicsScenario,
-  type DynamicsSystemDefinition,
-  type DynamicsTraceFrame,
-} from "../../../core/systems/dynamics";
-import {
-  deleteFoundationDynamicsSystem,
-  duplicateFoundationDynamicsSystem,
-  EMPTY_FOUNDATION_DYNAMICS_LIBRARY,
-  exportFoundationDynamicsLibrary,
-  loadFoundationDynamicsLibrary,
-  parseFoundationDynamicsLibrary,
-  saveFoundationDynamicsLibrary,
-  upsertFoundationDynamicsScenario,
-  upsertFoundationDynamicsSystem,
-  type FoundationDynamicsLibrary,
-} from "../dynamics";
+import { css, html, LitElement } from "lit";
+import { customElement, query } from "lit/decorators.js";
+import "../../../client/hud/ui";
 import { FoundationDynamicsReactBridge } from "../dynamics/react/FoundationDynamicsReactBridge";
 
 @customElement("foundation-dynamics-page")
@@ -26,188 +8,49 @@ export class FoundationDynamicsPage extends LitElement {
   @query("#react-flow-host")
   private reactFlowHost?: HTMLDivElement;
 
+  @query("#dynamics-left-panel")
+  private dynamicsLeftPanel?: HTMLDivElement;
+
   private reactBridge?: FoundationDynamicsReactBridge;
 
-  @state()
-  private library = loadInitialLibrary();
-
-  @state()
-  private activeSystemId = this.library.systems[0]?.id ?? "";
-
-  @state()
-  private systemNameDraft = this.activeSystem()?.name ?? "";
-
-  @state()
-  private importDraft = "";
-
-  @state()
-  private exportDraft = exportFoundationDynamicsLibrary(this.library);
-
-  @state()
-  private status = "Loaded dynamics workspace.";
-
-  @state()
-  private simulationTickCount = 1;
-
-  @state()
-  private simulationRunning = false;
-
-  private simulationTimer: number | undefined;
-
   render() {
-    const system = this.activeSystem() ?? SIMPLE_FOOD_STOCK_TEMPLATE.system;
-    const scenario = this.activeScenario(system.id);
-    const simulationScenario = {
-      ...scenario,
-      tickCount: Math.max(
-        1,
-        Math.min(scenario.tickCount, this.simulationTickCount),
-      ),
-    };
-    const preview = runDynamicsSimulation(system, simulationScenario);
-    const latestFrame = preview.frames[preview.frames.length - 1];
     return html`
-      <main class="page-shell">
-        <header>
-          <div>
-            <p class="eyebrow">Foundation Dynamics</p>
-            <h1>${system.name}</h1>
+      <main class="app">
+        <aside class="controls" aria-label="Foundation dynamics controls">
+          <div class="brand">
+            <h1>Foundation</h1>
+            <p>Dynamics builder</p>
           </div>
-          <span class="route-chip">/foundation/dynamics</span>
-        </header>
-        <section class="workspace">
-          <aside class="panel">
-            <h2>System</h2>
-            <label class="field">
-              <span>Load system</span>
-              <select data-system-select @change=${this.handleSystemSelect}>
-                ${this.library.systems.map(
-                  (stored) => html`
-                    <option
-                      value=${stored.id}
-                      ?selected=${stored.id === system.id}
-                    >
-                      ${stored.name}
-                    </option>
-                  `,
-                )}
-              </select>
-            </label>
-            <label class="field">
-              <span>System name</span>
-              <input
-                data-system-name
-                .value=${this.systemNameDraft}
-                @input=${this.handleSystemNameInput}
-              />
-            </label>
-            <div class="button-grid">
-              <button data-action="save" @click=${this.saveActiveSystem}>
-                Save
-              </button>
-              <button
-                data-action="duplicate"
-                @click=${this.duplicateActiveSystem}
-              >
-                Duplicate
-              </button>
-              <button data-action="delete" @click=${this.deleteActiveSystem}>
-                Delete
-              </button>
-              <button data-action="reset-template" @click=${this.resetTemplate}>
-                Template
-              </button>
+
+          <div id="dynamics-left-panel" class="dynamics-left-panel"></div>
+        </aside>
+
+        <section class="workspace" aria-label="Foundation dynamics workspace">
+          <header class="statusbar">
+            <div>
+              <strong>/foundation/dynamics</strong>
+              <span>systems builder</span>
             </div>
-            <dl>
-              <dt>Nodes</dt>
-              <dd>${system.nodes.length}</dd>
-              <dt>Edges</dt>
-              <dd>${system.edges.length}</dd>
-              <dt>Ticks</dt>
-              <dd>${scenario.tickCount}</dd>
-              <dt>Current</dt>
-              <dd>T${latestFrame?.tick ?? 0}</dd>
-            </dl>
-            <p class="status" role="status">${this.status}</p>
-          </aside>
-          <section
-            class="canvas-placeholder"
-            aria-label="Dynamics graph canvas"
-          >
-            <div class="formula-strip" data-template-formula>
-              ${FOOD_STOCK_TEMPLATE_FORMULA}
+            <div>
+              <span>React Flow canvas</span>
             </div>
-            <div id="react-flow-host" class="react-flow-host"></div>
-            <div class="node-list">
-              ${system.nodes.map(
-                (node) => html`
-                  <article class="node-card" data-node-type=${node.type}>
-                    <strong>${node.name}</strong>
-                    <span>${node.type}</span>
-                  </article>
-                `,
-              )}
-            </div>
-          </section>
-          <aside class="panel">
-            <h2>Preview</h2>
-            <div class="button-grid">
-              <button data-action="step" @click=${this.stepSimulation}>
-                Step
-              </button>
-              <button data-action="run" @click=${this.runSimulation}>
-                Run
-              </button>
-              <button data-action="pause" @click=${this.pauseSimulation}>
-                Pause
-              </button>
-              <button data-action="reset" @click=${this.resetSimulation}>
-                Reset
-              </button>
-            </div>
-            <dl>
-              <dt>Food stock</dt>
-              <dd>${latestFrame?.stocks.foodStock ?? 0}</dd>
-              <dt>Delta</dt>
-              <dd>${latestFrame?.stockDeltas.foodStock ?? 0}</dd>
-              <dt>Overflow</dt>
-              <dd>${latestFrame?.stockOverflows.foodStock ?? 0}</dd>
-            </dl>
-            <table class="trace-table">
-              <thead>
-                <tr>
-                  <th>Tick</th>
-                  <th>Stock</th>
-                  <th>Delta</th>
-                  <th>Overflow</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${preview.frames
-                  .slice(-6)
-                  .map((frame) => this.renderTraceRow(frame))}
-              </tbody>
-            </table>
-            <label class="field">
-              <span>Export JSON</span>
-              <textarea
-                data-export
-                .value=${this.exportDraft}
-                readonly
-              ></textarea>
-            </label>
-            <label class="field">
-              <span>Import JSON</span>
-              <textarea
-                data-import
-                .value=${this.importDraft}
-                @input=${this.handleImportInput}
-              ></textarea>
-            </label>
-            <button data-action="import" @click=${this.importLibrary}>
-              Import
-            </button>
-          </aside>
+          </header>
+
+          <hud-surface class="map-panel">
+            <hud-surface-header>
+              <div class="panel-head-content">
+                <h2>Dynamics</h2>
+                <span>stock and flow workspace</span>
+              </div>
+            </hud-surface-header>
+            <hud-surface-body class="canvas-frame-host">
+              <div
+                id="react-flow-host"
+                class="react-flow-host"
+                aria-label="Dynamics graph canvas"
+              ></div>
+            </hud-surface-body>
+          </hud-surface>
         </section>
       </main>
     `;
@@ -217,217 +60,43 @@ export class FoundationDynamicsPage extends LitElement {
     this.mountReactBridge();
   }
 
-  protected updated(changedProperties: PropertyValues): void {
-    if (
-      changedProperties.has("library") ||
-      changedProperties.has("activeSystemId")
-    ) {
-      this.updateReactBridge();
-    }
-  }
-
   disconnectedCallback(): void {
-    this.pauseSimulation();
     this.reactBridge?.unmount();
     this.reactBridge = undefined;
     super.disconnectedCallback();
   }
 
-  private activeSystem(): DynamicsSystemDefinition | undefined {
-    return this.library.systems.find(
-      (system) => system.id === this.activeSystemId,
+  private mountReactBridge(): void {
+    if (
+      this.reactFlowHost === undefined ||
+      this.dynamicsLeftPanel === undefined ||
+      this.reactBridge !== undefined
+    ) {
+      return;
+    }
+    this.reactBridge = new FoundationDynamicsReactBridge(
+      this.reactFlowHost,
+      this.dynamicsLeftPanel,
     );
-  }
-
-  private activeScenario(systemId: string): DynamicsScenario {
-    return (
-      this.library.scenarios.find(
-        (scenario) => scenario.systemId === systemId,
-      ) ?? {
-        ...SIMPLE_FOOD_STOCK_TEMPLATE.scenario,
-        systemId,
-      }
-    );
-  }
-
-  private handleSystemSelect(event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    this.activeSystemId = select.value;
-    this.systemNameDraft = this.activeSystem()?.name ?? "";
-    this.resetSimulation();
-    this.status = "Loaded saved system.";
-  }
-
-  private handleSystemNameInput(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    this.systemNameDraft = input.value;
-  }
-
-  private handleImportInput(event: Event) {
-    const input = event.currentTarget as HTMLTextAreaElement;
-    this.importDraft = input.value;
-  }
-
-  private saveActiveSystem() {
-    const system = this.activeSystem();
-    if (system === undefined) {
-      return;
-    }
-    const nextSystem = {
-      ...system,
-      name: this.systemNameDraft.trim() || system.name,
-    };
-    this.library = upsertFoundationDynamicsSystem(this.library, nextSystem);
-    this.persist("Saved system.");
-  }
-
-  private duplicateActiveSystem() {
-    const system = this.activeSystem();
-    if (system === undefined) {
-      return;
-    }
-    this.library = duplicateFoundationDynamicsSystem(this.library, system.id);
-    const duplicate = this.library.systems[this.library.systems.length - 1];
-    this.activeSystemId = duplicate.id;
-    this.systemNameDraft = duplicate.name;
-    this.resetSimulation();
-    this.persist("Duplicated system.");
-  }
-
-  private deleteActiveSystem() {
-    const system = this.activeSystem();
-    if (system === undefined) {
-      return;
-    }
-    this.library = deleteFoundationDynamicsSystem(this.library, system.id);
-    if (this.library.systems.length === 0) {
-      this.library = defaultLibrary();
-    }
-    this.activeSystemId = this.library.systems[0]?.id ?? "";
-    this.systemNameDraft = this.activeSystem()?.name ?? "";
-    this.resetSimulation();
-    this.persist("Deleted system.");
-  }
-
-  private resetTemplate() {
-    this.library = defaultLibrary();
-    this.activeSystemId = SIMPLE_FOOD_STOCK_TEMPLATE.system.id;
-    this.systemNameDraft = SIMPLE_FOOD_STOCK_TEMPLATE.system.name;
-    this.resetSimulation();
-    this.persist("Reset to template.");
-  }
-
-  private importLibrary() {
-    try {
-      this.library = parseFoundationDynamicsLibrary(this.importDraft);
-      this.activeSystemId = this.library.systems[0]?.id ?? "";
-      this.systemNameDraft = this.activeSystem()?.name ?? "";
-      this.resetSimulation();
-      this.persist("Imported library.");
-    } catch (error) {
-      this.status = error instanceof Error ? error.message : "Import failed.";
-    }
-  }
-
-  private persist(status: string) {
-    saveFoundationDynamicsLibrary(this.library);
-    this.exportDraft = exportFoundationDynamicsLibrary(this.library);
-    this.status = status;
-  }
-
-  private stepSimulation() {
-    const system = this.activeSystem();
-    if (system === undefined) {
-      return;
-    }
-    const scenario = this.activeScenario(system.id);
-    this.simulationTickCount = Math.min(
-      scenario.tickCount,
-      this.simulationTickCount + 1,
-    );
-    this.status = `Stepped to T${this.simulationTickCount}.`;
-  }
-
-  private runSimulation() {
-    if (this.simulationRunning) {
-      return;
-    }
-    this.simulationRunning = true;
-    this.status = "Running simulation.";
-    this.simulationTimer = window.setInterval(() => {
-      const system = this.activeSystem();
-      if (system === undefined) {
-        this.pauseSimulation();
-        return;
-      }
-      const scenario = this.activeScenario(system.id);
-      if (this.simulationTickCount >= scenario.tickCount) {
-        this.pauseSimulation();
-        return;
-      }
-      this.simulationTickCount += 1;
-    }, 250);
-  }
-
-  private pauseSimulation() {
-    if (this.simulationTimer !== undefined) {
-      window.clearInterval(this.simulationTimer);
-      this.simulationTimer = undefined;
-    }
-    if (this.simulationRunning) {
-      this.status = "Paused simulation.";
-    }
-    this.simulationRunning = false;
-  }
-
-  private resetSimulation() {
-    this.pauseSimulation();
-    this.simulationTickCount = 1;
-    this.status = "Reset simulation.";
-  }
-
-  private renderTraceRow(frame: DynamicsTraceFrame) {
-    return html`
-      <tr>
-        <td>T${frame.tick}</td>
-        <td>${frame.stocks.foodStock ?? 0}</td>
-        <td>${frame.stockDeltas.foodStock ?? 0}</td>
-        <td>${frame.stockOverflows.foodStock ?? 0}</td>
-      </tr>
-    `;
-  }
-
-  private mountReactBridge() {
-    if (this.reactFlowHost === undefined || this.reactBridge !== undefined) {
-      return;
-    }
-    const system = this.activeSystem() ?? SIMPLE_FOOD_STOCK_TEMPLATE.system;
-    this.reactBridge = new FoundationDynamicsReactBridge(this.reactFlowHost, {
-      system,
-      onSystemChange: (nextSystem) => {
-        this.library = upsertFoundationDynamicsSystem(this.library, nextSystem);
-        this.persist("Updated graph.");
-      },
-    });
-  }
-
-  private updateReactBridge() {
-    const system = this.activeSystem() ?? SIMPLE_FOOD_STOCK_TEMPLATE.system;
-    this.reactBridge?.update({
-      system,
-      onSystemChange: (nextSystem) => {
-        this.library = upsertFoundationDynamicsSystem(this.library, nextSystem);
-        this.persist("Updated graph.");
-      },
-    });
   }
 
   static styles = css`
     :host {
       display: block;
-      min-height: 100vh;
-      color: #17211f;
-      background: #f4f1ea;
+      position: fixed;
+      inset: 0;
+      z-index: 50000;
+      overflow: auto;
+      color-scheme: dark;
+      --bg: #101416;
+      --panel: #181d20;
+      --panel-2: #20262a;
+      --line: #30383d;
+      --text: #e7ecef;
+      --muted: #9daab1;
+      --accent: #7dc8a6;
+      background: var(--bg);
+      color: var(--text);
       font-family:
         Inter,
         ui-sans-serif,
@@ -438,326 +107,943 @@ export class FoundationDynamicsPage extends LitElement {
         sans-serif;
     }
 
-    .page-shell {
+    * {
+      box-sizing: border-box;
+    }
+
+    .app {
+      height: 100vh;
+      min-height: 0;
       display: grid;
-      grid-template-rows: auto 1fr;
-      min-height: 100vh;
+      grid-template-columns: 320px minmax(0, 1fr);
     }
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 20px 24px;
-      border-bottom: 1px solid rgb(20 35 31 / 0.14);
-      background: #fffaf0;
+    .controls {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 20px;
+      overflow: hidden;
+      max-height: 100vh;
     }
 
-    h1,
-    h2,
-    p {
+    .brand {
+      margin-bottom: 22px;
+    }
+
+    .brand h1 {
       margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
     }
 
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    h2 {
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--muted);
       font-size: 14px;
-      font-weight: 700;
     }
 
-    .eyebrow {
-      margin-bottom: 4px;
-      color: #61706a;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
+    .dynamics-left-panel {
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .control-section {
+      display: block;
+      margin-bottom: 14px;
+      --hud-radius: 8px;
+      --hud-surface-header-min-height: 42px;
+      --hud-surface-header-padding: 10px 12px;
+      --hud-surface-body-padding: 12px;
+    }
+
+    .control-section::part(surface) {
+      border: 1px solid rgb(48 56 61 / 0.86);
+      background: rgb(24 29 32 / 0.92);
+    }
+
+    .section-title {
+      color: var(--accent);
+      font-size: 13px;
       letter-spacing: 0;
+      text-transform: uppercase;
     }
 
-    .route-chip {
-      padding: 6px 8px;
-      border: 1px solid rgb(20 35 31 / 0.18);
-      border-radius: 6px;
-      color: #40504b;
-      background: white;
+    .control-copy {
+      display: grid;
+      gap: 6px;
+    }
+
+    .control-copy strong {
+      font-size: 13px;
+    }
+
+    .control-copy span {
+      color: var(--muted);
       font-size: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      line-height: 1.35;
     }
 
     .workspace {
       display: grid;
-      grid-template-columns: 260px minmax(360px, 1fr) 260px;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
       min-height: 0;
+      height: 100vh;
+      padding: 18px;
+      gap: 14px;
     }
 
-    .panel {
-      padding: 16px;
-      border-right: 1px solid rgb(20 35 31 / 0.14);
-      background: #fbf8f0;
-    }
-
-    .panel:last-child {
-      border-right: 0;
-      border-left: 1px solid rgb(20 35 31 / 0.14);
-    }
-
-    dl {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px 12px;
-      margin: 16px 0 0;
+    .statusbar {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--panel);
+      color: var(--muted);
       font-size: 13px;
     }
 
-    dt {
-      color: #61706a;
+    .statusbar div {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
-    dd {
-      margin: 0;
-      font-weight: 700;
+    .statusbar strong {
+      color: var(--text);
     }
 
-    .field {
-      display: grid;
-      gap: 6px;
-      margin-top: 14px;
-      color: #61706a;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid rgb(20 35 31 / 0.18);
-      border-radius: 6px;
-      padding: 8px;
-      color: #17211f;
-      background: white;
-      font: inherit;
-      font-weight: 500;
-    }
-
-    textarea {
-      min-height: 120px;
-      resize: vertical;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 11px;
-    }
-
-    button {
-      border: 1px solid rgb(20 35 31 / 0.18);
-      border-radius: 6px;
-      padding: 8px 10px;
-      color: #17211f;
-      background: white;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .button-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .status {
-      margin-top: 14px;
-      color: #40504b;
-      font-size: 12px;
-    }
-
-    .trace-table {
-      width: 100%;
-      margin-top: 14px;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-
-    .trace-table th,
-    .trace-table td {
-      padding: 6px 4px;
-      border-bottom: 1px solid rgb(20 35 31 / 0.12);
-      text-align: right;
-    }
-
-    .trace-table th:first-child,
-    .trace-table td:first-child {
-      text-align: left;
-    }
-
-    .canvas-placeholder {
+    hud-surface.map-panel {
       min-height: 0;
-      padding: 24px;
-      background: #f4f1ea;
-      overflow: auto;
-    }
-
-    .formula-strip {
-      margin-bottom: 12px;
-      padding: 10px 12px;
-      border: 1px solid rgb(20 35 31 / 0.14);
-      border-radius: 6px;
-      color: #40504b;
-      background: #fffdf7;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .react-flow-host {
-      height: 420px;
-      min-height: 320px;
-      margin-bottom: 16px;
-      border: 1px solid rgb(20 35 31 / 0.16);
-      border-radius: 6px;
-      background: #fffdf7;
-      overflow: hidden;
-    }
-
-    .foundation-dynamics-react-editor {
+      height: 100%;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
+      --hud-radius: 8px;
+      --hud-surface-header-min-height: 50px;
+      --hud-surface-header-padding: 12px 14px;
+      --hud-surface-body-padding: 0;
+    }
+
+    hud-surface.map-panel::part(surface) {
+      display: grid;
+      min-height: 0;
+      height: 100%;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .panel-head-content {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-head-content h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .panel-head-content span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .canvas-frame-host {
+      display: block;
+      min-height: 0;
       height: 100%;
     }
 
-    .foundation-dynamics-editor-body {
+    .canvas-frame-host::part(body) {
+      display: block;
+      min-height: 0;
+      height: 100%;
+      padding: 0;
+    }
+
+    .react-flow-host {
+      min-height: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+      background: #111719;
+      overflow: hidden;
+    }
+
+    .foundation-dynamics-react-shell {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 180px;
+      grid-template-rows: minmax(320px, 1fr) auto;
+      width: 100%;
+      height: 100%;
       min-height: 0;
     }
 
-    .foundation-dynamics-palette {
+    .foundation-dynamics-flow {
+      min-height: 0;
+      position: relative;
+    }
+
+    .react-flow {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      direction: ltr;
+      z-index: 0;
+      --xy-edge-stroke-default: rgb(125 200 166);
+      --xy-edge-stroke-width-default: 2;
+      --xy-edge-stroke-selected-default: rgb(230 191 99);
+      --xy-edge-label-background-color-default: var(--panel);
+      --xy-edge-label-color-default: var(--text);
+    }
+
+    .react-flow__background {
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .react-flow__container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
+
+    .react-flow__renderer,
+    .react-flow__pane,
+    .react-flow__viewport,
+    .react-flow__selectionpane,
+    .react-flow__edges,
+    .react-flow__nodes {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
+
+    .react-flow__viewport {
+      transform-origin: 0 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .react-flow__renderer {
+      z-index: 4;
+    }
+
+    .react-flow__pane,
+    .react-flow__selectionpane {
+      z-index: 1;
+      touch-action: none;
+    }
+
+    .react-flow__edges {
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .react-flow .react-flow__edges {
+      position: absolute;
+    }
+
+    .react-flow .react-flow__edges svg {
+      position: absolute;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .react-flow__edge {
+      pointer-events: visibleStroke;
+    }
+
+    .react-flow__edge-path {
+      stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+      stroke-width: var(
+        --xy-edge-stroke-width,
+        var(--xy-edge-stroke-width-default)
+      );
+      fill: none;
+    }
+
+    .react-flow__edge.selected .react-flow__edge-path,
+    .react-flow__edge:focus .react-flow__edge-path,
+    .react-flow__edge:focus-visible .react-flow__edge-path {
+      stroke: var(--xy-edge-stroke-selected-default);
+      stroke-width: 3;
+    }
+
+    .react-flow__arrowhead polyline {
+      stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+    }
+
+    .react-flow__arrowhead polyline.arrowclosed {
+      fill: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+    }
+
+    .react-flow__edgelabel-renderer {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .react-flow__panel {
+      position: absolute;
+      z-index: 5;
+      margin: 15px;
+    }
+
+    .react-flow__panel.top {
+      top: 0;
+    }
+
+    .react-flow__panel.left {
+      left: 0;
+    }
+
+    .react-flow__edge-text {
+      fill: var(--xy-edge-label-color-default);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .react-flow__edge-textbg {
+      fill: var(--xy-edge-label-background-color-default);
+    }
+
+    .react-flow__node {
+      position: absolute;
+      transform-origin: 0 0;
+      pointer-events: all;
+      visibility: visible;
+      user-select: none;
+      box-sizing: border-box;
+    }
+
+    .react-flow__handle {
+      position: absolute;
+      pointer-events: all;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgb(16 20 22);
+      border-radius: 999px;
+      background: rgb(157 170 177);
+      cursor: crosshair;
+      box-shadow:
+        0 0 0 2px rgb(157 170 177 / 0.2),
+        0 3px 10px rgb(0 0 0 / 0.3);
+      z-index: 4;
+    }
+
+    .react-flow__handle:hover,
+    .react-flow__handle.valid {
+      background: rgb(125 200 166);
+      box-shadow:
+        0 0 0 4px rgb(125 200 166 / 0.3),
+        0 3px 10px rgb(0 0 0 / 0.3);
+    }
+
+    .react-flow__handle-left {
+      left: 0;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .react-flow__handle-right {
+      top: 50%;
+      right: 0;
+      transform: translate(50%, -50%);
+    }
+
+    .foundation-dynamics-handle--output.react-flow__handle-right {
+      transform: translate(50%, -50%);
+    }
+
+    .react-flow__controls {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 5;
+      box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+    }
+
+    .react-flow__controls-button {
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    .foundation-dynamics-sidebar {
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      min-height: 0;
+      color: var(--text);
+    }
+
+    .foundation-dynamics-sidebar-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .foundation-dynamics-sidebar-actions button,
+    .foundation-dynamics-sidebar-tabs button,
+    .foundation-dynamics-sidebar-card-header button {
+      min-height: 28px;
+      border: 1px solid rgb(157 170 177 / 0.32);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .foundation-dynamics-sidebar-actions button:hover,
+    .foundation-dynamics-sidebar-tabs button:hover,
+    .foundation-dynamics-sidebar-tabs button.is-active {
+      border-color: rgb(125 200 166 / 0.72);
+      background: rgb(30 47 42);
+    }
+
+    .foundation-dynamics-sidebar-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .foundation-dynamics-sidebar-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .foundation-dynamics-sidebar-list > em {
+      color: var(--muted);
+      font-size: 12px;
+      font-style: normal;
+    }
+
+    .foundation-dynamics-sidebar-card {
+      display: grid;
+      gap: 9px;
+      border: 1px solid rgb(157 170 177 / 0.16);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgb(16 20 22 / 0.58);
+    }
+
+    .foundation-dynamics-sidebar-card-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .foundation-dynamics-sidebar-card-header div {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .foundation-dynamics-sidebar-card-header strong {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .foundation-dynamics-sidebar-card-header span {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .foundation-dynamics-sidebar-card-header button {
+      flex: 0 0 auto;
+      border-color: rgb(222 120 107 / 0.62);
+      background: rgb(84 33 32 / 0.72);
+      color: rgb(255 210 205);
+    }
+
+    .foundation-dynamics-sidebar-card-header button:hover {
+      background: rgb(116 41 38 / 0.86);
+    }
+
+    .foundation-dynamics-sidebar-card label {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .foundation-dynamics-sidebar-card input,
+    .foundation-dynamics-sidebar-card select,
+    .foundation-dynamics-sidebar-card textarea {
+      width: 100%;
+      border: 1px solid rgb(157 170 177 / 0.28);
+      border-radius: 6px;
+      padding: 7px 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      text-transform: none;
+    }
+
+    .foundation-dynamics-sidebar-card textarea {
+      min-height: 76px;
+      resize: vertical;
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+      line-height: 1.35;
+    }
+
+    .foundation-dynamics-slider-row,
+    .foundation-dynamics-action-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .foundation-dynamics-action-row {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      align-items: end;
+    }
+
+    .foundation-dynamics-action-row button {
+      min-height: 32px;
+      border: 1px solid rgb(125 200 166 / 0.5);
+      border-radius: 6px;
+      padding: 6px 9px;
+      background: rgb(30 47 42);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .foundation-dynamics-action-row button:hover {
+      border-color: rgb(125 200 166 / 0.86);
+      background: rgb(37 61 53);
+    }
+
+    .foundation-dynamics-action-status {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .foundation-dynamics-inspector-inputs {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      padding: 8px;
-      border-bottom: 1px solid rgb(20 35 31 / 0.12);
-      background: #fbf8f0;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11px;
     }
 
-    .foundation-dynamics-palette button {
-      padding: 6px 8px;
+    .foundation-dynamics-inspector-inputs span {
+      width: 100%;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .foundation-dynamics-inspector-connections {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .foundation-dynamics-inspector-connections span {
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .foundation-dynamics-inspector-inputs code,
+    .foundation-dynamics-inspector-inputs em,
+    .foundation-dynamics-inspector-connections code,
+    .foundation-dynamics-inspector-connections em {
+      border: 1px solid rgb(157 170 177 / 0.2);
+      border-radius: 999px;
+      padding: 3px 7px;
+      background: rgb(16 20 22 / 0.72);
+      color: var(--text);
+      font-style: normal;
+    }
+
+    .foundation-dynamics-simulator {
+      border-top: 1px solid var(--line);
+      padding: 12px 14px;
+      background: rgb(24 29 32 / 0.96);
+    }
+
+    .foundation-dynamics-sim-panel {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      border: 1px solid rgb(157 170 177 / 0.14);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgb(16 20 22 / 0.46);
+    }
+
+    .foundation-dynamics-sim-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .foundation-dynamics-sim-header div {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .foundation-dynamics-sim-header strong {
+      font-size: 13px;
+    }
+
+    .foundation-dynamics-sim-header span {
+      color: var(--muted);
       font-size: 12px;
+    }
+
+    .foundation-dynamics-sim-controls button {
+      min-height: 28px;
+      border: 1px solid rgb(157 170 177 / 0.32);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .foundation-dynamics-sim-controls button:hover {
+      border-color: rgb(125 200 166 / 0.72);
+      background: rgb(48 56 61);
+    }
+
+    .foundation-dynamics-chart-wrap {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+      gap: 12px;
+      align-items: center;
+      min-height: 260px;
+    }
+
+    .foundation-dynamics-chart-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .foundation-dynamics-chart-tabs button {
+      min-height: 26px;
+      border: 1px solid rgb(157 170 177 / 0.28);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgb(16 20 22 / 0.72);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .foundation-dynamics-chart-tabs button:hover,
+    .foundation-dynamics-chart-tabs button.is-active {
+      border-color: rgb(125 200 166 / 0.72);
+      background: rgb(30 47 42);
+      color: var(--text);
+    }
+
+    .foundation-dynamics-chart-tabs span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .foundation-dynamics-chart {
+      width: 100%;
+      height: 260px;
+      border: 1px solid rgb(157 170 177 / 0.16);
+      border-radius: 6px;
+      background: rgb(16 20 22);
+    }
+
+    .foundation-dynamics-chart-grid {
+      stroke: rgb(157 170 177 / 0.14);
+      stroke-width: 1;
+    }
+
+    .foundation-dynamics-chart-axis {
+      stroke: rgb(157 170 177 / 0.28);
+      stroke-width: 1;
+    }
+
+    .foundation-dynamics-chart-label {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .foundation-dynamics-chart-tick {
+      fill: rgb(157 170 177 / 0.78);
+      font-size: 10px;
+    }
+
+    .foundation-dynamics-chart-legend {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .foundation-dynamics-chart-legend span {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+
+    .foundation-dynamics-chart-legend i {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      display: inline-block;
+      flex: 0 0 auto;
     }
 
     .foundation-dynamics-node {
       display: grid;
-      gap: 4px;
-      min-width: 120px;
-      padding: 8px;
-      border: 1px solid rgb(20 35 31 / 0.2);
+      gap: 5px;
+      position: relative;
+      isolation: isolate;
+      min-width: 150px;
+      max-width: 230px;
+      padding: 12px 14px;
+      border: 1px solid rgb(125 200 166 / 0.52);
       border-radius: 6px;
-      background: white;
-      color: #17211f;
-      box-shadow: 0 1px 2px rgb(20 35 31 / 0.08);
+      background: rgb(24 29 32 / 0.96);
+      color: var(--text);
+      box-shadow: 0 8px 24px rgb(0 0 0 / 0.24);
+      overflow: visible;
+    }
+
+    .foundation-dynamics-node > :not(.react-flow__handle) {
+      position: relative;
+      z-index: 2;
+    }
+
+    .foundation-dynamics-node > .react-flow__handle {
+      position: absolute;
+      z-index: 4;
+    }
+
+    .foundation-dynamics-node--input {
+      border: 0;
+      background: transparent;
+      padding-right: 34px;
+    }
+
+    .foundation-dynamics-node--operator {
+      border: 0;
+      background: transparent;
+      padding-left: 32px;
+      padding-right: 36px;
+    }
+
+    .foundation-dynamics-node--input::before,
+    .foundation-dynamics-node--input::after,
+    .foundation-dynamics-node--operator::before,
+    .foundation-dynamics-node--operator::after {
+      position: absolute;
+      pointer-events: none;
+      content: "";
+    }
+
+    .foundation-dynamics-node--input::after,
+    .foundation-dynamics-node--operator::after {
+      inset: -1px;
+      z-index: 0;
+    }
+
+    .foundation-dynamics-node--input::before,
+    .foundation-dynamics-node--operator::before {
+      inset: 1px;
+      z-index: 1;
+    }
+
+    .foundation-dynamics-node--input::after {
+      background: rgb(92 173 255 / 0.86);
+      clip-path: polygon(
+        0 0,
+        calc(100% - 24px) 0,
+        100% 50%,
+        calc(100% - 24px) 100%,
+        0 100%
+      );
+    }
+
+    .foundation-dynamics-node--input::before {
+      background: linear-gradient(135deg, rgb(22 38 52), rgb(19 30 39));
+      clip-path: polygon(
+        0 0,
+        calc(100% - 24px) 0,
+        100% 50%,
+        calc(100% - 24px) 100%,
+        0 100%
+      );
+    }
+
+    .foundation-dynamics-node--operator::after {
+      background: rgb(230 191 99 / 0.9);
+      clip-path: polygon(
+        0 0,
+        calc(100% - 28px) 0,
+        100% 50%,
+        calc(100% - 28px) 100%,
+        0 100%,
+        24px 50%
+      );
+    }
+
+    .foundation-dynamics-node--operator::before {
+      background: linear-gradient(135deg, rgb(54 44 22), rgb(31 29 22));
+      clip-path: polygon(
+        0 0,
+        calc(100% - 28px) 0,
+        100% 50%,
+        calc(100% - 28px) 100%,
+        0 100%,
+        24px 50%
+      );
+    }
+
+    .foundation-dynamics-node--sink {
+      min-width: 190px;
+      border: 2px solid rgb(222 120 107 / 0.9);
+      border-radius: 50% / 18px;
+      background:
+        linear-gradient(rgb(33 24 24), rgb(33 24 24)) padding-box,
+        linear-gradient(135deg, rgb(222 120 107), rgb(125 200 166)) border-box;
+      box-shadow:
+        inset 0 0 0 2px rgb(222 120 107 / 0.22),
+        0 8px 24px rgb(0 0 0 / 0.24);
+    }
+
+    .foundation-dynamics-node--sink::before,
+    .foundation-dynamics-node--sink::after {
+      position: absolute;
+      left: 9px;
+      right: 9px;
+      height: 20px;
+      border: 2px solid rgb(222 120 107 / 0.38);
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .foundation-dynamics-node--sink::before {
+      top: -2px;
+      background: rgb(45 28 28);
+    }
+
+    .foundation-dynamics-node--sink::after {
+      bottom: -2px;
+      border-top: 0;
+    }
+
+    .foundation-dynamics-node-kind {
+      width: fit-content;
+      border: 1px solid rgb(157 170 177 / 0.24);
+      border-radius: 999px;
+      padding: 2px 6px;
+      color: var(--muted);
+      background: rgb(16 20 22 / 0.72);
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .foundation-dynamics-node strong {
+      font-size: 12px;
     }
 
     .foundation-dynamics-node span {
-      color: #61706a;
+      color: var(--muted);
       font-size: 11px;
     }
 
-    .foundation-dynamics-inspector {
-      display: grid;
-      align-content: start;
-      gap: 10px;
-      padding: 10px;
-      border-left: 1px solid rgb(20 35 31 / 0.12);
-      background: #fbf8f0;
-      font-size: 12px;
-    }
-
-    .foundation-dynamics-inspector label {
-      display: grid;
-      gap: 4px;
-      color: #61706a;
-      font-weight: 700;
-    }
-
-    .foundation-dynamics-inspector .inline-field {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .foundation-dynamics-inspector input,
-    .foundation-dynamics-inspector select {
-      padding: 6px;
-      font-size: 12px;
-    }
-
-    .node-id {
-      color: #61706a;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 11px;
-    }
-
-    .node-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
-      align-content: start;
-    }
-
-    .node-card {
-      display: grid;
-      gap: 8px;
-      min-height: 72px;
-      padding: 12px;
-      border: 1px solid rgb(20 35 31 / 0.16);
-      border-radius: 6px;
-      background: #fffdf7;
-      box-shadow: 0 1px 2px rgb(20 35 31 / 0.08);
-    }
-
-    .node-card span {
-      color: #61706a;
-      font-size: 12px;
+    .foundation-dynamics-node code {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text);
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+      font-size: 10px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     @media (max-width: 920px) {
-      .workspace {
+      .app {
         grid-template-columns: 1fr;
       }
 
-      .panel,
-      .panel:last-child {
+      .controls {
+        max-height: none;
         border-right: 0;
-        border-left: 0;
-        border-bottom: 1px solid rgb(20 35 31 / 0.14);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .workspace {
+        min-height: 70vh;
       }
     }
   `;
 }
-
-function loadInitialLibrary(): FoundationDynamicsLibrary {
-  const loaded = loadFoundationDynamicsLibrary();
-  return loaded.systems.length > 0 ? loaded : defaultLibrary();
-}
-
-function defaultLibrary(): FoundationDynamicsLibrary {
-  return upsertFoundationDynamicsScenario(
-    upsertFoundationDynamicsSystem(
-      EMPTY_FOUNDATION_DYNAMICS_LIBRARY,
-      SIMPLE_FOOD_STOCK_TEMPLATE.system,
-    ),
-    SIMPLE_FOOD_STOCK_TEMPLATE.scenario,
-  );
-}
-
-const FOOD_STOCK_TEMPLATE_FORMULA =
-  "foodStock = clamp(foodStock + foodProduction - foodDemand, 0, foodStockCapacity)";
 
 declare global {
   interface HTMLElementTagNameMap {

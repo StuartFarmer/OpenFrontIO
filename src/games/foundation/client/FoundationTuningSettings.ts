@@ -1,14 +1,24 @@
 import {
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
-  FoundationElevationPreset,
-  FoundationSimulationParameters,
-  FoundationWorldEngineMapConfig,
+  DEFAULT_WORLD_ENGINE_TERRAIN_PALETTE,
+  WORLD_ENGINE_TERRAIN_COLOR_GROUPS,
   normalizeFoundationSimulationParameters,
   normalizeFoundationWorldEngineMapConfig,
+  normalizeWorldEngineTerrainPalette,
+  type FoundationElevationPreset,
+  type FoundationSimulationParameters,
+  type FoundationWorldEngineMapConfig,
+  type WorldEngineTerrainColorDefinition,
+  type WorldEngineTerrainColorGroup,
+  type WorldEngineTerrainPalette,
 } from "../domain";
 
 export type FoundationMapGenerator = "foundation" | "world-engine";
+export type FoundationTerrainPalette = WorldEngineTerrainPalette;
+export type FoundationTerrainColorDefinition =
+  WorldEngineTerrainColorDefinition;
+export type FoundationTerrainColorGroup = WorldEngineTerrainColorGroup;
 
 export interface FoundationTuningSettings
   extends FoundationSimulationParameters, FoundationWorldEngineMapConfig {
@@ -26,9 +36,16 @@ export interface FoundationTuningSettings
   metalYieldMin: number;
   metalYieldMax: number;
   metalYieldK: number;
+  terrainPalette: FoundationTerrainPalette;
 }
 
 export const FOUNDATION_TUNING_STORAGE_KEY = "foundation.tuning.v1";
+
+export const FOUNDATION_TERRAIN_COLOR_GROUPS: readonly FoundationTerrainColorGroup[] =
+  WORLD_ENGINE_TERRAIN_COLOR_GROUPS;
+
+export const DEFAULT_FOUNDATION_TERRAIN_PALETTE: FoundationTerrainPalette =
+  DEFAULT_WORLD_ENGINE_TERRAIN_PALETTE;
 
 export const DEFAULT_FOUNDATION_TUNING_SETTINGS: FoundationTuningSettings = {
   mapGenerator: "world-engine",
@@ -45,6 +62,7 @@ export const DEFAULT_FOUNDATION_TUNING_SETTINGS: FoundationTuningSettings = {
   metalYieldMin: 1,
   metalYieldMax: 1,
   metalYieldK: 0,
+  terrainPalette: DEFAULT_FOUNDATION_TERRAIN_PALETTE,
   ...DEFAULT_FOUNDATION_WORLD_ENGINE_MAP_CONFIG,
   ...DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
 };
@@ -180,7 +198,14 @@ export function normalizeFoundationTuningSettings(
       0,
       30,
     ),
+    terrainPalette: normalizeFoundationTerrainPalette(settings.terrainPalette),
   };
+}
+
+export function normalizeFoundationTerrainPalette(
+  palette: Partial<FoundationTerrainPalette> | undefined,
+): FoundationTerrainPalette {
+  return normalizeWorldEngineTerrainPalette(palette);
 }
 
 function clampNumber(

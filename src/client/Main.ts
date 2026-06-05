@@ -39,7 +39,6 @@ import { GameModeSelector } from "./GameModeSelector";
 import { GameStartingModal } from "./GameStartingModal";
 import "./GoogleAdElement";
 import "./HelpModal";
-import "./HomepagePromos";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinLobbyModal } from "./JoinLobbyModal";
 import "./LangSelector";
@@ -70,11 +69,6 @@ import { incrementGamesPlayed, translateText } from "./Utils";
 import { installSafariPinchZoomBlocker } from "./utilities/DisableSafariPinchZoom";
 import { createQuickGameStartInfo } from "./utilities/QuickGame";
 
-import "./components/DesktopNavBar";
-import "./components/Footer";
-import "./components/MainLayout";
-import "./components/MobileNavBar";
-import "./components/PlayPage";
 import "./components/RankedModal";
 import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
@@ -947,6 +941,17 @@ const renderFoundationDynamics = async () => {
   document.body.append(document.createElement("foundation-dynamics-page"));
 };
 
+const loadLandingShellComponents = async () => {
+  await Promise.all([
+    import("./HomepagePromos"),
+    import("./components/DesktopNavBar"),
+    import("./components/Footer"),
+    import("./components/MainLayout"),
+    import("./components/MobileNavBar"),
+    import("./components/PlayPage"),
+  ]);
+};
+
 // Initialize the client when the DOM is loaded
 const bootstrap = async () => {
   if (isFoundationDynamicsRoute()) {
@@ -1019,6 +1024,7 @@ const bootstrap = async () => {
   // on iOS and can softlock the HUD. See issue #2330.
   installSafariPinchZoomBlocker();
 
+  await loadLandingShellComponents();
   new Client().initialize();
   initLayout();
   initNavigation();

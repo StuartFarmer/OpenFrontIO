@@ -90,6 +90,40 @@ export interface FoundationWorldEngineLayers {
 
 type Color = readonly [r: number, g: number, b: number];
 
+export type WorldEngineTerrainPalette = Record<string, string>;
+
+export interface WorldEngineTerrainColorDefinition {
+  key: string;
+  label: string;
+  defaultHex: string;
+}
+
+export interface WorldEngineTerrainColorGroup {
+  id: string;
+  label: string;
+  colors: readonly WorldEngineTerrainColorDefinition[];
+}
+
+interface ResolvedWorldEngineTerrainColors {
+  oceanShallow: Color;
+  oceanShelf: Color;
+  oceanDeep: Color;
+  oceanAbyss: Color;
+  oceanWarm: Color;
+  oceanCold: Color;
+  lake: Color;
+  riverWeak: Color;
+  riverStrong: Color;
+  grassland: Color;
+  coast: Color;
+  landDry: Color;
+  landWet: Color;
+  landWarmDry: Color;
+  landCold: Color;
+  biomes: readonly Color[];
+  altitudeStops: readonly (readonly [number, Color])[];
+}
+
 const ELEVATION_STOPS: readonly (readonly [number, Color])[] = [
   [0, [13, 45, 72]],
   [0.28, [38, 78, 92]],
@@ -137,6 +171,232 @@ const WORLD_ENGINE_ALTITUDE_STOPS: readonly (readonly [number, Color])[] = [
   [0.88, [143, 134, 126]],
   [1, [226, 230, 222]],
 ];
+
+const WORLD_ENGINE_BIOME_LABELS = [
+  "Ocean fallback",
+  "Ice",
+  "Cold scrub",
+  "Cold wetland",
+  "Cool dryland",
+  "Cool grassland",
+  "Cool forest",
+  "Desert",
+  "Temperate grassland",
+  "Temperate forest",
+  "Savanna",
+  "Warm woodland",
+  "Rainforest",
+] as const;
+
+export const WORLD_ENGINE_TERRAIN_COLOR_GROUPS: readonly WorldEngineTerrainColorGroup[] =
+  [
+    {
+      id: "ocean",
+      label: "Ocean",
+      colors: [
+        worldEngineColorDefinition(
+          "ocean-shallow",
+          "Shallow water",
+          WORLD_ENGINE_OCEAN_SHALLOW,
+        ),
+        worldEngineColorDefinition(
+          "ocean-shelf",
+          "Continental shelf",
+          WORLD_ENGINE_OCEAN_SHELF,
+        ),
+        worldEngineColorDefinition(
+          "ocean-deep",
+          "Deep water",
+          WORLD_ENGINE_OCEAN_DEEP,
+        ),
+        worldEngineColorDefinition(
+          "ocean-abyss",
+          "Abyss water",
+          WORLD_ENGINE_OCEAN_ABYSS,
+        ),
+        worldEngineColorDefinition(
+          "ocean-warm",
+          "Warm shallow tint",
+          WORLD_ENGINE_OCEAN_WARM,
+        ),
+        worldEngineColorDefinition(
+          "ocean-cold",
+          "Cold water tint",
+          WORLD_ENGINE_OCEAN_COLD,
+        ),
+      ],
+    },
+    {
+      id: "freshwater",
+      label: "Fresh Water",
+      colors: [
+        worldEngineColorDefinition("lake", "Lake", WORLD_ENGINE_LAKE),
+        worldEngineColorDefinition(
+          "river-weak",
+          "Weak river",
+          WORLD_ENGINE_RIVER_WEAK,
+        ),
+        worldEngineColorDefinition(
+          "river-strong",
+          "Strong river",
+          WORLD_ENGINE_RIVER_STRONG,
+        ),
+      ],
+    },
+    {
+      id: "biomes",
+      label: "Biomes",
+      colors: WORLD_ENGINE_BIOME_COLORS.map((color, index) =>
+        worldEngineColorDefinition(
+          `biome-${index}`,
+          WORLD_ENGINE_BIOME_LABELS[index] ?? `Biome ${index}`,
+          color,
+        ),
+      ),
+    },
+    {
+      id: "land-modifiers",
+      label: "Land Modifiers",
+      colors: [
+        worldEngineColorDefinition(
+          "grassland",
+          "Grassland fallback",
+          WORLD_ENGINE_GRASSLAND,
+        ),
+        worldEngineColorDefinition("coast", "Coast tint", WORLD_ENGINE_COAST),
+        worldEngineColorDefinition(
+          "land-dry",
+          "Dry tint",
+          WORLD_ENGINE_LAND_DRY,
+        ),
+        worldEngineColorDefinition(
+          "land-wet",
+          "Wet tint",
+          WORLD_ENGINE_LAND_WET,
+        ),
+        worldEngineColorDefinition(
+          "land-warm-dry",
+          "Warm dry tint",
+          WORLD_ENGINE_LAND_WARM_DRY,
+        ),
+        worldEngineColorDefinition(
+          "land-cold",
+          "Cold land tint",
+          WORLD_ENGINE_LAND_COLD,
+        ),
+      ],
+    },
+    {
+      id: "altitude",
+      label: "Altitude Ramp",
+      colors: WORLD_ENGINE_ALTITUDE_STOPS.map(([value, color]) =>
+        worldEngineColorDefinition(
+          `altitude-${value}`,
+          `Altitude ${formatWorldEngineStop(value)}`,
+          color,
+        ),
+      ),
+    },
+  ];
+
+export const DEFAULT_WORLD_ENGINE_TERRAIN_PALETTE: WorldEngineTerrainPalette =
+  Object.fromEntries(
+    WORLD_ENGINE_TERRAIN_COLOR_GROUPS.flatMap((group) =>
+      group.colors.map((color) => [color.key, color.defaultHex]),
+    ),
+  );
+
+export function normalizeWorldEngineTerrainPalette(
+  palette: Partial<WorldEngineTerrainPalette> | undefined,
+): WorldEngineTerrainPalette {
+  const normalized: WorldEngineTerrainPalette = {};
+  for (const group of WORLD_ENGINE_TERRAIN_COLOR_GROUPS) {
+    for (const color of group.colors) {
+      normalized[color.key] = normalizeHexColor(
+        palette?.[color.key],
+        color.defaultHex,
+      );
+    }
+  }
+  return normalized;
+}
+
+function worldEngineTerrainColorsFromPalette(
+  palette: Partial<WorldEngineTerrainPalette> | undefined,
+): ResolvedWorldEngineTerrainColors {
+  const normalized = normalizeWorldEngineTerrainPalette(palette);
+  const color = (key: string, fallback: Color): Color =>
+    hexToWorldEngineColor(normalized[key], fallback);
+  return {
+    oceanShallow: color("ocean-shallow", WORLD_ENGINE_OCEAN_SHALLOW),
+    oceanShelf: color("ocean-shelf", WORLD_ENGINE_OCEAN_SHELF),
+    oceanDeep: color("ocean-deep", WORLD_ENGINE_OCEAN_DEEP),
+    oceanAbyss: color("ocean-abyss", WORLD_ENGINE_OCEAN_ABYSS),
+    oceanWarm: color("ocean-warm", WORLD_ENGINE_OCEAN_WARM),
+    oceanCold: color("ocean-cold", WORLD_ENGINE_OCEAN_COLD),
+    lake: color("lake", WORLD_ENGINE_LAKE),
+    riverWeak: color("river-weak", WORLD_ENGINE_RIVER_WEAK),
+    riverStrong: color("river-strong", WORLD_ENGINE_RIVER_STRONG),
+    grassland: color("grassland", WORLD_ENGINE_GRASSLAND),
+    coast: color("coast", WORLD_ENGINE_COAST),
+    landDry: color("land-dry", WORLD_ENGINE_LAND_DRY),
+    landWet: color("land-wet", WORLD_ENGINE_LAND_WET),
+    landWarmDry: color("land-warm-dry", WORLD_ENGINE_LAND_WARM_DRY),
+    landCold: color("land-cold", WORLD_ENGINE_LAND_COLD),
+    biomes: WORLD_ENGINE_BIOME_COLORS.map((fallback, index) =>
+      color(`biome-${index}`, fallback),
+    ),
+    altitudeStops: WORLD_ENGINE_ALTITUDE_STOPS.map(([value, fallback]) => [
+      value,
+      color(`altitude-${value}`, fallback),
+    ]),
+  };
+}
+
+function worldEngineColorDefinition(
+  key: string,
+  label: string,
+  color: Color,
+): WorldEngineTerrainColorDefinition {
+  return { key, label, defaultHex: rgbToHex(color) };
+}
+
+function formatWorldEngineStop(value: number): string {
+  return value.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function rgbToHex([r, g, b]: Color): string {
+  return `#${hexByte(r)}${hexByte(g)}${hexByte(b)}`;
+}
+
+function hexByte(value: number): string {
+  return Math.round(Math.max(0, Math.min(255, value)))
+    .toString(16)
+    .padStart(2, "0");
+}
+
+function normalizeHexColor(
+  value: string | undefined,
+  fallback: string,
+): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed.toLowerCase() : fallback;
+}
+
+function hexToWorldEngineColor(
+  value: string | undefined,
+  fallback: Color,
+): Color {
+  const hex = normalizeHexColor(value, rgbToHex(fallback));
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
 
 export function createWorldEngineFoundationMap(
   config: Partial<FoundationWorldEngineMapConfig> = {},
@@ -999,9 +1259,11 @@ export function buildWorldEngineTerrainColors(
     | "riverWeakThreshold"
     | "riverStrongThreshold"
   >,
+  palette?: Partial<WorldEngineTerrainPalette>,
 ): Uint8Array {
   const pixels = new Uint8Array(elevation.length * 4);
   const { width, height, seed, seaLevel } = params;
+  const colors = worldEngineTerrainColorsFromPalette(palette);
   const weakRiverThreshold = Math.min(
     params.riverWeakThreshold,
     params.riverStrongThreshold,
@@ -1036,36 +1298,36 @@ export function buildWorldEngineTerrainColors(
       if (ocean[i] !== 0) {
         const visibleDepth = lerp(blurredSeaDepth[i], seaDepth[i], 0.12);
         color = colorRamp(visibleDepth, [
-          [0, WORLD_ENGINE_OCEAN_SHALLOW],
-          [0.32, WORLD_ENGINE_OCEAN_SHELF],
-          [0.7, WORLD_ENGINE_OCEAN_DEEP],
-          [1, WORLD_ENGINE_OCEAN_ABYSS],
+          [0, colors.oceanShallow],
+          [0.32, colors.oceanShelf],
+          [0.7, colors.oceanDeep],
+          [1, colors.oceanAbyss],
         ]);
         color = mixColor(
           color,
-          WORLD_ENGINE_OCEAN_WARM,
+          colors.oceanWarm,
           blurredShallowWarmth[i] * 0.58,
         );
         const coldWater = clamp((0.3 - temperature[i]) / 0.3);
         if (coldWater > 0) {
-          color = mixColor(color, WORLD_ENGINE_OCEAN_COLD, coldWater * 0.35);
+          color = mixColor(color, colors.oceanCold, coldWater * 0.35);
         }
       } else {
-        color = WORLD_ENGINE_BIOME_COLORS[biome[i]] ?? WORLD_ENGINE_GRASSLAND;
+        color = colors.biomes[biome[i]] ?? colors.grassland;
 
         const warm = clamp((temperature[i] - 0.58) / 0.42);
         const cold = clamp((0.34 - temperature[i]) / 0.34);
         const wet = clamp((humidity[i] - 0.52) / 0.48);
         const dry = clamp((0.34 - humidity[i]) / 0.34);
-        color = mixColor(color, WORLD_ENGINE_LAND_DRY, dry * 0.36);
-        color = mixColor(color, WORLD_ENGINE_LAND_WET, wet * 0.34);
-        color = mixColor(color, WORLD_ENGINE_LAND_WARM_DRY, warm * dry * 0.24);
-        color = mixColor(color, WORLD_ENGINE_LAND_COLD, cold * 0.28);
+        color = mixColor(color, colors.landDry, dry * 0.36);
+        color = mixColor(color, colors.landWet, wet * 0.34);
+        color = mixColor(color, colors.landWarmDry, warm * dry * 0.24);
+        color = mixColor(color, colors.landCold, cold * 0.28);
 
         const altitude = clamp(
           (elevation[i] - seaLevel) / Math.max(0.01, 1 - seaLevel),
         );
-        const altitudeColor = colorRamp(altitude, WORLD_ENGINE_ALTITUDE_STOPS);
+        const altitudeColor = colorRamp(altitude, colors.altitudeStops);
         color = mixColor(color, altitudeColor, 0.42);
 
         if (
@@ -1075,7 +1337,7 @@ export function buildWorldEngineTerrainColors(
           const coastAmount = hasOceanNeighbor(ocean, x, y, width, height)
             ? 0.72
             : clamp(1 - (elevation[i] - seaLevel) / 0.055) * 0.48;
-          color = mixColor(color, WORLD_ENGINE_COAST, coastAmount);
+          color = mixColor(color, colors.coast, coastAmount);
         }
 
         const west = elevationAt(elevation, x - 1, y, width, height);
@@ -1096,7 +1358,7 @@ export function buildWorldEngineTerrainColors(
 
         const coldLand = clamp((0.36 - temperature[i]) / 0.36);
         if (coldLand > 0) {
-          color = mixColor(color, WORLD_ENGINE_LAND_COLD, coldLand * 0.38);
+          color = mixColor(color, colors.landCold, coldLand * 0.38);
         }
 
         const dither = hash(seed + 3907, x, y) - 0.5;
@@ -1108,7 +1370,7 @@ export function buildWorldEngineTerrainColors(
         ];
 
         if (lakes[i]) {
-          color = mixColor(color, WORLD_ENGINE_LAKE, 0.94);
+          color = mixColor(color, colors.lake, 0.94);
         } else if (watermap[i] > weakRiverThreshold) {
           const riverSpan = Math.max(
             0.01,
@@ -1118,8 +1380,8 @@ export function buildWorldEngineTerrainColors(
             (watermap[i] - weakRiverThreshold) / riverSpan,
           );
           const riverColor = mixColor(
-            WORLD_ENGINE_RIVER_WEAK,
-            WORLD_ENGINE_RIVER_STRONG,
+            colors.riverWeak,
+            colors.riverStrong,
             riverStrength,
           );
           color = mixColor(color, riverColor, lerp(0.58, 0.9, riverStrength));

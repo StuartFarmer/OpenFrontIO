@@ -77,11 +77,13 @@ import {
   type FoundationStoredPreset,
 } from "./FoundationPresets";
 import {
+  DEFAULT_FOUNDATION_TERRAIN_PALETTE,
   DEFAULT_FOUNDATION_TUNING_SETTINGS,
-  FoundationTuningSettings,
+  FOUNDATION_TERRAIN_COLOR_GROUPS,
   loadFoundationTuningSettings,
   normalizeFoundationTuningSettings,
   saveFoundationTuningSettings,
+  type FoundationTuningSettings,
 } from "./FoundationTuningSettings";
 
 interface FoundationClientStatus {
@@ -175,7 +177,7 @@ const FOUNDATION_BUILDING_COLOR_BY_ID: Readonly<Record<string, string>> = {
   "mineral-stockpile": "rgb(185 193 199)",
 };
 
-type FoundationControlTab = "world" | "river" | "combat" | "ecology";
+type FoundationControlTab = "world" | "river" | "combat" | "ecology" | "colors";
 type FoundationYieldResource = "food" | "oil" | "metal";
 
 const FOUNDATION_CONTROL_TABS = [
@@ -183,6 +185,7 @@ const FOUNDATION_CONTROL_TABS = [
   { id: "river", label: "River" },
   { id: "combat", label: "Combat" },
   { id: "ecology", label: "Ecology" },
+  { id: "colors", label: "Colors" },
 ];
 
 interface FoundationYieldResourceDefinition {
@@ -605,6 +608,7 @@ const FOUNDATION_MAP_SETTING_KEYS = new Set<keyof FoundationTuningSettings>([
   "riverStrongThreshold",
   "elevation",
   "mapGenerator",
+  "terrainPalette",
 ]);
 
 interface FoundationGeneratedMapCache {
@@ -1071,6 +1075,76 @@ export class FoundationPage extends LitElement {
 
     .control-widget {
       min-width: 0;
+    }
+
+    .color-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .color-table {
+      display: grid;
+      grid-column: 1 / -1;
+      gap: 8px;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: minmax(82px, 1fr) auto minmax(84px, auto);
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .color-name {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .terrain-color-input {
+      width: 32px;
+      height: 24px;
+      border: 1px solid rgb(157 170 177 / 0.34);
+      border-radius: 5px;
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .terrain-color-input::-webkit-color-swatch-wrapper {
+      padding: 2px;
+    }
+
+    .terrain-color-input::-webkit-color-swatch {
+      border: 0;
+      border-radius: 3px;
+    }
+
+    .terrain-color-input::-moz-color-swatch {
+      border: 0;
+      border-radius: 3px;
+    }
+
+    .color-rgb {
+      min-width: 0;
+      color: var(--text);
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .mechanic-detail {
@@ -2133,6 +2207,32 @@ export class FoundationPage extends LitElement {
                 `,
               )}
             </div>
+
+            <div
+              class="control-panel"
+              ?hidden=${this.activeControlTab !== "colors"}
+            >
+              <div class="color-actions">
+                <hud-button
+                  ?disabled=${this.loading}
+                  @click=${this.resetTerrainPalette}
+                >
+                  Reset Terrain Colors
+                </hud-button>
+              </div>
+              ${FOUNDATION_TERRAIN_COLOR_GROUPS.map((group) =>
+                this.controlSection(
+                  group.label,
+                  html`
+                    <div class="color-table">
+                      ${group.colors.map((color) =>
+                        this.renderTerrainColorControl(color.key, color.label),
+                      )}
+                    </div>
+                  `,
+                ),
+              )}
+            </div>
           </div>
 
           <hud-stack class="reset-actions">
@@ -3147,6 +3247,14 @@ export class FoundationPage extends LitElement {
     void this.generateWorld("Parameters reset to defaults.", { force: true });
   };
 
+  private readonly resetTerrainPalette = (): void => {
+    if (this.loading) return;
+    this.updateSettings(
+      { terrainPalette: DEFAULT_FOUNDATION_TERRAIN_PALETTE },
+      { generateOnCommit: true },
+    );
+  };
+
   private readonly randomizeSeed = (): void => {
     if (this.loading) return;
     const seed = Math.floor(Math.random() * 2_000_000_000);
@@ -3279,13 +3387,15 @@ export class FoundationPage extends LitElement {
     event: CustomEvent<{ id: string }>,
   ): void => {
     this.activeControlTab =
-      event.detail.id === "ecology"
-        ? "ecology"
-        : event.detail.id === "combat"
-          ? "combat"
-          : event.detail.id === "river"
-            ? "river"
-            : "world";
+      event.detail.id === "colors"
+        ? "colors"
+        : event.detail.id === "ecology"
+          ? "ecology"
+          : event.detail.id === "combat"
+            ? "combat"
+            : event.detail.id === "river"
+              ? "river"
+              : "world";
   };
 
   private readonly handleYieldResourceChange = (
@@ -3295,6 +3405,31 @@ export class FoundationPage extends LitElement {
     this.activeYieldResource =
       next === "oil" || next === "metal" ? next : "food";
   };
+
+  private handleTerrainColorInput(event: Event, key: string): void {
+    this.updateTerrainPaletteColor(event, key, false);
+  }
+
+  private handleTerrainColorCommit(event: Event, key: string): void {
+    this.updateTerrainPaletteColor(event, key, true);
+  }
+
+  private updateTerrainPaletteColor(
+    event: Event,
+    key: string,
+    generateOnCommit: boolean,
+  ): void {
+    const target = event.currentTarget as HTMLInputElement;
+    this.updateSettings(
+      {
+        terrainPalette: {
+          ...this.tuningSettings.terrainPalette,
+          [key]: target.value,
+        },
+      },
+      { generateOnCommit },
+    );
+  }
 
   private readonly handlePresetSelection = (
     kind: FoundationPresetKind,
@@ -3463,6 +3598,30 @@ export class FoundationPage extends LitElement {
         ({ resource }) => resource === this.activeYieldResource,
       ) ?? FOUNDATION_YIELD_RESOURCE_DEFINITIONS[0]
     );
+  }
+
+  private renderTerrainColorControl(
+    key: string,
+    label: string,
+  ): TemplateResult {
+    const value =
+      this.tuningSettings.terrainPalette[key] ??
+      DEFAULT_FOUNDATION_TERRAIN_PALETTE[key] ??
+      "#000000";
+    return html`
+      <label class="color-row">
+        <span class="color-name">${label}</span>
+        <input
+          class="terrain-color-input"
+          type="color"
+          .value=${value}
+          ?disabled=${this.loading}
+          @input=${(event: Event) => this.handleTerrainColorInput(event, key)}
+          @change=${(event: Event) => this.handleTerrainColorCommit(event, key)}
+        />
+        <span class="color-rgb">${hexToRgbLabel(value)}</span>
+      </label>
+    `;
   }
 
   private controlSection(
@@ -4798,12 +4957,13 @@ export class FoundationPage extends LitElement {
     Omit<FoundationPreparedMap, "source">
   > {
     await this.showGenerationStep("Generating terrain map...");
+    const map = createFoundationMap({
+      width: this.tuningSettings.width,
+      height: this.tuningSettings.height,
+      elevation: this.tuningSettings.elevation,
+    });
     return {
-      map: createFoundationMap({
-        width: this.tuningSettings.width,
-        height: this.tuningSettings.height,
-        elevation: this.tuningSettings.elevation,
-      }),
+      map,
       terrainColors: undefined,
     };
   }
@@ -4906,6 +5066,7 @@ export class FoundationPage extends LitElement {
       biome,
       lakes,
       normalized,
+      this.tuningSettings.terrainPalette,
     );
 
     await this.showGenerationStep("Building game board...");
@@ -4977,6 +5138,22 @@ function foundationTuningOverridesFromLocation(): {
     overrides.mapGenerator = generator;
   }
   return overrides;
+}
+
+function hexToRgbLabel(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    return [0, 0, 0];
+  }
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
 }
 
 function formatSelectedTile(
@@ -5147,6 +5324,7 @@ export function foundationGeneratedMapSignature(
     lakeElevationRange: settings.lakeElevationRange,
     riverWeakThreshold: settings.riverWeakThreshold,
     riverStrongThreshold: settings.riverStrongThreshold,
+    terrainPalette: settings.terrainPalette,
   });
 }
 
