@@ -1,3 +1,4 @@
+import { MobileUnitSystem } from "../../games/openfront/systems/gameplay/MobileUnitSystem";
 import {
   Execution,
   Game,
@@ -16,7 +17,6 @@ import {
 } from "../game/ResourceTrade";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
-import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 import { findClosestBy } from "../Util";
 
 export class TradeShipExecution implements Execution {

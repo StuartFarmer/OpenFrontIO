@@ -1,6 +1,6 @@
-﻿import { Execution, Game, Player, Structures } from "../game/Game";
+﻿import { AiCommandSurface } from "../../games/openfront/systems/commands/AiCommandSurface";
+import { Execution, Game, Player, Structures } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
-import { AiCommandSurface } from "../systems/commands/AiCommandSurface";
 import { simpleHash } from "../Util";
 import { AiAttackBehavior } from "./utils/AiAttackBehavior";
 

@@ -1,4 +1,7 @@
 import { renderTroops } from "../../client/Utils";
+import { AttackCommandSystem } from "../../games/openfront/systems/gameplay/AttackCommandSystem";
+import { BattleResolutionSystem } from "../../games/openfront/systems/gameplay/BattleResolutionSystem";
+import { TerritoryConquestSystem } from "../../games/openfront/systems/gameplay/TerritoryConquestSystem";
 import {
   Attack,
   Execution,
@@ -11,9 +14,6 @@ import {
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PseudoRandom } from "../PseudoRandom";
-import { AttackCommandSystem } from "../systems/gameplay/AttackCommandSystem";
-import { BattleResolutionSystem } from "../systems/gameplay/BattleResolutionSystem";
-import { TerritoryConquestSystem } from "../systems/gameplay/TerritoryConquestSystem";
 import { FlatBinaryHeap } from "./utils/FlatBinaryHeap"; // adjust path if needed
 
 export class AttackExecution implements Execution {

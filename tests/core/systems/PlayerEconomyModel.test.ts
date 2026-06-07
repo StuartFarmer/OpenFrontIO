@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { resolveMechanicsConfig } from "../../../src/core/configuration/MechanicsConfig";
 import { PlayerType } from "../../../src/core/game/Game";
 import { createZeroResources } from "../../../src/core/game/Resources";
-import { evaluatePlayerEconomyModel } from "../../../src/core/systems/models/PlayerEconomyModel";
+import { evaluatePlayerEconomyModel } from "../../../src/games/openfront/systems/models/PlayerEconomyModel";
 
 describe("PlayerEconomyModel", () => {
   test("hard food capacity reduces population toward food-supported population", () => {

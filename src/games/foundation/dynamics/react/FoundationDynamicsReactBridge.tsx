@@ -4,32 +4,52 @@ import {
   Handle,
   Position,
   ReactFlow,
-  type Connection,
   type ConnectionLineComponentProps,
-  type Edge,
-  type EdgeChange,
   type IsValidConnection,
   type NodeChange,
   type NodeProps,
+  type OnNodeDrag,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import {
-  hasEquivalentConnection,
-  type FoundationDynamicsNode,
-  type FoundationDynamicsNodeData,
+import type {
+  FoundationDynamicsEdge,
+  FoundationDynamicsNode,
+  FoundationDynamicsNodeData,
 } from "../FoundationDynamicsModel";
+import {
+  applyReactFlowEdgeChanges,
+  applyReactFlowNodeChanges,
+  foundationEdgeFromConnection,
+  foundationEdgesToReactFlow,
+  foundationNodesToReactFlow,
+  isValidFoundationConnection,
+  reactFlowEdgesToFoundation,
+  reactFlowEdgeToFoundation,
+  reactFlowNodesToFoundation,
+  reactFlowNodeToFoundation,
+  type FoundationDynamicsReactFlowEdge,
+  type FoundationDynamicsReactFlowNode,
+} from "./FoundationDynamicsReactFlowMapping";
 
 export interface FoundationDynamicsReactBridgeProps {
   readonly nodes: FoundationDynamicsNode[];
-  readonly edges: Edge[];
+  readonly edges: FoundationDynamicsEdge[];
   readonly onNodesChange: (
-    changes: NodeChange<FoundationDynamicsNode>[],
+    update: (
+      nodes: readonly FoundationDynamicsNode[],
+    ) => FoundationDynamicsNode[],
   ) => void;
-  readonly onEdgesChange: (changes: EdgeChange<Edge>[]) => void;
-  readonly onConnect: (connection: Connection) => void;
+  readonly onEdgesChange: (
+    update: (
+      edges: readonly FoundationDynamicsEdge[],
+    ) => FoundationDynamicsEdge[],
+  ) => void;
+  readonly onConnect: (edge: FoundationDynamicsEdge) => void;
   readonly onNodeClick: (node: FoundationDynamicsNode) => void;
-  readonly onEdgeClick: (edge: Edge) => void;
+  readonly onEdgeClick: (edge: FoundationDynamicsEdge) => void;
   readonly onPaneClick: () => void;
 }
 
@@ -74,32 +94,163 @@ function FoundationDynamicsFlowCanvas({
   onEdgeClick,
   onPaneClick,
 }: FoundationDynamicsReactBridgeProps) {
+  const [flowNodes, setFlowNodes] = useState(() =>
+    foundationNodesToReactFlow(nodes),
+  );
+  const [flowEdges, setFlowEdges] = useState(() =>
+    foundationEdgesToReactFlow(edges),
+  );
+  const flowNodesRef = useRef(flowNodes);
+  const flowEdgesRef = useRef(flowEdges);
+  const reactFlowRef = useRef<ReactFlowInstance<
+    FoundationDynamicsReactFlowNode,
+    FoundationDynamicsReactFlowEdge
+  > | null>(null);
+  const draggingRef = useRef(false);
+  const nodeIdentityRef = useRef(nodeIdentity(nodes));
+
+  const scheduleFitView = useCallback(() => {
+    if (draggingRef.current || flowNodesRef.current.length === 0) {
+      return;
+    }
+    const fit = () => {
+      void reactFlowRef.current?.fitView({
+        padding: 0.2,
+        duration: 120,
+      });
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(fit);
+      return;
+    }
+    setTimeout(fit, 0);
+  }, []);
+
+  useEffect(() => {
+    const nextNodes = foundationNodesToReactFlow(nodes);
+    const nextNodeIdentity = nodeIdentity(nodes);
+    const shouldFit = nodeIdentityRef.current !== nextNodeIdentity;
+    nodeIdentityRef.current = nextNodeIdentity;
+    flowNodesRef.current = nextNodes;
+    setFlowNodes(nextNodes);
+    if (shouldFit) {
+      scheduleFitView();
+    }
+  }, [nodes, scheduleFitView]);
+
+  useEffect(() => {
+    const nextEdges = foundationEdgesToReactFlow(edges);
+    flowEdgesRef.current = nextEdges;
+    setFlowEdges(nextEdges);
+  }, [edges]);
+
+  const commitNodes = useCallback(
+    (nextNodes: readonly FoundationDynamicsReactFlowNode[]) => {
+      onNodesChange(() => reactFlowNodesToFoundation(nextNodes));
+    },
+    [onNodesChange],
+  );
+
+  const commitEdges = useCallback(
+    (nextEdges: readonly FoundationDynamicsReactFlowEdge[]) => {
+      onEdgesChange(() => reactFlowEdgesToFoundation(nextEdges));
+    },
+    [onEdgesChange],
+  );
+
   const isValidConnection: IsValidConnection = (connection) =>
-    connection.source !== null &&
-    connection.target !== null &&
-    connection.source !== connection.target &&
-    (connection.sourceHandle ?? "out") === "out" &&
-    (connection.targetHandle ?? "in") === "in" &&
-    !hasEquivalentConnection(edges, connection);
+    isValidFoundationConnection(
+      reactFlowEdgesToFoundation(flowEdgesRef.current),
+      connection,
+    );
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<FoundationDynamicsReactFlowNode>[]) => {
+      const nextNodes = applyReactFlowNodeChanges(
+        reactFlowNodesToFoundation(flowNodesRef.current),
+        changes,
+      );
+      const nextFlowNodes = foundationNodesToReactFlow(nextNodes);
+      flowNodesRef.current = nextFlowNodes;
+      setFlowNodes(nextFlowNodes);
+      if (shouldCommitNodeChanges(changes)) {
+        commitNodes(nextFlowNodes);
+      }
+    },
+    [commitNodes],
+  );
+  const handleNodeDragStop: OnNodeDrag<FoundationDynamicsReactFlowNode> =
+    useCallback(
+      (_event, _node, draggedNodes) => {
+        draggingRef.current = false;
+        const draggedNodeIds = new Set(draggedNodes.map((node) => node.id));
+        const mergedNodes = flowNodesRef.current.map((node) => {
+          const draggedNode = draggedNodes.find(
+            (candidate) => candidate.id === node.id,
+          );
+          return draggedNodeIds.has(node.id) && draggedNode !== undefined
+            ? draggedNode
+            : node;
+        });
+        flowNodesRef.current = mergedNodes;
+        setFlowNodes(mergedNodes);
+        commitNodes(mergedNodes);
+      },
+      [commitNodes],
+    );
+  const handleNodeDragStart: OnNodeDrag<FoundationDynamicsReactFlowNode> =
+    useCallback(() => {
+      draggingRef.current = true;
+    }, []);
+  const handleEdgesChange = useCallback(
+    (changes: Parameters<typeof applyReactFlowEdgeChanges>[1]) => {
+      const nextEdges = applyReactFlowEdgeChanges(
+        reactFlowEdgesToFoundation(flowEdgesRef.current),
+        changes,
+      );
+      const nextFlowEdges = foundationEdgesToReactFlow(nextEdges);
+      flowEdgesRef.current = nextFlowEdges;
+      setFlowEdges(nextFlowEdges);
+      commitEdges(nextFlowEdges);
+    },
+    [commitEdges],
+  );
 
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
+      nodes={flowNodes}
+      edges={flowEdges}
       nodeTypes={nodeTypes}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
+      onInit={(instance) => {
+        reactFlowRef.current = instance;
+        scheduleFitView();
+      }}
+      onNodesChange={handleNodesChange}
+      onEdgesChange={handleEdgesChange}
+      onNodeDragStart={handleNodeDragStart}
+      onNodeDragStop={handleNodeDragStop}
+      onConnect={(connection) => {
+        const currentEdges = reactFlowEdgesToFoundation(flowEdgesRef.current);
+        const edge = foundationEdgeFromConnection(connection, currentEdges);
+        if (edge !== null) {
+          const nextFlowEdges = foundationEdgesToReactFlow([
+            ...currentEdges,
+            edge,
+          ]);
+          flowEdgesRef.current = nextFlowEdges;
+          setFlowEdges(nextFlowEdges);
+          onConnect(edge);
+        }
+      }}
       isValidConnection={isValidConnection}
       connectionLineComponent={FoundationDynamicsConnectionLine}
-      onNodeClick={(_, node) => onNodeClick(node)}
-      onEdgeClick={(_, edge) => onEdgeClick(edge)}
+      onNodeClick={(_, node) => onNodeClick(reactFlowNodeToFoundation(node))}
+      onEdgeClick={(_, edge) => onEdgeClick(reactFlowEdgeToFoundation(edge))}
       onPaneClick={onPaneClick}
       defaultEdgeOptions={{
         type: "smoothstep",
         style: { stroke: "rgb(125, 200, 166)", strokeWidth: 2 },
       }}
-      fitView
+      defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       nodesDraggable
       nodesConnectable
       elementsSelectable
@@ -113,13 +264,28 @@ function FoundationDynamicsFlowCanvas({
   );
 }
 
+function nodeIdentity(nodes: readonly FoundationDynamicsNode[]): string {
+  return nodes.map((node) => node.id).join("|");
+}
+
+function shouldCommitNodeChanges(
+  changes: readonly NodeChange<FoundationDynamicsReactFlowNode>[],
+): boolean {
+  return changes.some((change) => {
+    if (change.type === "position") {
+      return change.dragging !== true;
+    }
+    return change.type !== "select" && change.type !== "dimensions";
+  });
+}
+
 function FoundationDynamicsConnectionLine({
   fromX,
   fromY,
   toX,
   toY,
   connectionStatus,
-}: ConnectionLineComponentProps<FoundationDynamicsNode>) {
+}: ConnectionLineComponentProps<FoundationDynamicsReactFlowNode>) {
   const opacity = connectionStatus === "valid" ? 1 : 0.3;
   const midX = fromX + (toX - fromX) * 0.5;
   return (
@@ -138,7 +304,7 @@ function FoundationDynamicsConnectionLine({
 
 function FoundationDynamicsNodeView({
   data,
-}: NodeProps<FoundationDynamicsNode>) {
+}: NodeProps<FoundationDynamicsReactFlowNode>) {
   const primitive = data.primitive;
   const secondary = nodeSecondaryText(data);
   return (

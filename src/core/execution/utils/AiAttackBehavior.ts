@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   Difficulty,
   Game,
@@ -20,7 +21,6 @@ import {
   boundingBoxCenter,
   calculateBoundingBoxCenter,
 } from "../../Util";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { NationAllianceBehavior } from "../nation/NationAllianceBehavior";
 import {
   EMOJI_ASSIST_ACCEPT,

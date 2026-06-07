@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { AttackExecution } from "../../../src/core/execution/AttackExecution";
 import { PlayerInfo, PlayerType } from "../../../src/core/game/Game";
-import { AttackStateAdapter } from "../../../src/core/systems/gameplay/AttackStateAdapter";
+import { AttackStateAdapter } from "../../../src/games/openfront/systems/gameplay/AttackStateAdapter";
 import { captureParitySnapshot } from "../../util/parity/ParitySnapshot";
 import { setup } from "../../util/Setup";
 

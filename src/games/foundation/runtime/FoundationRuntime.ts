@@ -4,22 +4,17 @@ import {
   createPlayer,
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
-  foodDeficitForPlayer,
-  foodDemandForPlayer,
-  foodProductionForPlayer,
-  foodStockCapacityForPlayer,
-  foodSupportedTroopsForPlayer,
-  foodSurplusForPlayer,
   FoundationFoodStockMetrics,
   FoundationSimulationParameters,
-  maxTroopsForPlayer,
   normalizeFoundationSimulationParameters,
   Player,
-  tickFoundationFood,
   tickWildernessExploration,
-  troopIncreaseRate,
 } from "../domain";
 import { FoundationCommandRouter } from "./FoundationCommandRouter";
+import {
+  evaluateFoundationEconomyDynamicsSnapshot,
+  tickFoundationEconomyDynamicsRuntime,
+} from "./FoundationEconomyDynamicsSystem";
 import {
   FOUNDATION_MODULE_ID,
   FoundationCommandEnvelope,
@@ -110,12 +105,22 @@ export class FoundationRuntime {
     });
     this.lastFoodStock = {
       ...this.lastFoodStock,
-      stockCapacity: foodStockCapacityForPlayer(this.player_, this.parameters),
+      stockCapacity:
+        evaluateFoundationEconomyDynamicsSnapshot(
+          this.player_,
+          this.parameters,
+          this.lastFoodStock,
+        ).metrics.foodStockCapacity ?? this.lastFoodStock.stockCapacity,
     };
   }
 
   snapshot(): FoundationRuntimeSnapshot {
     const placement = this.player_.placement;
+    const metrics = evaluateFoundationEconomyDynamicsSnapshot(
+      this.player_,
+      this.parameters,
+      this.lastFoodStock,
+    ).metrics;
 
     return {
       moduleId: FOUNDATION_MODULE_ID,
@@ -133,23 +138,17 @@ export class FoundationRuntime {
         selectedTile: placement?.selectedTile ?? null,
         claimedTileCount: placement?.claimedTileCount ?? 0,
         troops: this.player_.troops,
-        maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
-        foodProduction: foodProductionForPlayer(this.player_, this.parameters),
-        foodDemand: foodDemandForPlayer(this.player_, this.parameters),
-        foodSupportedTroops: foodSupportedTroopsForPlayer(
-          this.player_,
-          this.parameters,
-        ),
-        foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
-        foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
+        maxTroops: metrics.maxTroops ?? 0,
+        foodProduction: metrics.foodProduction ?? 0,
+        foodDemand: metrics.foodDemand ?? 0,
+        foodSupportedTroops: metrics.foodSupportedTroops ?? 0,
+        foodSurplus: metrics.foodSurplus ?? 0,
+        foodDeficit: metrics.foodDeficit ?? 0,
         foodStock: this.player_.foodStock,
-        foodStockCapacity: foodStockCapacityForPlayer(
-          this.player_,
-          this.parameters,
-        ),
-        foodStockDelta: this.lastFoodStock.stockDelta,
-        foodStockOverflow: this.lastFoodStock.overflow,
-        troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
+        foodStockCapacity: metrics.foodStockCapacity ?? 0,
+        foodStockDelta: metrics.foodStockDelta ?? 0,
+        foodStockOverflow: metrics.foodStockOverflow ?? 0,
+        troopIncreaseRate: metrics.troopIncreaseRate ?? 0,
         exploringTroops: this.player_.activeExploration?.troops ?? 0,
       },
     };
@@ -182,9 +181,12 @@ export class FoundationRuntime {
     this.tick_++;
     this.updateCount_++;
 
-    const foodTick = tickFoundationFood(this.player_, this.parameters);
-    this.lastFoodStock = foodTick.metrics;
-    let nextPlayer = foodTick.player;
+    const economyTick = tickFoundationEconomyDynamicsRuntime(
+      this.player_,
+      this.parameters,
+    );
+    this.lastFoodStock = economyTick.foodStockMetrics;
+    let nextPlayer = economyTick.player;
     const explorationTargetTile =
       nextPlayer.activeExploration?.targetTile ?? -1;
     const exploration = tickWildernessExploration(
@@ -234,28 +236,11 @@ export class FoundationRuntime {
   }
 
   private createMetrics(): FoundationUpdateEnvelope["metrics"] {
-    return {
-      pendingTurns: 0,
-      troops: this.player_.troops,
-      troopIncreaseRate: troopIncreaseRate(this.player_, this.parameters),
-      maxTroops: maxTroopsForPlayer(this.player_, this.parameters),
-      foodProduction: foodProductionForPlayer(this.player_, this.parameters),
-      foodDemand: foodDemandForPlayer(this.player_, this.parameters),
-      foodSupportedTroops: foodSupportedTroopsForPlayer(
-        this.player_,
-        this.parameters,
-      ),
-      foodSurplus: foodSurplusForPlayer(this.player_, this.parameters),
-      foodDeficit: foodDeficitForPlayer(this.player_, this.parameters),
-      foodStock: this.player_.foodStock,
-      foodStockCapacity: foodStockCapacityForPlayer(
-        this.player_,
-        this.parameters,
-      ),
-      foodStockDelta: this.lastFoodStock.stockDelta,
-      foodStockOverflow: this.lastFoodStock.overflow,
-      exploringTroops: this.player_.activeExploration?.troops ?? 0,
-    };
+    return evaluateFoundationEconomyDynamicsSnapshot(
+      this.player_,
+      this.parameters,
+      this.lastFoodStock,
+    ).metrics;
   }
 }
 

@@ -10,7 +10,7 @@ import {
   type WarBattleSideState,
   type WarBattleState,
   type WarBattleTickResult,
-} from "../../core/systems/models/WarBattleSystem";
+} from "../../games/openfront/systems/models/WarBattleSystem";
 import "../hud/ui";
 import type {
   HudSegmentedItem,

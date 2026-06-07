@@ -1661,6 +1661,7 @@ export class HudInput extends HudScopedElement {
   @property() step = "";
   @property() minlength = "";
   @property() maxlength = "";
+  @property() name = "";
   @property({ attribute: "aria-label" }) ariaLabel = "";
   @property({ type: Boolean, reflect: true }) disabled = false;
 
@@ -1669,6 +1670,7 @@ export class HudInput extends HudScopedElement {
       part="input"
       .type=${this.type}
       .value=${this.value}
+      name=${this.name || this.localName}
       .placeholder=${this.placeholder}
       aria-label=${this.ariaLabel || nothing}
       min=${this.min || nothing}
@@ -1740,6 +1742,7 @@ export class HudTextarea extends HudScopedElement {
 
   @property() value = "";
   @property() placeholder = "";
+  @property() name = "";
   @property({ type: Number }) rows = 8;
   @property({ type: Boolean, reflect: true }) disabled = false;
 
@@ -1747,6 +1750,7 @@ export class HudTextarea extends HudScopedElement {
     return html`<textarea
       part="textarea"
       .value=${this.value}
+      name=${this.name || this.localName}
       .placeholder=${this.placeholder}
       .rows=${this.rows}
       ?disabled=${this.disabled}
@@ -1808,12 +1812,14 @@ export class HudSelect extends HudScopedElement {
 
   @property({ attribute: false }) options: HudSelectOption[] = [];
   @property() value = "";
+  @property() name = "";
   @property({ type: Boolean, reflect: true }) disabled = false;
 
   render() {
     return html`<select
       part="select"
       .value=${this.value}
+      name=${this.name || this.localName}
       ?disabled=${this.disabled}
       @change=${this.emitValueChange}
     >

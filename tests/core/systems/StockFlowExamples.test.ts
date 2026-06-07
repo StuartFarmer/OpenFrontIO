@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { runStockFlowStep } from "../../../src/core/systems/StockFlowRuntime";
-import type { StockFlowModel } from "../../../src/core/systems/StockFlowSystem";
+import { runStockFlowStep } from "../../../src/games/openfront/systems/StockFlowRuntime";
+import type { StockFlowModel } from "../../../src/games/openfront/systems/StockFlowSystem";
 
 describe("stock-flow system dynamics examples", () => {
   test("Money = INTEG(interest, 100)", () => {

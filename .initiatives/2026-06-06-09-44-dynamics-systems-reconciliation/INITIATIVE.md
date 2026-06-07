@@ -13,9 +13,15 @@
 
 Analyze how `src/core/systems` and the Foundation dynamics graph editor currently work, identify where their models diverged, and define the architectural questions that must be resolved before dynamics-authored systems become the general base for gameplay systems.
 
+## Execution Status
+
+Complete. The initiative moved through planning and execution after the initial
+analysis. All 5 waves and 16 tickets are in `done`, all deliverable acceptance
+checks are complete, and final validation passed.
+
 ## Problem Statement
 
-`src/core/systems` was intended to become the code/runtime layer under systems, while the dynamics editor was intended to be a front end for creating and simulating those systems. The two approaches have drifted. The current Foundation dynamics editor has strong editing, simulation, save, and load behavior, but its active model is Foundation-specific and evaluates graph formulas directly. The core systems layer has a stock-flow runtime and a gameplay scheduler, but no current checked-in portable dynamics compiler that converts saved editor graphs into canonical runtime models.
+`src/core/systems` was intended to become the code/runtime layer under systems, while the dynamics editor was intended to be a front end for creating and simulating those systems. The two approaches have drifted. The current Foundation dynamics editor has strong editing, simulation, save, and load behavior, but its active model is Foundation-specific and evaluates graph formulas directly. The core systems layer has a stock-flow runtime and a gameplay scheduler, but the current saved dynamics flow does not yet compile into canonical runtime structures used by gameplay.
 
 ## Success Definition
 
@@ -23,14 +29,14 @@ This analysis succeeds if it clearly explains:
 
 - how the current core systems layer works;
 - how the current dynamics graph/editor layer works;
-- how both differ from the earlier portable dynamics architecture visible in git history;
+- why stale references to the old deleted compiler path should not steer implementation;
 - which reconciliation direction should be treated as canonical;
 - which decisions require user input before planning implementation.
 
 ## Non-Goals
 
 - Do not implement the reconciliation.
-- Do not recreate deleted dynamics compiler files.
+- Do not recreate the deleted historical compiler module.
 - Do not refactor the Foundation dynamics page.
 - Do not change game behavior or tests.
 - Do not create waves, tickets, or acceptance criteria.
@@ -45,8 +51,8 @@ This analysis succeeds if it clearly explains:
 
 ## Assumptions
 
-- The user's reference to `src/core/systems/dynamics` refers to the portable dynamics graph system that existed in commit `a02a9365`, plus the current Foundation dynamics editor under `src/games/foundation/dynamics`.
-- The current checked-in tree intentionally reflects the latest work, even though it removed the earlier portable dynamics compiler/simulator.
+- The current Foundation dynamics save/simulate flow is the base to preserve and reconcile with runtime systems.
+- Stale references to the deleted historical compiler module should be removed.
 - Dynamics should become canonical for stock-flow style mechanics first, not for every discrete gameplay system.
 
 ## Risk Posture
@@ -55,4 +61,5 @@ Medium-high. The editor path is productive and should be kept, but making it can
 
 ## Next Step
 
-Run planning for this initiative after the open questions in `REPORT.md` are answered.
+Use the completed scheduler/dynamics contract and Foundation compiled-dynamics
+runtime path as the reference for future stock-flow system migrations.

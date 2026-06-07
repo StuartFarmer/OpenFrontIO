@@ -11,7 +11,7 @@
 
 ## Direction
 
-Use the current Foundation dynamics save/simulate flow as the base. Do not restore the deleted old `src/core/systems/dynamics` compiler module. The target architecture is:
+Use the current Foundation dynamics save/simulate flow as the base. Do not restore the deleted historical compiler module. The target architecture is:
 
 ```text
 GameSystemScheduler
@@ -47,5 +47,5 @@ GameSystemScheduler
 - `INITIATIVE.md`
 - `REPORT.md`
 - `deliverables/DELIVERABLES.md`
-- `waves/todo/`
-- `tasks/todo/`
+- `waves/done/`
+- `tasks/done/`

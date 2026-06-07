@@ -1,9 +1,9 @@
-import { Execution, Game, Player } from "../game/Game";
-import { PlayerEconomySystem } from "../systems/gameplay/PlayerEconomySystem";
+import { PlayerEconomySystem } from "../../games/openfront/systems/gameplay/PlayerEconomySystem";
 import {
   PlayerUpkeepState,
   PlayerUpkeepSystem,
-} from "../systems/gameplay/PlayerUpkeepSystem";
+} from "../../games/openfront/systems/gameplay/PlayerUpkeepSystem";
+import { Execution, Game, Player } from "../game/Game";
 
 export class PlayerExecution implements Execution {
   private readonly economySystem = new PlayerEconomySystem();

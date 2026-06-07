@@ -1,4 +1,5 @@
 import { renderTroops } from "../../client/Utils";
+import { MobileUnitSystem } from "../../games/openfront/systems/gameplay/MobileUnitSystem";
 import {
   Execution,
   Game,
@@ -13,7 +14,6 @@ import { TileRef } from "../game/GameMap";
 import { targetTransportTile } from "../game/TransportShipUtils";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
-import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class TransportShipExecution implements Execution {
   private active = true;

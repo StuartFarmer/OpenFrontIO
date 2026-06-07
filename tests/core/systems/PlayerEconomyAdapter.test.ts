@@ -11,10 +11,10 @@ import {
   evaluatePlayerResourceCapacity,
   evaluatePlayerResourceProduction,
   terrainResourceProductionSplit,
-} from "../../../src/core/systems/PlayerEconomyAdapter";
+} from "../../../src/games/openfront/systems/PlayerEconomyAdapter";
 import { setup } from "../../util/Setup";
 
-describe("PlayerEconomyAdapter", () => {
+describe("PlayerEconomyAdapter StockFlow compatibility boundary", () => {
   test("reads player population and resource state into model inputs", async () => {
     const game = await setup("plains", { instantBuild: true }, [
       new PlayerInfo("player", PlayerType.Human, null, "player_id"),

@@ -8,9 +8,9 @@ import {
   DEFAULT_AGRICULTURE_SYSTEM_PARAMS,
   evaluateAgricultureSystem,
   type AgricultureSystemParams,
-} from "../../core/systems/models/AgricultureSystem";
-import { evaluateFoodSystem } from "../../core/systems/models/FoodSystem";
-import { evaluatePopulationSystem } from "../../core/systems/models/PopulationSystem";
+} from "../../games/openfront/systems/models/AgricultureSystem";
+import { evaluateFoodSystem } from "../../games/openfront/systems/models/FoodSystem";
+import { evaluatePopulationSystem } from "../../games/openfront/systems/models/PopulationSystem";
 import "../hud/ui";
 import type { HudSelectOption } from "../hud/ui/HudComponents";
 

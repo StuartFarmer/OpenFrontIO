@@ -1,21 +1,14 @@
 import {
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
-  foodDeficitForPlayer,
-  foodDemandForPlayer,
-  foodProductionForPlayer,
-  foodStockCapacityForPlayer,
-  foodSupportedTroopsForPlayer,
-  foodSurplusForPlayer,
   FoundationSimulationParameters,
   isLandTile,
-  maxTroopsForPlayer,
   placePlayer,
   Player,
   startWildernessExploration,
   TileRef,
-  troopIncreaseRate,
 } from "../domain";
+import { evaluateFoundationEconomyDynamicsSnapshot } from "./FoundationEconomyDynamicsSystem";
 import {
   FOUNDATION_MODULE_ID,
   FoundationCommandEnvelope,
@@ -229,25 +222,16 @@ function createUpdate(
   const player = options.player ?? state.player;
   const parameters =
     state.parameters ?? DEFAULT_FOUNDATION_SIMULATION_PARAMETERS;
+  const metrics = evaluateFoundationEconomyDynamicsSnapshot(
+    player,
+    parameters,
+  ).metrics;
   const update: FoundationUpdateEnvelope = {
     moduleId: FOUNDATION_MODULE_ID,
     tick: state.tick,
     updateId: state.updateId,
     events: options.events,
-    metrics: {
-      pendingTurns: 0,
-      troops: player.troops,
-      troopIncreaseRate: troopIncreaseRate(player, parameters),
-      maxTroops: maxTroopsForPlayer(player, parameters),
-      foodProduction: foodProductionForPlayer(player, parameters),
-      foodDemand: foodDemandForPlayer(player, parameters),
-      foodSupportedTroops: foodSupportedTroopsForPlayer(player, parameters),
-      foodSurplus: foodSurplusForPlayer(player, parameters),
-      foodDeficit: foodDeficitForPlayer(player, parameters),
-      foodStock: player.foodStock,
-      foodStockCapacity: foodStockCapacityForPlayer(player, parameters),
-      exploringTroops: player.activeExploration?.troops ?? 0,
-    },
+    metrics,
   };
 
   if (options.map) {

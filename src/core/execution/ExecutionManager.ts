@@ -1,7 +1,7 @@
+import { IntentCommandSurface } from "../../games/openfront/systems/commands/IntentCommandSurface";
 import { Execution, Game } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
 import { ClientID, GameID, StampedIntent, Turn } from "../Schemas";
-import { IntentCommandSurface } from "../systems/commands/IntentCommandSurface";
 import { simpleHash } from "../Util";
 import { NationExecution } from "./NationExecution";
 import { SpawnExecution } from "./SpawnExecution";

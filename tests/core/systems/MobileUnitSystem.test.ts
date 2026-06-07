@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { PlayerInfo, PlayerType, UnitType } from "../../../src/core/game/Game";
-import { MobileUnitSystem } from "../../../src/core/systems/gameplay/MobileUnitSystem";
+import { MobileUnitSystem } from "../../../src/games/openfront/systems/gameplay/MobileUnitSystem";
 import { setup } from "../../util/Setup";
 
 const coastX = 7;

@@ -1,5 +1,5 @@
+import type { StockFlowDiagnostics } from "../../games/openfront/systems/StockFlowDiagnostics";
 import { AllPlayersStats, ClientID, Winner } from "../Schemas";
-import type { StockFlowDiagnostics } from "../systems/StockFlowDiagnostics";
 import {
   EmojiMessage,
   GameUpdates,

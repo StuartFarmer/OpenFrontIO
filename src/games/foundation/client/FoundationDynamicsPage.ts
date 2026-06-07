@@ -1,13 +1,3 @@
-import {
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  MarkerType,
-  type Connection,
-  type Edge,
-  type EdgeChange,
-  type NodeChange,
-} from "@xyflow/react";
 import { css, html, LitElement, svg, type TemplateResult } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import {
@@ -22,6 +12,7 @@ import {
 import "../../../client/hud/ui";
 import type { HudSelectOption } from "../../../client/hud/ui/HudComponents";
 import { renderLucideIcon } from "../../../client/hud/ui/LucideIcon";
+import type { DynamicsSavedSystem } from "../../../core/systems/dynamics";
 import {
   applyInputActions,
   chartableNodes,
@@ -30,31 +21,36 @@ import {
   connectionSummaries,
   createPrimitiveNode,
   currentNodeValue,
+  dynamicsCompileDiagnostics,
   formatNumber,
   FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS,
   frameValue,
-  hasEquivalentConnection,
   initialSimulationState,
-  loadSavedDynamicsSystems,
   normalizeReadInputs,
-  parseDynamicsSystemLibraryJson,
   parseNumberInput,
   savedDynamicsSystem,
-  saveDynamicsSystemLibrary,
-  serializeDynamicsSystemLibrary,
+  savedDynamicsSystemFromSchema,
+  savedDynamicsSystemToSchema,
   setCurrentSinkState,
   sinkNodes,
   stepSimulationState,
   tabLabel,
   type DynamicsInputKind,
   type DynamicsPrimitive,
+  type FoundationDynamicsEdge,
+  type FoundationDynamicsEditorSystem,
   type FoundationDynamicsNode,
   type FoundationDynamicsNodeData,
   type InputRampAction,
-  type SavedDynamicsSystem,
   type SimulationFrame,
   type SimulationState,
 } from "../dynamics/FoundationDynamicsModel";
+import {
+  loadFoundationDynamicsSystemLibrary,
+  parseFoundationDynamicsSystemLibraryJson,
+  saveFoundationDynamicsSystemLibrary,
+  serializeFoundationDynamicsSystemLibrary,
+} from "../dynamics/FoundationDynamicsStorage";
 import {
   FoundationDynamicsReactBridge,
   type FoundationDynamicsReactBridgeProps,
@@ -92,14 +88,14 @@ export class FoundationDynamicsPage extends LitElement {
   private nodes: FoundationDynamicsNode[] = [];
 
   @state()
-  private edges: Edge[] = [];
+  private edges: FoundationDynamicsEdge[] = [];
 
   @state()
   private systemName = "Untitled system";
 
   @state()
-  private savedSystems: readonly SavedDynamicsSystem[] =
-    loadSavedDynamicsSystems();
+  private savedSystems: readonly DynamicsSavedSystem[] =
+    loadFoundationDynamicsSystemLibrary();
 
   @state()
   private selectedSystemRef = "";
@@ -303,6 +299,7 @@ export class FoundationDynamicsPage extends LitElement {
           <label class="system-name-field">
             <span>Current name</span>
             <input
+              name="foundation-dynamics-system-name"
               .value=${this.systemName}
               @input=${(event: Event) => {
                 this.systemName = (
@@ -314,6 +311,7 @@ export class FoundationDynamicsPage extends LitElement {
           <label class="system-json-field">
             <span>System JSON</span>
             <textarea
+              name="foundation-dynamics-system-json"
               spellcheck="false"
               .value=${this.systemLibraryJson}
               @input=${(event: Event) => {
@@ -463,6 +461,7 @@ export class FoundationDynamicsPage extends LitElement {
               <span class="control-widget" role="cell">
                 <span class="slider-editor">
                   <input
+                    name=${`foundation-dynamics-${node.id}-slider`}
                     class="native-range"
                     type="range"
                     min=${sliderMin}
@@ -580,6 +579,7 @@ export class FoundationDynamicsPage extends LitElement {
         <span class="control-name" role="cell">Function</span>
         <span class="control-widget" role="cell">
           <textarea
+            name=${`foundation-dynamics-${node.id}-expression`}
             .value=${node.data.expression ?? ""}
             @input=${(event: Event) =>
               this.updateNodeData(node.id, {
@@ -642,6 +642,7 @@ export class FoundationDynamicsPage extends LitElement {
         <span class="control-name" role="cell">${label}</span>
         <span class="control-widget" role="cell">
           <input
+            name=${`foundation-dynamics-${node.id}-${key}`}
             .value=${String(node.data[key] ?? "")}
             @input=${(event: Event) =>
               this.updateNodeData(node.id, {
@@ -665,6 +666,7 @@ export class FoundationDynamicsPage extends LitElement {
         <span class="control-name" role="cell">${label}</span>
         <span class="control-widget" role="cell">
           <input
+            name=${`foundation-dynamics-${node.id}-${String(key)}`}
             type="number"
             .value=${String(value)}
             @input=${(event: Event) => {
@@ -703,6 +705,7 @@ export class FoundationDynamicsPage extends LitElement {
   ): TemplateResult {
     return html`
       <input
+        name=${`foundation-dynamics-${node.id}-${String(key)}`}
         class="inline-number-input"
         type="number"
         aria-label=${label}
@@ -745,6 +748,8 @@ export class FoundationDynamicsPage extends LitElement {
       chartNodes.find((node) => node.id === this.activeChartNodeId) ??
       chartNodes[0] ??
       null;
+    const diagnostics = dynamicsCompileDiagnostics(this.nodes, this.edges);
+    const hasDiagnostics = diagnostics.length > 0;
     return html`
       <section class="foundation-dynamics-simulator">
         <div class="foundation-dynamics-sim-panel">
@@ -754,19 +759,41 @@ export class FoundationDynamicsPage extends LitElement {
               <span>T${this.simulation.tick}</span>
             </div>
             <div class="foundation-dynamics-sim-controls">
-              <button type="button" @click=${this.playSimulation}>Play</button>
+              <button
+                type="button"
+                ?disabled=${hasDiagnostics}
+                @click=${this.playSimulation}
+              >
+                Play
+              </button>
               <button type="button" @click=${this.pauseSimulation}>
                 Pause
               </button>
-              <button type="button" @click=${this.resumeSimulation}>
+              <button
+                type="button"
+                ?disabled=${hasDiagnostics}
+                @click=${this.resumeSimulation}
+              >
                 Resume
               </button>
-              <button type="button" @click=${this.stepSimulation}>Step</button>
+              <button
+                type="button"
+                ?disabled=${hasDiagnostics}
+                @click=${this.stepSimulation}
+              >
+                Step
+              </button>
               <button type="button" @click=${this.resetSimulation}>
                 Reset
               </button>
             </div>
           </div>
+          ${hasDiagnostics
+            ? html`<div class="foundation-dynamics-diagnostics" role="alert">
+                <strong>Graph diagnostics</strong>
+                ${diagnostics.map((item) => html`<span>${item}</span>`)}
+              </div>`
+            : null}
           <div class="foundation-dynamics-chart-tabs">
             ${chartNodes.length === 0
               ? html`<span>No sinks or operators</span>`
@@ -970,34 +997,28 @@ export class FoundationDynamicsPage extends LitElement {
   };
 
   private readonly handleNodesChange = (
-    changes: NodeChange<FoundationDynamicsNode>[],
+    update: (
+      nodes: readonly FoundationDynamicsNode[],
+    ) => FoundationDynamicsNode[],
   ): void => {
-    this.nodes = normalizeReadInputs(applyNodeChanges(changes, this.nodes));
+    this.nodes = normalizeReadInputs(update(this.nodes));
   };
 
-  private readonly handleEdgesChange = (changes: EdgeChange<Edge>[]): void => {
-    this.edges = applyEdgeChanges(changes, this.edges);
+  private readonly handleEdgesChange = (
+    update: (
+      edges: readonly FoundationDynamicsEdge[],
+    ) => FoundationDynamicsEdge[],
+  ): void => {
+    this.edges = update(this.edges);
   };
 
-  private readonly handleConnect = (connection: Connection): void => {
-    if (hasEquivalentConnection(this.edges, connection)) {
-      return;
-    }
-    this.edges = addEdge(
-      {
-        ...connection,
-        id: `edge-${connection.source}-${connection.target}-${this.edges.length}`,
-        sourceHandle: connection.sourceHandle ?? "out",
-        targetHandle: connection.targetHandle ?? "in",
-        type: "smoothstep",
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { stroke: "rgb(125, 200, 166)", strokeWidth: 2 },
-      },
-      this.edges,
-    );
+  private readonly handleConnect = (edge: FoundationDynamicsEdge): void => {
+    this.edges = [...this.edges, edge];
   };
 
-  private readonly handleEdgeClick = (selectedEdge: Edge): void => {
+  private readonly handleEdgeClick = (
+    selectedEdge: FoundationDynamicsEdge,
+  ): void => {
     this.edges = this.edges.map((edge) => ({
       ...edge,
       selected: edge.id === selectedEdge.id,
@@ -1012,11 +1033,28 @@ export class FoundationDynamicsPage extends LitElement {
 
   private addPrimitive(primitive: DynamicsPrimitive): void {
     this.activeControlTab = primitive;
-    const node = createPrimitiveNode(primitive, this.nodes.length);
+    const node = createPrimitiveNode(
+      primitive,
+      this.nextPrimitiveNodeIndex(primitive),
+    );
     this.collapsedNodeIds = this.collapsedNodeIds.filter(
       (nodeId) => nodeId !== node.id,
     );
     this.nodes = [...this.nodes, node];
+  }
+
+  private nextPrimitiveNodeIndex(primitive: DynamicsPrimitive): number {
+    const usedIndexes = new Set(
+      this.nodes
+        .map((node) => node.id.match(new RegExp(`^${primitive}-(\\d+)$`)))
+        .filter((match): match is RegExpMatchArray => match !== null)
+        .map((match) => Number(match[1])),
+    );
+    let index = 1;
+    while (usedIndexes.has(index)) {
+      index++;
+    }
+    return index - 1;
   }
 
   private updateNodeData(
@@ -1147,18 +1185,27 @@ export class FoundationDynamicsPage extends LitElement {
   };
 
   private readonly saveCurrentSystem = (): void => {
-    const system = savedDynamicsSystem(this.systemName, this.nodes, this.edges);
+    const editorSystem = savedDynamicsSystem(
+      this.systemName,
+      this.nodes,
+      this.edges,
+    );
+    const system = savedDynamicsSystemToSchema(editorSystem);
     this.savedSystems = [
       system,
-      ...this.savedSystems.filter((candidate) => candidate.id !== system.id),
+      ...this.savedSystems.filter(
+        (candidate) => candidate.definition.id !== system.definition.id,
+      ),
     ];
-    this.selectedSystemRef = savedSystemRef(system.id);
-    saveDynamicsSystemLibrary(this.savedSystems);
-    this.systemLibraryMessage = `Saved ${system.name}.`;
+    this.selectedSystemRef = savedSystemRef(system.definition.id);
+    saveFoundationDynamicsSystemLibrary(this.savedSystems);
+    this.systemLibraryMessage = `Saved ${system.definition.name}.`;
   };
 
   private readonly exportSavedSystemsJson = (): void => {
-    this.systemLibraryJson = serializeDynamicsSystemLibrary(this.savedSystems);
+    this.systemLibraryJson = serializeFoundationDynamicsSystemLibrary(
+      this.savedSystems,
+    );
     this.systemLibraryMessage = `Exported ${this.savedSystems.length} saved system${
       this.savedSystems.length === 1 ? "" : "s"
     }.`;
@@ -1166,15 +1213,19 @@ export class FoundationDynamicsPage extends LitElement {
 
   private readonly importSavedSystemsJson = (): void => {
     try {
-      const systems = parseDynamicsSystemLibraryJson(this.systemLibraryJson);
+      const systems = parseFoundationDynamicsSystemLibraryJson(
+        this.systemLibraryJson,
+      );
       this.savedSystems = [
         ...systems,
         ...this.savedSystems.filter(
           (existing) =>
-            !systems.some((imported) => imported.id === existing.id),
+            !systems.some(
+              (imported) => imported.definition.id === existing.definition.id,
+            ),
         ),
       ];
-      saveDynamicsSystemLibrary(this.savedSystems);
+      saveFoundationDynamicsSystemLibrary(this.savedSystems);
       this.systemLibraryMessage = `Imported ${systems.length} system${
         systems.length === 1 ? "" : "s"
       }.`;
@@ -1184,7 +1235,7 @@ export class FoundationDynamicsPage extends LitElement {
     }
   };
 
-  private loadSystem(system: SavedDynamicsSystem): void {
+  private loadSystem(system: FoundationDynamicsEditorSystem): void {
     this.pauseSimulation();
     this.nodes = normalizeReadInputs(cloneNodes(system.nodes));
     this.edges = cloneEdges(system.edges);
@@ -1201,44 +1252,52 @@ export class FoundationDynamicsPage extends LitElement {
       return;
     }
     this.savedSystems = this.savedSystems.filter(
-      (candidate) => candidate.id !== system.id,
+      (candidate) => candidate.definition.id !== system.definition.id,
     );
     this.createNewSystem();
-    saveDynamicsSystemLibrary(this.savedSystems);
+    saveFoundationDynamicsSystemLibrary(this.savedSystems);
   };
 
-  private systemByRef(ref: string): SavedDynamicsSystem | undefined {
+  private systemByRef(ref: string): FoundationDynamicsEditorSystem | undefined {
     if (ref.startsWith(BUILTIN_SYSTEM_REF_PREFIX)) {
       const id = ref.slice(BUILTIN_SYSTEM_REF_PREFIX.length);
-      return FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS.find(
-        (system) => system.id === id,
+      const builtin = FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS.find(
+        (system) => system.definition.id === id,
       );
+      return builtin === undefined
+        ? undefined
+        : savedDynamicsSystemFromSchema(builtin);
     }
     if (ref.startsWith(SAVED_SYSTEM_REF_PREFIX)) {
       const id = ref.slice(SAVED_SYSTEM_REF_PREFIX.length);
-      return this.savedSystems.find((system) => system.id === id);
+      const saved = this.savedSystems.find(
+        (system) => system.definition.id === id,
+      );
+      return saved === undefined
+        ? undefined
+        : savedDynamicsSystemFromSchema(saved);
     }
     return undefined;
   }
 
-  private selectedSavedSystem(): SavedDynamicsSystem | undefined {
+  private selectedSavedSystem(): DynamicsSavedSystem | undefined {
     if (!this.selectedSystemRef.startsWith(SAVED_SYSTEM_REF_PREFIX)) {
       return undefined;
     }
     const id = this.selectedSystemRef.slice(SAVED_SYSTEM_REF_PREFIX.length);
-    return this.savedSystems.find((system) => system.id === id);
+    return this.savedSystems.find((system) => system.definition.id === id);
   }
 
   private savedSystemOptions(): HudSelectOption[] {
     return [
       { label: "Select preset...", value: "" },
       ...FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS.map((system) => ({
-        label: system.name,
-        value: builtinSystemRef(system.id),
+        label: system.definition.name,
+        value: builtinSystemRef(system.definition.id),
       })),
       ...this.savedSystems.map((system) => ({
-        label: system.name,
-        value: savedSystemRef(system.id),
+        label: system.definition.name,
+        value: savedSystemRef(system.definition.id),
       })),
     ];
   }
@@ -2275,6 +2334,34 @@ export class FoundationDynamicsPage extends LitElement {
       background: rgb(48 56 61);
     }
 
+    .foundation-dynamics-sim-controls button:disabled {
+      border-color: rgb(157 170 177 / 0.18);
+      background: rgb(28 32 34 / 0.72);
+      color: rgb(210 216 219 / 0.42);
+      cursor: not-allowed;
+    }
+
+    .foundation-dynamics-sim-controls button:disabled:hover {
+      border-color: rgb(157 170 177 / 0.18);
+      background: rgb(28 32 34 / 0.72);
+    }
+
+    .foundation-dynamics-diagnostics {
+      display: grid;
+      gap: 5px;
+      border: 1px solid rgb(230 191 99 / 0.34);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: rgb(70 52 22 / 0.38);
+      color: rgb(249 234 190);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .foundation-dynamics-diagnostics strong {
+      font-size: 12px;
+    }
+
     .foundation-dynamics-chart-wrap {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
@@ -2382,8 +2469,8 @@ export class FoundationDynamicsPage extends LitElement {
       gap: 5px;
       position: relative;
       isolation: isolate;
-      min-width: 150px;
-      max-width: 230px;
+      width: 100%;
+      min-height: 100%;
       padding: 12px 14px;
       border: 1px solid rgb(125 200 166 / 0.52);
       border-radius: 6px;
@@ -2484,7 +2571,6 @@ export class FoundationDynamicsPage extends LitElement {
     }
 
     .foundation-dynamics-node--sink {
-      min-width: 190px;
       border: 2px solid rgb(222 120 107 / 0.9);
       border-radius: 50% / 18px;
       background:

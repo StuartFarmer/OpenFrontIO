@@ -3,7 +3,7 @@ import {
   DEFAULT_AGRICULTURE_SYSTEM_PARAMS,
   cropTemperatureProductivity,
   evaluateAgricultureSystem,
-} from "../../../src/core/systems/models/AgricultureSystem";
+} from "../../../src/games/openfront/systems/models/AgricultureSystem";
 
 describe("AgricultureSystem", () => {
   it("peaks at the optimal temperature", () => {

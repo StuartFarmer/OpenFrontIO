@@ -9,7 +9,7 @@ import {
   TerraNullius,
 } from "../../../src/core/game/Game";
 import { TileRef } from "../../../src/core/game/GameMap";
-import { AttackCommandSystem } from "../../../src/core/systems/gameplay/AttackCommandSystem";
+import { AttackCommandSystem } from "../../../src/games/openfront/systems/gameplay/AttackCommandSystem";
 import { captureParitySnapshot } from "../../util/parity/ParitySnapshot";
 import { setup } from "../../util/Setup";
 

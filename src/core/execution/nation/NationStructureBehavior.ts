@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   Attack,
   Difficulty,
@@ -14,7 +15,6 @@ import { TileRef } from "../../game/GameMap";
 import type { ResourceStockpile } from "../../game/Resources";
 import { Cluster } from "../../game/TrainStation";
 import { PseudoRandom } from "../../PseudoRandom";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever } from "../../Util";
 import { closestTile, closestTwoTiles } from "../Util";
 import { randTerritoryTileArray } from "./NationUtils";

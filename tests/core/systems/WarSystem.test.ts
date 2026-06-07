@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { resolveMechanicsConfig } from "../../../src/core/configuration/MechanicsConfig";
-import { evaluateWarSystem } from "../../../src/core/systems/models/WarSystem";
+import { evaluateWarSystem } from "../../../src/games/openfront/systems/models/WarSystem";
 
 describe("WarSystem", () => {
   test("publishes no-war pressure", () => {

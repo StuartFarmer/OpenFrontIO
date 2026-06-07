@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../games/openfront/systems/commands/AiCommandSurface";
 import {
   Difficulty,
   Execution,
@@ -14,7 +15,6 @@ import {
 import { TileRef } from "../game/GameMap";
 import { PseudoRandom } from "../PseudoRandom";
 import { GameID } from "../Schemas";
-import { AiCommandSurface } from "../systems/commands/AiCommandSurface";
 import { assertNever, simpleHash } from "../Util";
 import { NationAllianceBehavior } from "./nation/NationAllianceBehavior";
 import { NationEmojiBehavior } from "./nation/NationEmojiBehavior";
@@ -137,7 +137,10 @@ export class NationExecution implements Execution {
             cell.y >= area.y &&
             cell.y < area.y + area.height;
           if (!inArea) {
-            this.commandSurface.spawnPlayer(this.gameID, this.nation.playerInfo);
+            this.commandSurface.spawnPlayer(
+              this.gameID,
+              this.nation.playerInfo,
+            );
             this.spawnExecAdded = true;
             return;
           }

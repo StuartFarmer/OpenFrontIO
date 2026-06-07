@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { AiCommandSurface } from "../../../src/core/systems/commands/AiCommandSurface";
 import { AttackExecution } from "../../../src/core/execution/AttackExecution";
 import { ConstructionExecution } from "../../../src/core/execution/ConstructionExecution";
 import { PlayerInfo, PlayerType, UnitType } from "../../../src/core/game/Game";
+import { AiCommandSurface } from "../../../src/games/openfront/systems/commands/AiCommandSurface";
 import {
   expectParity,
   runParityScenario,

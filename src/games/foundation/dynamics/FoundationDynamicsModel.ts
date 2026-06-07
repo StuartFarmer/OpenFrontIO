@@ -1,7 +1,29 @@
-import type { Edge, Node } from "@xyflow/react";
+import {
+  compileDynamicsSystem,
+  DYNAMICS_SCHEMA_VERSION,
+  DynamicsCompileError,
+  initialDynamicsSimulationState,
+  stepDynamicsSimulationState,
+  type DynamicsEdgeDefinition,
+  type DynamicsInputKind,
+  type DynamicsNodeDefinition,
+  type DynamicsPrimitive,
+  type DynamicsSavedSystem,
+  type DynamicsViewNode,
+} from "../../../core/systems/dynamics";
+import {
+  loadFoundationDynamicsSystemLibrary,
+  parseFoundationDynamicsSystemLibraryJson,
+  saveFoundationDynamicsSystemLibrary,
+  serializeFoundationDynamicsSystemLibrary,
+} from "./FoundationDynamicsStorage";
+import {
+  FOUNDATION_ECONOMY_DYNAMICS_SYSTEM,
+  FOUNDATION_ECONOMY_DYNAMICS_SYSTEM_ID,
+} from "./FoundationEconomyDynamics";
 
-export type DynamicsPrimitive = "input" | "operator" | "sink";
-export type DynamicsInputKind = "read" | "constant" | "user";
+export { FOUNDATION_ECONOMY_DYNAMICS_SYSTEM_ID };
+export type { DynamicsInputKind, DynamicsPrimitive };
 
 export interface FoundationDynamicsNodeData extends Record<string, unknown> {
   readonly primitive: DynamicsPrimitive;
@@ -17,7 +39,32 @@ export interface FoundationDynamicsNodeData extends Record<string, unknown> {
   readonly state?: number;
 }
 
-export type FoundationDynamicsNode = Node<FoundationDynamicsNodeData>;
+export interface FoundationDynamicsNode {
+  readonly id: string;
+  readonly type?: string;
+  readonly position: { readonly x: number; readonly y: number };
+  readonly data: FoundationDynamicsNodeData;
+  readonly selected?: boolean;
+}
+
+export interface FoundationDynamicsEdge {
+  readonly id: string;
+  readonly source: string;
+  readonly target: string;
+  readonly sourceHandle?: string | null;
+  readonly targetHandle?: string | null;
+  readonly label?: unknown;
+  readonly type?: string;
+  readonly data?: unknown;
+  readonly selected?: boolean;
+}
+
+export interface FoundationDynamicsConnection {
+  readonly source: string | null;
+  readonly target: string | null;
+  readonly sourceHandle?: string | null;
+  readonly targetHandle?: string | null;
+}
 
 export interface SimulationFrame {
   readonly tick: number;
@@ -38,21 +85,13 @@ export interface InputRampAction {
   readonly deltaPerTick: number;
 }
 
-export interface SavedDynamicsSystem {
+export interface FoundationDynamicsEditorSystem {
   readonly id: string;
   readonly name: string;
   readonly savedAt: number;
   readonly nodes: readonly FoundationDynamicsNode[];
-  readonly edges: readonly Edge[];
+  readonly edges: readonly FoundationDynamicsEdge[];
 }
-
-interface DynamicsSystemLibrary {
-  readonly version: 1;
-  readonly systems: readonly SavedDynamicsSystem[];
-}
-
-const FOUNDATION_DYNAMICS_LIBRARY_KEY =
-  "openfront.foundation.dynamics.systems.v1";
 
 export const FOOD_STOCK_BUILTIN_SYSTEM_ID = "food-stock-model";
 export const POPULATION_SURPLUS_BUILTIN_SYSTEM_ID =
@@ -104,7 +143,7 @@ export const FOUNDATION_DYNAMICS_NODES: FoundationDynamicsNode[] = [
   ),
 ];
 
-export const FOUNDATION_DYNAMICS_EDGES: Edge[] = [
+export const FOUNDATION_DYNAMICS_EDGES: FoundationDynamicsEdge[] = [
   edge("tiles-to-production", "tiles-owned", "food-production"),
   edge("yield-to-production", "yield-per-tile", "food-production"),
   edge("production-to-stock", "food-production", "food-stock", "+"),
@@ -248,7 +287,7 @@ export const POPULATION_SURPLUS_DYNAMICS_NODES: FoundationDynamicsNode[] = [
   ),
 ];
 
-export const POPULATION_SURPLUS_DYNAMICS_EDGES: Edge[] = [
+export const POPULATION_SURPLUS_DYNAMICS_EDGES: FoundationDynamicsEdge[] = [
   edge(
     "surplus-tiles-to-production",
     "surplus-tiles-owned",
@@ -371,22 +410,23 @@ export const POPULATION_SURPLUS_DYNAMICS_EDGES: Edge[] = [
   ),
 ];
 
-export const FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS: readonly SavedDynamicsSystem[] =
+export const FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS: readonly DynamicsSavedSystem[] =
   [
-    {
+    savedDynamicsSystemToSchema({
       id: FOOD_STOCK_BUILTIN_SYSTEM_ID,
       name: "Food stock model",
       savedAt: 0,
       nodes: FOUNDATION_DYNAMICS_NODES,
       edges: FOUNDATION_DYNAMICS_EDGES,
-    },
-    {
+    }),
+    savedDynamicsSystemToSchema({
       id: POPULATION_SURPLUS_BUILTIN_SYSTEM_ID,
       name: "Food surplus population growth",
       savedAt: 0,
       nodes: POPULATION_SURPLUS_DYNAMICS_NODES,
       edges: POPULATION_SURPLUS_DYNAMICS_EDGES,
-    },
+    }),
+    FOUNDATION_ECONOMY_DYNAMICS_SYSTEM,
   ];
 
 export function inputNode(
@@ -497,7 +537,7 @@ export function edge(
   source: string,
   target: string,
   label?: string,
-): Edge {
+): FoundationDynamicsEdge {
   return {
     id,
     source,
@@ -510,13 +550,8 @@ export function edge(
 }
 
 export function hasEquivalentConnection(
-  edges: readonly Edge[],
-  connection: {
-    readonly source: string | null;
-    readonly target: string | null;
-    readonly sourceHandle?: string | null;
-    readonly targetHandle?: string | null;
-  },
+  edges: readonly FoundationDynamicsEdge[],
+  connection: FoundationDynamicsConnection,
 ): boolean {
   if (connection.source === null || connection.target === null) {
     return false;
@@ -613,7 +648,7 @@ export function tabLabel(primitive: DynamicsPrimitive): string {
 export function incomingNames(
   nodeId: string,
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
+  edges: readonly FoundationDynamicsEdge[],
 ): readonly string[] {
   return edges
     .filter((edge) => edge.target === nodeId)
@@ -625,7 +660,7 @@ export function connectionSummaries(
   nodeId: string,
   direction: "incoming" | "outgoing",
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
+  edges: readonly FoundationDynamicsEdge[],
 ): readonly string[] {
   return edges
     .filter((edge) =>
@@ -644,40 +679,37 @@ export function connectionSummaries(
 
 export function initialSimulationState(
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
+  edges: readonly FoundationDynamicsEdge[],
 ): SimulationState {
-  const sinkStates = initialSinkStates(nodes);
-  const values = evaluateNodeValues(nodes, edges, sinkStates);
-  const operatorValues = operatorOutputs(nodes, values);
-  return {
-    running: false,
-    tick: 0,
-    sinkStates,
-    frames: [{ tick: 0, operatorValues, sinkStates }],
-  };
+  return initialDynamicsSimulationState(schemaForNodesAndEdges(nodes, edges));
 }
 
 export function stepSimulationState(
   current: SimulationState,
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
+  edges: readonly FoundationDynamicsEdge[],
 ): SimulationState {
-  const values = evaluateNodeValues(nodes, edges, current.sinkStates);
-  const sinkStates = evaluateNextSinkStates(
-    nodes,
-    edges,
-    current.sinkStates,
-    values,
+  return stepDynamicsSimulationState(
+    current,
+    schemaForNodesAndEdges(nodes, edges),
   );
-  const operatorValues = operatorOutputs(nodes, values);
-  const tick = current.tick + 1;
-  const frame = { tick, operatorValues, sinkStates };
-  return {
-    running: current.running,
-    tick,
-    sinkStates,
-    frames: [...current.frames, frame].slice(-120),
-  };
+}
+
+export function dynamicsCompileDiagnostics(
+  nodes: readonly FoundationDynamicsNode[],
+  edges: readonly FoundationDynamicsEdge[],
+): readonly string[] {
+  try {
+    compileDynamicsSystem(schemaForNodesAndEdges(nodes, edges));
+    return [];
+  } catch (error) {
+    if (error instanceof DynamicsCompileError) {
+      return error.diagnostics;
+    }
+    return [
+      error instanceof Error ? error.message : "Could not compile graph.",
+    ];
+  }
 }
 
 export function currentNodeValue(
@@ -766,92 +798,96 @@ export function applyInputActions(
   };
 }
 
-export function loadSavedDynamicsSystems(): readonly SavedDynamicsSystem[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-  try {
-    const raw = window.localStorage.getItem(FOUNDATION_DYNAMICS_LIBRARY_KEY);
-    if (raw === null) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as Partial<DynamicsSystemLibrary>;
-    if (parsed.version !== 1 || !Array.isArray(parsed.systems)) {
-      return [];
-    }
-    return parsed.systems.filter(isSavedDynamicsSystem).map((system) => ({
-      ...system,
-      nodes: normalizeReadInputs(cloneNodes(system.nodes)),
-      edges: cloneEdges(system.edges),
-    }));
-  } catch {
-    return [];
-  }
+export function loadSavedDynamicsSystems(): readonly FoundationDynamicsEditorSystem[] {
+  return loadFoundationDynamicsSystemLibrary().map(
+    savedDynamicsSystemFromSchema,
+  );
 }
 
 export function saveDynamicsSystemLibrary(
-  systems: readonly SavedDynamicsSystem[],
+  systems: readonly FoundationDynamicsEditorSystem[],
 ): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    window.localStorage.setItem(
-      FOUNDATION_DYNAMICS_LIBRARY_KEY,
-      JSON.stringify({ version: 1, systems } satisfies DynamicsSystemLibrary),
-    );
-  } catch {
-    // Local storage can be unavailable in private or test environments.
-  }
+  saveFoundationDynamicsSystemLibrary(systems.map(savedDynamicsSystemToSchema));
 }
 
 export function serializeDynamicsSystemLibrary(
-  systems: readonly SavedDynamicsSystem[],
+  systems: readonly FoundationDynamicsEditorSystem[],
 ): string {
-  return JSON.stringify(
-    { version: 1, systems } satisfies DynamicsSystemLibrary,
-    null,
-    2,
+  return serializeFoundationDynamicsSystemLibrary(
+    systems.map(savedDynamicsSystemToSchema),
   );
 }
 
 export function parseDynamicsSystemLibraryJson(
   value: string,
-): readonly SavedDynamicsSystem[] {
-  const parsed = JSON.parse(value) as unknown;
-  const systems = Array.isArray(parsed)
-    ? parsed
-    : typeof parsed === "object" &&
-        parsed !== null &&
-        (parsed as Partial<DynamicsSystemLibrary>).version === 1 &&
-        Array.isArray((parsed as Partial<DynamicsSystemLibrary>).systems)
-      ? (parsed as Partial<DynamicsSystemLibrary>).systems
-      : undefined;
+): readonly FoundationDynamicsEditorSystem[] {
+  return parseFoundationDynamicsSystemLibraryJson(value).map(
+    savedDynamicsSystemFromSchema,
+  );
+}
 
-  if (systems === undefined) {
-    throw new Error(
-      "Dynamics JSON must be a versioned library or system array.",
-    );
-  }
+export function savedDynamicsSystemToSchema(
+  system: FoundationDynamicsEditorSystem,
+): DynamicsSavedSystem {
+  return {
+    version: DYNAMICS_SCHEMA_VERSION,
+    definition: {
+      version: DYNAMICS_SCHEMA_VERSION,
+      id: system.id,
+      name: system.name,
+      savedAt: system.savedAt,
+      nodes: system.nodes.map(editorNodeToDefinition),
+      edges: system.edges.map(editorEdgeToDefinition),
+    },
+    scenario: {
+      version: DYNAMICS_SCHEMA_VERSION,
+      id: `${system.id}-default`,
+      systemId: system.id,
+      name: "Default",
+      inputValues: editorInputValues(system.nodes),
+      sinkInitialStates: editorSinkInitialStates(system.nodes),
+    },
+    view: {
+      version: DYNAMICS_SCHEMA_VERSION,
+      systemId: system.id,
+      nodes: system.nodes.map(editorNodeToView),
+    },
+  };
+}
 
-  const validSystems = systems.filter(isSavedDynamicsSystem).map((system) => ({
-    ...system,
-    nodes: normalizeReadInputs(cloneNodes(system.nodes)),
-    edges: cloneEdges(system.edges),
-  }));
-
-  if (validSystems.length === 0) {
-    throw new Error("Dynamics JSON did not contain any valid systems.");
-  }
-
-  return validSystems;
+export function savedDynamicsSystemFromSchema(
+  system: DynamicsSavedSystem,
+): FoundationDynamicsEditorSystem {
+  const viewById = new Map(system.view.nodes.map((node) => [node.id, node]));
+  return normalizeSavedDynamicsSystem({
+    id: system.definition.id,
+    name: system.definition.name,
+    savedAt: system.definition.savedAt ?? 0,
+    nodes: system.definition.nodes.map((node) =>
+      schemaNodeToEditorNode(
+        node,
+        viewById.get(node.id),
+        system.scenario.inputValues?.[node.id],
+        system.scenario.sinkInitialStates?.[node.id],
+      ),
+    ),
+    edges: system.definition.edges.map((definition) => ({
+      id: definition.id,
+      source: definition.source,
+      sourceHandle: "out",
+      target: definition.target,
+      targetHandle: "in",
+      label: definition.label,
+      type: "smoothstep",
+    })),
+  });
 }
 
 export function savedDynamicsSystem(
   name: string,
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
-): SavedDynamicsSystem {
+  edges: readonly FoundationDynamicsEdge[],
+): FoundationDynamicsEditorSystem {
   const normalizedName = name.trim() || "Untitled system";
   return {
     id: slugifySystemName(normalizedName),
@@ -873,7 +909,9 @@ export function cloneNodes(
   }));
 }
 
-export function cloneEdges(edges: readonly Edge[]): Edge[] {
+export function cloneEdges(
+  edges: readonly FoundationDynamicsEdge[],
+): FoundationDynamicsEdge[] {
   return edges.map((edge) => ({
     ...edge,
     data:
@@ -893,13 +931,86 @@ export function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+function normalizeSavedDynamicsSystem(
+  system: FoundationDynamicsEditorSystem,
+): FoundationDynamicsEditorSystem {
+  return {
+    ...system,
+    nodes: normalizeReadInputs(cloneNodes(system.nodes)),
+    edges: cloneEdges(system.edges),
+  };
 }
 
-function initialSinkStates(
+function editorNodeToDefinition(
+  node: FoundationDynamicsNode,
+): DynamicsNodeDefinition {
+  if (node.data.primitive === "input") {
+    return {
+      id: node.id,
+      primitive: "input",
+      name: node.data.name,
+      inputKind: node.data.inputKind ?? "user",
+      readSinkId: node.data.readSinkId,
+    };
+  }
+  if (node.data.primitive === "sink") {
+    return {
+      id: node.id,
+      primitive: "sink",
+      name: node.data.name,
+      expression: node.data.expression ?? "state",
+    };
+  }
+  return {
+    id: node.id,
+    primitive: "operator",
+    name: node.data.name,
+    expression: node.data.expression ?? "0",
+  };
+}
+
+function editorEdgeToDefinition(
+  edge: FoundationDynamicsEdge,
+): DynamicsEdgeDefinition {
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    label: typeof edge.label === "string" ? edge.label : undefined,
+  };
+}
+
+function editorNodeToView(node: FoundationDynamicsNode): DynamicsViewNode {
+  return {
+    id: node.id,
+    position: { x: node.position.x, y: node.position.y },
+    inputControl:
+      node.data.primitive === "input"
+        ? {
+            sliderMin: node.data.sliderMin,
+            sliderMax: node.data.sliderMax,
+            actionAmount: node.data.actionAmount,
+            actionTicks: node.data.actionTicks,
+          }
+        : undefined,
+  };
+}
+
+function editorInputValues(
   nodes: readonly FoundationDynamicsNode[],
-): Readonly<Record<string, number>> {
+): Record<string, number> {
+  const values: Record<string, number> = {};
+  for (const node of nodes) {
+    if (node.data.primitive === "input" && node.data.inputKind !== "read") {
+      values[node.id] = node.data.value ?? 0;
+    }
+  }
+  return values;
+}
+
+function editorSinkInitialStates(
+  nodes: readonly FoundationDynamicsNode[],
+): Record<string, number> {
   const states: Record<string, number> = {};
   for (const node of nodes) {
     if (node.data.primitive === "sink") {
@@ -909,148 +1020,46 @@ function initialSinkStates(
   return states;
 }
 
-function evaluateNextSinkStates(
+function schemaNodeToEditorNode(
+  node: DynamicsNodeDefinition,
+  view: DynamicsViewNode | undefined,
+  inputValue: number | undefined,
+  sinkState: number | undefined,
+): FoundationDynamicsNode {
+  return {
+    id: node.id,
+    type: "foundationDynamics",
+    position: view?.position ?? { x: 0, y: 0 },
+    data: {
+      primitive: node.primitive,
+      name: node.name,
+      inputKind: node.primitive === "input" ? node.inputKind : undefined,
+      readSinkId: node.primitive === "input" ? node.readSinkId : undefined,
+      value: node.primitive === "input" ? inputValue : undefined,
+      expression:
+        node.primitive === "operator" || node.primitive === "sink"
+          ? node.expression
+          : undefined,
+      state: node.primitive === "sink" ? sinkState : undefined,
+      sliderMin: view?.inputControl?.sliderMin,
+      sliderMax: view?.inputControl?.sliderMax,
+      actionAmount: view?.inputControl?.actionAmount,
+      actionTicks: view?.inputControl?.actionTicks,
+    },
+  };
+}
+
+function schemaForNodesAndEdges(
   nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
-  currentSinkStates: Readonly<Record<string, number>>,
-  values: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
-  const nextSinkStates: Record<string, number> = {};
-  for (const sink of sinkNodes(nodes)) {
-    const currentState = currentSinkStates[sink.id] ?? sink.data.state ?? 0;
-    const scope = {
-      ...incomingScope(sink.id, nodes, edges, values),
-      state: currentState,
-    };
-    nextSinkStates[sink.id] = evaluateExpression(
-      sink.data.expression ?? "state",
-      scope,
-      currentState,
-    );
-  }
-  return nextSinkStates;
-}
-
-function evaluateNodeValues(
-  nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
-  currentSinkStates: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
-  const values: Record<string, number> = {};
-  for (const node of nodes) {
-    if (node.data.primitive !== "input") {
-      continue;
-    }
-    values[node.id] =
-      node.data.inputKind === "read"
-        ? (currentSinkStates[node.data.readSinkId ?? ""] ?? 0)
-        : (node.data.value ?? 0);
-  }
-
-  const operators = nodes.filter((node) => node.data.primitive === "operator");
-  const pending = new Set(operators.map((node) => node.id));
-  for (let pass = 0; pass < operators.length; pass++) {
-    let progressed = false;
-    for (const operator of operators) {
-      if (!pending.has(operator.id)) {
-        continue;
-      }
-      const incomingEdges = edges.filter((edge) => edge.target === operator.id);
-      if (!incomingEdges.every((edge) => values[edge.source] !== undefined)) {
-        continue;
-      }
-      values[operator.id] = evaluateExpression(
-        operator.data.expression ?? "0",
-        incomingScope(operator.id, nodes, edges, values),
-        0,
-      );
-      pending.delete(operator.id);
-      progressed = true;
-    }
-    if (!progressed) {
-      break;
-    }
-  }
-
-  for (const nodeId of pending) {
-    values[nodeId] = 0;
-  }
-  return values;
-}
-
-function operatorOutputs(
-  nodes: readonly FoundationDynamicsNode[],
-  values: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
-  const outputs: Record<string, number> = {};
-  for (const node of nodes) {
-    if (node.data.primitive === "operator") {
-      outputs[node.id] = values[node.id] ?? 0;
-    }
-  }
-  return outputs;
-}
-
-function incomingScope(
-  nodeId: string,
-  nodes: readonly FoundationDynamicsNode[],
-  edges: readonly Edge[],
-  values: Readonly<Record<string, number>>,
-): Record<string, number> {
-  const scope: Record<string, number> = {};
-  for (const edge of edges.filter((edge) => edge.target === nodeId)) {
-    const source = nodes.find((node) => node.id === edge.source);
-    if (source === undefined) {
-      continue;
-    }
-    scope[source.data.name] = values[source.id] ?? 0;
-  }
-  return scope;
-}
-
-function evaluateExpression(
-  expression: string,
-  scope: Readonly<Record<string, number>>,
-  fallback: number,
-): number {
-  try {
-    const body = expression.includes("return")
-      ? expression
-      : `return (${expression});`;
-    // User-authored local model expressions are intentionally JavaScript.
-    const fn = new Function(
-      "scope",
-      "clamp",
-      "min",
-      "max",
-      "Math",
-      `
-      with (scope) {
-        ${body}
-      }
-    `,
-    );
-    const value = fn(scope, clamp, Math.min, Math.max, Math);
-    return typeof value === "number" && Number.isFinite(value)
-      ? value
-      : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function isSavedDynamicsSystem(value: unknown): value is SavedDynamicsSystem {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Partial<SavedDynamicsSystem>;
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    typeof candidate.savedAt === "number" &&
-    Array.isArray(candidate.nodes) &&
-    Array.isArray(candidate.edges)
-  );
+  edges: readonly FoundationDynamicsEdge[],
+) {
+  return savedDynamicsSystemToSchema({
+    id: "current-dynamics-system",
+    name: "Current dynamics system",
+    savedAt: 0,
+    nodes,
+    edges,
+  });
 }
 
 function slugifySystemName(name: string): string {

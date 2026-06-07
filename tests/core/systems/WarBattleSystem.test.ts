@@ -4,7 +4,7 @@ import {
   DEFAULT_WAR_BATTLE_PARAMS,
   evaluateWarBattleTick,
   startWarBattleAttack,
-} from "../../../src/core/systems/models/WarBattleSystem";
+} from "../../../src/games/openfront/systems/models/WarBattleSystem";
 
 describe("WarBattleSystem", () => {
   test("mobilizes attackers from home troops into an active attack", () => {

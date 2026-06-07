@@ -13,10 +13,10 @@ import {
 import { Difficulty, GameMapType, GameMode } from "../../core/game/Game";
 import { createZeroResources } from "../../core/game/Resources";
 import { GameStartInfoSchema } from "../../core/Schemas";
-import { evaluateFoodSystem } from "../../core/systems/models/FoodSystem";
-import { evaluatePopulationSystem } from "../../core/systems/models/PopulationSystem";
-import { evaluateResourceProductionSystem } from "../../core/systems/models/ResourceProductionSystem";
 import { generateID } from "../../core/Util";
+import { evaluateFoodSystem } from "../../games/openfront/systems/models/FoodSystem";
+import { evaluatePopulationSystem } from "../../games/openfront/systems/models/PopulationSystem";
+import { evaluateResourceProductionSystem } from "../../games/openfront/systems/models/ResourceProductionSystem";
 import "../hud/ui";
 import type {
   HudSegmentedItem,

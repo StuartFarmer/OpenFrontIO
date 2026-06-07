@@ -1,6 +1,6 @@
+import { StructureSystem } from "../../games/openfront/systems/gameplay/StructureSystem";
 import { Execution, Game, Player, Tick, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { StructureSystem } from "../systems/gameplay/StructureSystem";
 
 export class ConstructionExecution implements Execution {
   private structure: Unit | null = null;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { PlayerInfo, PlayerType, UnitType } from "../../../src/core/game/Game";
-import { PlayerEconomySystem } from "../../../src/core/systems/gameplay/PlayerEconomySystem";
-import { PlayerUpkeepSystem } from "../../../src/core/systems/gameplay/PlayerUpkeepSystem";
+import { PlayerEconomySystem } from "../../../src/games/openfront/systems/gameplay/PlayerEconomySystem";
+import { PlayerUpkeepSystem } from "../../../src/games/openfront/systems/gameplay/PlayerUpkeepSystem";
 import { setup } from "../../util/Setup";
 
 describe("player gameplay systems", () => {

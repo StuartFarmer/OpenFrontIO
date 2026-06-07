@@ -2,16 +2,16 @@ import { describe, expect, test } from "vitest";
 import {
   StockFlowCompileError,
   compileStockFlowModel,
-} from "../../../src/core/systems/StockFlowCompiler";
+} from "../../../src/games/openfront/systems/StockFlowCompiler";
 import type {
   StockFlowModel,
   StockFlowSystem,
-} from "../../../src/core/systems/StockFlowSystem";
+} from "../../../src/games/openfront/systems/StockFlowSystem";
 import {
   StockFlowAddressError,
   assertValueAddress,
   isValueAddress,
-} from "../../../src/core/systems/ValueAddress";
+} from "../../../src/games/openfront/systems/ValueAddress";
 
 describe("stock-flow system contracts", () => {
   test("validates value addresses", () => {

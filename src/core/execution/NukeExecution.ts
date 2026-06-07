@@ -1,3 +1,4 @@
+import { ProjectileSystem } from "../../games/openfront/systems/gameplay/ProjectileSystem";
 import {
   Execution,
   Game,
@@ -15,7 +16,6 @@ import { ParabolaUniversalPathFinder } from "../pathfinding/PathFinder.Parabola"
 import { PathStatus } from "../pathfinding/types";
 import { PseudoRandom } from "../PseudoRandom";
 import { NukeType } from "../StatsSchemas";
-import { ProjectileSystem } from "../systems/gameplay/ProjectileSystem";
 import { listNukeBreakAlliance } from "./Util";
 
 const SPRITE_RADIUS = 16;

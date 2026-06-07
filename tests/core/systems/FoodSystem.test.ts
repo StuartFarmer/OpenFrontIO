@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { resolveMechanicsConfig } from "../../../src/core/configuration/MechanicsConfig";
-import { evaluateFoodSystem } from "../../../src/core/systems/models/FoodSystem";
+import { evaluateFoodSystem } from "../../../src/games/openfront/systems/models/FoodSystem";
 
 describe("FoodSystem", () => {
   test("publishes food stock, produced, needed, consumed, and shortage", () => {

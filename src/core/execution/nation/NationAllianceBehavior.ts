@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   Difficulty,
   Game,
@@ -7,7 +8,6 @@ import {
   Relation,
 } from "../../game/Game";
 import { PseudoRandom } from "../../PseudoRandom";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever } from "../../Util";
 import {
   EMOJI_CONFUSED,

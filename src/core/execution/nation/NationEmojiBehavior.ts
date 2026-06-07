@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   AllPlayers,
   Difficulty,
@@ -9,7 +10,6 @@ import {
   Tick,
 } from "../../game/Game";
 import { PseudoRandom } from "../../PseudoRandom";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { flattenedEmojiTable } from "../../Util";
 
 const emojiId = (e: (typeof flattenedEmojiTable)[number]) =>

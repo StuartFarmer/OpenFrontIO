@@ -8,10 +8,10 @@ import {
   capacityMultiplierForPlayerType,
   evaluatePopulationSystem,
   growthMultiplierForPlayerType,
-} from "../../../src/core/systems/models/PopulationSystem";
+} from "../../../src/games/openfront/systems/models/PopulationSystem";
 import { setup } from "../../util/Setup";
 
-describe("PopulationSystem", () => {
+describe("PopulationSystem StockFlow compatibility boundary", () => {
   test("matches current human max population from owned tiles", async () => {
     const game = await setup("plains", { instantBuild: true }, [
       new PlayerInfo("player", PlayerType.Human, null, "player_id"),

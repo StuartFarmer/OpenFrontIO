@@ -8,14 +8,14 @@ import { createZeroResources } from "../../../src/core/game/Resources";
 import {
   evaluateResourceCapacity,
   evaluateResourceProductionSystem,
-} from "../../../src/core/systems/models/ResourceProductionSystem";
+} from "../../../src/games/openfront/systems/models/ResourceProductionSystem";
 import {
   evaluatePlayerResourceProduction,
   terrainResourceProductionSplit,
-} from "../../../src/core/systems/PlayerEconomyAdapter";
+} from "../../../src/games/openfront/systems/PlayerEconomyAdapter";
 import { setup } from "../../util/Setup";
 
-describe("ResourceProductionSystem", () => {
+describe("ResourceProductionSystem StockFlow compatibility boundary", () => {
   test("matches current resource capacity from territory and silos", async () => {
     const game = await setup("plains", { instantBuild: true }, [
       new PlayerInfo("player", PlayerType.Human, null, "player_id"),

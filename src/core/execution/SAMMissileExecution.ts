@@ -1,8 +1,8 @@
+import { ProjectileSystem } from "../../games/openfront/systems/gameplay/ProjectileSystem";
 import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PathFinding } from "../pathfinding/PathFinder";
 import { PathStatus, SteppingPathFinder } from "../pathfinding/types";
-import { ProjectileSystem } from "../systems/gameplay/ProjectileSystem";
 
 export class SAMMissileExecution implements Execution {
   private active = true;

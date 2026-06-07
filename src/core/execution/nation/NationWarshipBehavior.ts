@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   AllPlayers,
   Difficulty,
@@ -10,7 +11,6 @@ import {
 } from "../../game/Game";
 import { TileRef } from "../../game/GameMap";
 import { PseudoRandom } from "../../PseudoRandom";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import {
   EMOJI_WARSHIP_RETALIATION,
   NationEmojiBehavior,

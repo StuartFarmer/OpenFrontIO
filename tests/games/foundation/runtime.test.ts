@@ -6,12 +6,13 @@ import {
   createFoundationRuntime,
   createGrowTerritoryCommand,
   createPlacePlayerCommand,
+  createPlayer,
   foodProductionForTileCount,
   foundationWaterTerrainByteForElevation,
   maxTroopsForTileCount,
   ownerIdFromState,
-  troopIncreaseRate,
 } from "../../../src/games/foundation";
+import { foundationEconomyFixture } from "./dynamics/fixtures/FoundationEconomyFixtures";
 
 describe("Foundation runtime", () => {
   it("builds a Foundation-owned place command envelope", () => {
@@ -236,7 +237,7 @@ describe("Foundation runtime", () => {
     expect(snapshot.player.foodProduction).toBe(foodProduction);
     expect(snapshot.player.foodSupportedTroops).toBe(maxTroops);
     expect(snapshot.player.maxTroops).toBe(maxTroops);
-    expect(troopIncreaseRate(runtime.player())).toBeCloseTo(expectedGrowth, 5);
+    expect(snapshot.player.troopIncreaseRate).toBeCloseTo(expectedGrowth, 5);
   });
 
   it("derives supported troops from food production and food per troop", () => {
@@ -268,8 +269,9 @@ describe("Foundation runtime", () => {
       }),
     );
 
-    const afterAttackTroops = runtime.snapshot().player.troops;
-    const expectedGrowth = troopIncreaseRate(runtime.player());
+    const beforeGrowthSnapshot = runtime.snapshot().player;
+    const afterAttackTroops = beforeGrowthSnapshot.troops;
+    const expectedGrowth = beforeGrowthSnapshot.troopIncreaseRate;
     runtime.advanceTick();
 
     expect(runtime.snapshot().player.troops).toBeGreaterThan(afterAttackTroops);
@@ -278,6 +280,41 @@ describe("Foundation runtime", () => {
       5,
     );
     expect(runtime.snapshot().player.troopIncreaseRate).toBeGreaterThan(0);
+  });
+
+  it("updates economy metrics from the graph-backed economy system", () => {
+    const fixture = foundationEconomyFixture("runtime-growth");
+    const runtime = createFoundationRuntime({
+      player: fixturePlayer(fixture),
+      parameters: fixture.parameters,
+    });
+
+    const update = runtime.advanceTick();
+
+    expect(runtime.player().foodStock).toBeCloseTo(
+      fixture.runtime.player.foodStock,
+      6,
+    );
+    expect(runtime.player().troops).toBeCloseTo(
+      fixture.runtime.player.troops,
+      6,
+    );
+    expect(update.metrics?.foodStock).toBeCloseTo(
+      fixture.runtime.metrics.foodStock,
+      6,
+    );
+    expect(update.metrics?.foodStockDelta).toBeCloseTo(
+      fixture.runtime.foodStockMetrics.stockDelta,
+      6,
+    );
+    expect(update.metrics?.foodStockOverflow).toBeCloseTo(
+      fixture.runtime.foodStockMetrics.overflow,
+      6,
+    );
+    expect(update.metrics?.troops).toBeCloseTo(
+      fixture.runtime.player.troops,
+      6,
+    );
   });
 
   it("starts wilderness exploration by committing troops toward a clicked target", () => {
@@ -667,3 +704,27 @@ describe("Foundation runtime", () => {
     expect(snapshot.player.foodStockOverflow).toBe(0);
   });
 });
+
+function fixturePlayer(fixture: ReturnType<typeof foundationEconomyFixture>) {
+  if (fixture.player === null) {
+    return createPlayer("player-1", {
+      troops: 25_000,
+      foodStock: 1_750,
+    });
+  }
+  const player = createPlayer("player-1", {
+    troops: fixture.player.troops,
+    foodStock: fixture.player.foodStock,
+  });
+  return {
+    ...player,
+    placement: {
+      selectedTile: 1,
+      claimedTiles: Array.from(
+        { length: fixture.player.claimedTileCount },
+        (_value, index) => index + 1,
+      ),
+      claimedTileCount: fixture.player.claimedTileCount,
+    },
+  };
+}

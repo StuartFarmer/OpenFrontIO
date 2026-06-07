@@ -1,13 +1,25 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { DYNAMICS_SCHEMA_VERSION } from "../../../../src/core/systems/dynamics";
 import {
   applyInputActions,
+  dynamicsCompileDiagnostics,
+  FOUNDATION_DYNAMICS_EDGES,
   FOUNDATION_DYNAMICS_NODES,
   initialSimulationState,
   normalizeReadInputs,
+  parseDynamicsSystemLibraryJson,
   POPULATION_SURPLUS_DYNAMICS_EDGES,
   POPULATION_SURPLUS_DYNAMICS_NODES,
+  savedDynamicsSystem,
+  savedDynamicsSystemToSchema,
+  serializeDynamicsSystemLibrary,
   stepSimulationState,
 } from "../../../../src/games/foundation/dynamics/FoundationDynamicsModel";
+import {
+  parseFoundationDynamicsSystemLibraryJson,
+  serializeFoundationDynamicsSystemLibrary,
+} from "../../../../src/games/foundation/dynamics/FoundationDynamicsStorage";
 
 describe("FoundationDynamicsModel", () => {
   it("applies input actions as unclamped value deltas", () => {
@@ -70,6 +82,37 @@ describe("FoundationDynamicsModel", () => {
     expect(next.sinkStates["surplus-population-stock"]).toBeGreaterThan(10);
   });
 
+  it("does not step invalid graphs through fallback simulation", () => {
+    const invalidNodes = FOUNDATION_DYNAMICS_NODES.map((node) =>
+      node.id === "food-production"
+        ? { ...node, data: { ...node.data, expression: "tilesOwned *" } }
+        : node,
+    );
+    const initial = initialSimulationState(
+      FOUNDATION_DYNAMICS_NODES,
+      FOUNDATION_DYNAMICS_EDGES,
+    );
+
+    expect(
+      dynamicsCompileDiagnostics(invalidNodes, FOUNDATION_DYNAMICS_EDGES),
+    ).toContain('Node "food-production" has an invalid expression.');
+    expect(() =>
+      stepSimulationState(initial, invalidNodes, FOUNDATION_DYNAMICS_EDGES),
+    ).toThrow();
+  });
+
+  it("does not carry raw fallback evaluator code in the editor model", () => {
+    const source = readFileSync(
+      "src/games/foundation/dynamics/FoundationDynamicsModel.ts",
+      "utf8",
+    );
+
+    expect(source).not.toContain("fallbackStepSimulationState");
+    expect(source).not.toContain("fallbackInitialSimulationState");
+    expect(source).not.toContain("new Function");
+    expect(source).not.toContain("with (scope)");
+  });
+
   it("reserves a configurable share of production before feeding population", () => {
     const initial = initialSimulationState(
       POPULATION_SURPLUS_DYNAMICS_NODES,
@@ -95,6 +138,86 @@ describe("FoundationDynamicsModel", () => {
 
     expect(lowSupplyShare.sinkStates["surplus-population-stock"]).toBe(40);
     expect(highSupplyShare.sinkStates["surplus-population-stock"]).toBe(10);
+  });
+
+  it("imports v1 saved system JSON through the compatibility path", () => {
+    const v1System = savedDynamicsSystem(
+      "Food v1",
+      FOUNDATION_DYNAMICS_NODES,
+      POPULATION_SURPLUS_DYNAMICS_EDGES.slice(0, 0),
+    );
+
+    const imported = parseDynamicsSystemLibraryJson(
+      JSON.stringify({ version: 1, systems: [v1System] }),
+    );
+
+    expect(imported).toHaveLength(1);
+    expect(imported[0]?.name).toBe("Food v1");
+    expect(imported[0]?.nodes[0]?.position).toEqual(
+      FOUNDATION_DYNAMICS_NODES[0]?.position,
+    );
+  });
+
+  it("exports saved systems with the canonical schema version", () => {
+    const system = savedDynamicsSystem(
+      "Food v2",
+      FOUNDATION_DYNAMICS_NODES,
+      POPULATION_SURPLUS_DYNAMICS_EDGES.slice(0, 0),
+    );
+
+    const serialized = serializeDynamicsSystemLibrary([system]);
+    const parsed = JSON.parse(serialized) as {
+      version: number;
+      systems: readonly {
+        definition: { nodes: readonly unknown[] };
+        scenario: { inputValues?: Record<string, number> };
+        view: { nodes: readonly unknown[] };
+      }[];
+    };
+
+    expect(parsed.version).toBe(DYNAMICS_SCHEMA_VERSION);
+    expect(parsed.systems[0]?.definition.nodes[0]).not.toHaveProperty(
+      "position",
+    );
+    expect(parsed.systems[0]?.scenario.inputValues?.["tiles-owned"]).toBe(10);
+    expect(parsed.systems[0]?.view.nodes[0]).toHaveProperty("position");
+  });
+
+  it("stores canonical v2 systems through the storage API", () => {
+    const system = savedDynamicsSystemToSchema(
+      savedDynamicsSystem(
+        "Food storage v2",
+        FOUNDATION_DYNAMICS_NODES,
+        POPULATION_SURPLUS_DYNAMICS_EDGES.slice(0, 0),
+      ),
+    );
+
+    const serialized = serializeFoundationDynamicsSystemLibrary([system]);
+    const parsed = JSON.parse(serialized) as {
+      version: number;
+      systems: readonly { definition: { name: string } }[];
+    };
+
+    expect(parsed.version).toBe(DYNAMICS_SCHEMA_VERSION);
+    expect(parsed.systems[0]?.definition.name).toBe("Food storage v2");
+  });
+
+  it("imports v1 JSON as canonical v2 systems through the storage API", () => {
+    const v1System = savedDynamicsSystem(
+      "Food storage v1",
+      FOUNDATION_DYNAMICS_NODES,
+      POPULATION_SURPLUS_DYNAMICS_EDGES.slice(0, 0),
+    );
+
+    const imported = parseFoundationDynamicsSystemLibraryJson(
+      JSON.stringify({ version: 1, systems: [v1System] }),
+    );
+
+    expect(imported[0]?.version).toBe(DYNAMICS_SCHEMA_VERSION);
+    expect(imported[0]?.definition.name).toBe("Food storage v1");
+    expect(imported[0]?.view.nodes[0]?.position).toEqual(
+      FOUNDATION_DYNAMICS_NODES[0]?.position,
+    );
   });
 });
 

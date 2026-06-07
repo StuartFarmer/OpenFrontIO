@@ -1,3 +1,4 @@
+import { MobileUnitSystem } from "../../games/openfront/systems/gameplay/MobileUnitSystem";
 import {
   Execution,
   Game,
@@ -10,7 +11,6 @@ import { TileRef } from "../game/GameMap";
 import { RailNetwork } from "../game/RailNetwork";
 import { getOrientedRailroad, OrientedRailroad } from "../game/Railroad";
 import { TrainStation } from "../game/TrainStation";
-import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class TrainExecution implements Execution {
   private active = true;

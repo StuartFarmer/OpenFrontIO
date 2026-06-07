@@ -1,3 +1,4 @@
+import { AiCommandSurface } from "../../../games/openfront/systems/commands/AiCommandSurface";
 import {
   Difficulty,
   Game,
@@ -14,7 +15,6 @@ import {
 import { TileRef, euclDistFN } from "../../game/GameMap";
 import { UniversalPathFinding } from "../../pathfinding/PathFinder";
 import { PseudoRandom } from "../../PseudoRandom";
-import { AiCommandSurface } from "../../systems/commands/AiCommandSurface";
 import { assertNever, boundingBoxTiles } from "../../Util";
 import { closestTwoTiles } from "../Util";
 import { AiAttackBehavior } from "../utils/AiAttackBehavior";
@@ -767,7 +767,14 @@ export class NationNukeBehavior {
       this.hydrogenBombPerceivedCost =
         (this.hydrogenBombPerceivedCost * 125n) / 100n;
     }
-    this.commandSurface.sendNuke(nukeType, this.player, tile, null, -1, waitTicks);
+    this.commandSurface.sendNuke(
+      nukeType,
+      this.player,
+      tile,
+      null,
+      -1,
+      waitTicks,
+    );
     this.emojiBehavior.maybeSendEmoji(targetPlayer, EMOJI_NUKE);
   }
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { GameUpdates } from "../../../src/core/game/Game";
 import { Game, PlayerInfo, PlayerType } from "../../../src/core/game/Game";
 import { GameUpdateType } from "../../../src/core/game/GameUpdates";
-import { TerritoryConquestSystem } from "../../../src/core/systems/gameplay/TerritoryConquestSystem";
+import { TerritoryConquestSystem } from "../../../src/games/openfront/systems/gameplay/TerritoryConquestSystem";
 import { setup } from "../../util/Setup";
 
 describe("TerritoryConquestSystem", () => {

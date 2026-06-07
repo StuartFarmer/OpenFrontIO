@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { NukeExecution } from "../../../src/core/execution/NukeExecution";
 import { PlayerInfo, PlayerType, UnitType } from "../../../src/core/game/Game";
-import { ProjectileSystem } from "../../../src/core/systems/gameplay/ProjectileSystem";
+import { ProjectileSystem } from "../../../src/games/openfront/systems/gameplay/ProjectileSystem";
 import { setup } from "../../util/Setup";
 
 describe("ProjectileSystem", () => {

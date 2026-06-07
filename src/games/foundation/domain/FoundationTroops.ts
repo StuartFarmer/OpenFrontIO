@@ -144,6 +144,11 @@ export function maxTroopsForTileCount(
   return foodSupportedTroopsForTileCount(tileCount, parameters);
 }
 
+/**
+ * Compatibility/reference helpers for non-runtime callers and parity tests.
+ * Foundation runtime economy metrics are sourced from the compiled dynamics
+ * graph-backed economy system in `FoundationEconomyDynamicsSystem`.
+ */
 export function foodProductionForPlayer(
   player: Player,
   parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,

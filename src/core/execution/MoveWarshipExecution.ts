@@ -1,6 +1,6 @@
+import { MobileUnitSystem } from "../../games/openfront/systems/gameplay/MobileUnitSystem";
 import { Execution, Game, Player } from "../game/Game";
 import { TileRef } from "../game/GameMap";
-import { MobileUnitSystem } from "../systems/gameplay/MobileUnitSystem";
 
 export class MoveWarshipExecution implements Execution {
   constructor(

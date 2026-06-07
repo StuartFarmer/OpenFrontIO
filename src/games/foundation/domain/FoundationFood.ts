@@ -75,6 +75,11 @@ export function normalizeFoundationFoodParameters(
   };
 }
 
+/**
+ * Compatibility/reference evaluator for non-runtime callers and parity tests.
+ * Live Foundation runtime economy ticks are sourced from the compiled dynamics
+ * graph-backed economy system in `FoundationEconomyDynamicsSystem`.
+ */
 export function tickFoundationFood(
   player: Player,
   parameters: FoundationFoodParameters & FoundationTroopParameters,

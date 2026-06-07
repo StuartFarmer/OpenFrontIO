@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import {
   StockFlowCompileError,
   compileStockFlowModel,
-} from "../../../src/core/systems/StockFlowCompiler";
-import { runStockFlowStep } from "../../../src/core/systems/StockFlowRuntime";
-import type { StockFlowModel } from "../../../src/core/systems/StockFlowSystem";
+} from "../../../src/games/openfront/systems/StockFlowCompiler";
+import { runStockFlowStep } from "../../../src/games/openfront/systems/StockFlowRuntime";
+import type { StockFlowModel } from "../../../src/games/openfront/systems/StockFlowSystem";
 
 describe("stock-flow runtime", () => {
   test("applies multiple flow contributions to one stock once per tick", () => {
