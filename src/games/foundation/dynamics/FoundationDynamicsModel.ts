@@ -805,6 +805,48 @@ export function saveDynamicsSystemLibrary(
   }
 }
 
+export function serializeDynamicsSystemLibrary(
+  systems: readonly SavedDynamicsSystem[],
+): string {
+  return JSON.stringify(
+    { version: 1, systems } satisfies DynamicsSystemLibrary,
+    null,
+    2,
+  );
+}
+
+export function parseDynamicsSystemLibraryJson(
+  value: string,
+): readonly SavedDynamicsSystem[] {
+  const parsed = JSON.parse(value) as unknown;
+  const systems = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === "object" &&
+        parsed !== null &&
+        (parsed as Partial<DynamicsSystemLibrary>).version === 1 &&
+        Array.isArray((parsed as Partial<DynamicsSystemLibrary>).systems)
+      ? (parsed as Partial<DynamicsSystemLibrary>).systems
+      : undefined;
+
+  if (systems === undefined) {
+    throw new Error(
+      "Dynamics JSON must be a versioned library or system array.",
+    );
+  }
+
+  const validSystems = systems.filter(isSavedDynamicsSystem).map((system) => ({
+    ...system,
+    nodes: normalizeReadInputs(cloneNodes(system.nodes)),
+    edges: cloneEdges(system.edges),
+  }));
+
+  if (validSystems.length === 0) {
+    throw new Error("Dynamics JSON did not contain any valid systems.");
+  }
+
+  return validSystems;
+}
+
 export function savedDynamicsSystem(
   name: string,
   nodes: readonly FoundationDynamicsNode[],

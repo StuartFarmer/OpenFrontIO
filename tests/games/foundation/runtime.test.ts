@@ -220,7 +220,7 @@ describe("Foundation runtime", () => {
     expect(snapshot.player.troopIncreaseRate).toBeGreaterThan(0);
   });
 
-  it("uses food-supported capacity in the troop regen curve", () => {
+  it("uses food-supported capacity in the population growth curve", () => {
     const map = createFoundationMap({ width: 32, height: 32 });
     const runtime = createFoundationRuntime({ map });
 
@@ -231,8 +231,7 @@ describe("Foundation runtime", () => {
     );
     const maxTroops = maxTroopsForTileCount(snapshot.player.claimedTileCount);
     const expectedGrowth =
-      (10 + Math.pow(snapshot.player.troops, 0.73) / 4) *
-      (1 - snapshot.player.troops / maxTroops);
+      0.05 * snapshot.player.troops * (1 - snapshot.player.troops / maxTroops);
 
     expect(snapshot.player.foodProduction).toBe(foodProduction);
     expect(snapshot.player.foodSupportedTroops).toBe(maxTroops);
@@ -252,12 +251,12 @@ describe("Foundation runtime", () => {
 
     expect(snapshot.player.foodDemand).toBe(snapshot.player.troops * 2);
     expect(snapshot.player.foodSupportedTroops).toBe(
-      snapshot.player.foodProduction / 2,
+      (snapshot.player.foodProduction * 0.5) / 2,
     );
     expect(snapshot.player.maxTroops).toBe(snapshot.player.foodSupportedTroops);
   });
 
-  it("regenerates troops with the original OpenFront curve after placement", () => {
+  it("updates population with the dynamics growth curve after placement", () => {
     const map = createFoundationMap({ width: 64, height: 64 });
     const runtime = createFoundationRuntime({ map });
 
@@ -439,7 +438,9 @@ describe("Foundation runtime", () => {
       beforeCount + changedTiles.length,
     );
     expect(runtime.snapshot().player.troops).toBeGreaterThan(20_000);
-    expect(runtime.snapshot().player.maxTroops).toBeGreaterThan(100_000);
+    expect(runtime.snapshot().player.maxTroops).toBeGreaterThan(
+      runtime.snapshot().player.troops,
+    );
     expect(runtime.snapshot().player.foodSupportedTroops).toBe(
       runtime.snapshot().player.maxTroops,
     );
@@ -598,30 +599,30 @@ describe("Foundation runtime", () => {
     expect(before.player).not.toHaveProperty("population");
     expect(after.player).not.toHaveProperty("population");
     expect(before.player.foodStock).toBe(0);
-    expect(before.player.foodStockCapacity).toBe(20_000);
+    expect(before.player.foodStockCapacity).toBe(50_000);
     expect(after.player.foodStock).toBe(0);
-    expect(after.player.foodStockCapacity).toBe(20_000);
+    expect(after.player.foodStockCapacity).toBe(50_000);
     expect(result.update.metrics).toMatchObject({ pendingTurns: 0 });
     expect(result.update.metrics).not.toHaveProperty("population");
     expect(result.update.metrics).toMatchObject({
       foodStock: 0,
-      foodStockCapacity: 20_000,
+      foodStockCapacity: 50_000,
     });
   });
 
-  it("adds production, subtracts demand, and clamps food stock to capacity", () => {
+  it("routes reserve production into the capped food stockpile", () => {
     const map = createFoundationMap({ width: 16, height: 16 });
     const runtime = createFoundationRuntime({
       map,
       parameters: {
         startingTroops: 10,
         foodPerTroop: 1,
-        maxTroopMultiplier: 1,
-        maxTroopTileExponent: 0,
-        maxTroopTileScale: 0,
-        maxTroopBase: 100,
+        foodPerTile: 100,
+        foodReservePercentage: 0.5,
         startingFoodStorage: 0,
         baseFoodStorageCapacity: 50,
+        baseSilosOwned: 0,
+        stockpileGrowthRate: 1,
       },
     });
 
@@ -632,28 +633,28 @@ describe("Foundation runtime", () => {
     expect(snapshot.player.foodStock).toBe(50);
     expect(snapshot.player.foodStockCapacity).toBe(50);
     expect(snapshot.player.foodStockDelta).toBe(50);
-    expect(snapshot.player.foodStockOverflow).toBe(40);
+    expect(snapshot.player.foodStockOverflow).toBe(2550);
     expect(update.metrics).toMatchObject({
       foodStock: 50,
       foodStockCapacity: 50,
       foodStockDelta: 50,
-      foodStockOverflow: 40,
+      foodStockOverflow: 2550,
     });
   });
 
-  it("draws down food stock when population demand exceeds production", () => {
+  it("does not draw down the food stockpile for population demand yet", () => {
     const map = createFoundationMap({ width: 16, height: 16 });
     const runtime = createFoundationRuntime({
       map,
       parameters: {
         startingTroops: 100,
         foodPerTroop: 1,
-        maxTroopMultiplier: 1,
-        maxTroopTileExponent: 0,
-        maxTroopTileScale: 0,
-        maxTroopBase: 10,
+        foodPerTile: 1,
+        foodReservePercentage: 0.5,
         startingFoodStorage: 20,
         baseFoodStorageCapacity: 50,
+        baseSilosOwned: 0,
+        stockpileGrowthRate: 0.1,
       },
     });
 
@@ -661,8 +662,8 @@ describe("Foundation runtime", () => {
     runtime.advanceTick();
     const snapshot = runtime.snapshot();
 
-    expect(snapshot.player.foodStock).toBe(0);
-    expect(snapshot.player.foodStockDelta).toBe(-20);
+    expect(snapshot.player.foodStock).toBeGreaterThan(20);
+    expect(snapshot.player.foodStockDelta).toBeGreaterThan(0);
     expect(snapshot.player.foodStockOverflow).toBe(0);
   });
 });

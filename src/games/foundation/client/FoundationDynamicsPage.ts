@@ -10,7 +10,15 @@ import {
 } from "@xyflow/react";
 import { css, html, LitElement, svg, type TemplateResult } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { ChevronDown, ChevronRight, Plus, Save, Trash2 } from "lucide";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+} from "lucide";
 import "../../../client/hud/ui";
 import type { HudSelectOption } from "../../../client/hud/ui/HudComponents";
 import { renderLucideIcon } from "../../../client/hud/ui/LucideIcon";
@@ -29,9 +37,11 @@ import {
   initialSimulationState,
   loadSavedDynamicsSystems,
   normalizeReadInputs,
+  parseDynamicsSystemLibraryJson,
   parseNumberInput,
   savedDynamicsSystem,
   saveDynamicsSystemLibrary,
+  serializeDynamicsSystemLibrary,
   setCurrentSinkState,
   sinkNodes,
   stepSimulationState,
@@ -105,6 +115,12 @@ export class FoundationDynamicsPage extends LitElement {
 
   @state()
   private collapsedNodeIds: readonly string[] = [];
+
+  @state()
+  private systemLibraryJson = "";
+
+  @state()
+  private systemLibraryMessage = "";
 
   @state()
   private simulation: SimulationState = initialSimulationState(
@@ -269,6 +285,20 @@ export class FoundationDynamicsPage extends LitElement {
             >
               ${renderLucideIcon(Trash2, "control-icon")}
             </hud-icon-button>
+            <hud-icon-button
+              label="Export saved systems as JSON"
+              title="Export saved systems as JSON"
+              @click=${this.exportSavedSystemsJson}
+            >
+              ${renderLucideIcon(Download, "control-icon")}
+            </hud-icon-button>
+            <hud-icon-button
+              label="Import systems from JSON"
+              title="Import systems from JSON"
+              @click=${this.importSavedSystemsJson}
+            >
+              ${renderLucideIcon(Upload, "control-icon")}
+            </hud-icon-button>
           </div>
           <label class="system-name-field">
             <span>Current name</span>
@@ -281,6 +311,23 @@ export class FoundationDynamicsPage extends LitElement {
               }}
             />
           </label>
+          <label class="system-json-field">
+            <span>System JSON</span>
+            <textarea
+              spellcheck="false"
+              .value=${this.systemLibraryJson}
+              @input=${(event: Event) => {
+                this.systemLibraryJson = (
+                  event.currentTarget as HTMLTextAreaElement
+                ).value;
+              }}
+            ></textarea>
+          </label>
+          ${this.systemLibraryMessage === ""
+            ? null
+            : html`<p class="system-json-message">
+                ${this.systemLibraryMessage}
+              </p>`}
         </hud-surface-body>
       </hud-surface>
     `;
@@ -1107,6 +1154,34 @@ export class FoundationDynamicsPage extends LitElement {
     ];
     this.selectedSystemRef = savedSystemRef(system.id);
     saveDynamicsSystemLibrary(this.savedSystems);
+    this.systemLibraryMessage = `Saved ${system.name}.`;
+  };
+
+  private readonly exportSavedSystemsJson = (): void => {
+    this.systemLibraryJson = serializeDynamicsSystemLibrary(this.savedSystems);
+    this.systemLibraryMessage = `Exported ${this.savedSystems.length} saved system${
+      this.savedSystems.length === 1 ? "" : "s"
+    }.`;
+  };
+
+  private readonly importSavedSystemsJson = (): void => {
+    try {
+      const systems = parseDynamicsSystemLibraryJson(this.systemLibraryJson);
+      this.savedSystems = [
+        ...systems,
+        ...this.savedSystems.filter(
+          (existing) =>
+            !systems.some((imported) => imported.id === existing.id),
+        ),
+      ];
+      saveDynamicsSystemLibrary(this.savedSystems);
+      this.systemLibraryMessage = `Imported ${systems.length} system${
+        systems.length === 1 ? "" : "s"
+      }.`;
+    } catch (error) {
+      this.systemLibraryMessage =
+        error instanceof Error ? error.message : "Could not import JSON.";
+    }
   };
 
   private loadSystem(system: SavedDynamicsSystem): void {
@@ -1335,7 +1410,7 @@ export class FoundationDynamicsPage extends LitElement {
 
     .preset-tools {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+      grid-template-columns: minmax(0, 1fr) repeat(5, auto);
       align-items: center;
       gap: 6px;
     }
@@ -1344,7 +1419,8 @@ export class FoundationDynamicsPage extends LitElement {
       min-width: 0;
     }
 
-    .system-name-field {
+    .system-name-field,
+    .system-json-field {
       display: grid;
       gap: 6px;
       margin-top: 10px;
@@ -1355,6 +1431,7 @@ export class FoundationDynamicsPage extends LitElement {
     }
 
     .system-name-field input,
+    .system-json-field textarea,
     .control-widget input,
     .control-widget textarea {
       width: 100%;
@@ -1366,6 +1443,22 @@ export class FoundationDynamicsPage extends LitElement {
       color: var(--text);
       font: inherit;
       font-size: 12px;
+    }
+
+    .system-json-field textarea {
+      min-height: 92px;
+      resize: vertical;
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", monospace;
+      line-height: 1.35;
+    }
+
+    .system-json-message {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
     }
 
     .control-widget textarea {

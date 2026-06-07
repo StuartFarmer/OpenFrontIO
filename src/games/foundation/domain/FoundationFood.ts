@@ -1,23 +1,33 @@
-import { runStockFlowStep } from "../../../core/systems/StockFlowRuntime";
-import type { StockFlowModel } from "../../../core/systems/StockFlowSystem";
 import type { Player } from "./FoundationPlayer";
 import {
   type FoundationTroopParameters,
   foodDemandForPlayer,
+  foodProductionForPeopleForPlayer,
   foodProductionForPlayer,
+  foodProductionForStorageForPlayer,
+  troopIncreaseRate,
 } from "./FoundationTroops";
 
 export const FOUNDATION_STARTING_FOOD_STOCK = 0;
-export const FOUNDATION_BASE_FOOD_STOCK_CAPACITY = 20_000;
+export const FOUNDATION_BASE_FOOD_STOCK_CAPACITY = 0;
+export const FOUNDATION_BASE_SILOS_OWNED = 1;
+export const FOUNDATION_ADDED_STORAGE_CAPACITY_PER_SILO = 50_000;
+export const FOUNDATION_STOCKPILE_GROWTH_RATE = 0.025;
 
 export interface FoundationFoodParameters {
   startingFoodStorage: number;
   baseFoodStorageCapacity: number;
+  baseSilosOwned: number;
+  addedStorageCapacityPerSilo: number;
+  stockpileGrowthRate: number;
 }
 
 export interface FoundationFoodStockMetrics {
   produced: number;
+  producedForPeople: number;
+  producedForStorage: number;
   demanded: number;
+  populationCapacity: number;
   stockBefore: number;
   stockAfter: number;
   stockCapacity: number;
@@ -33,47 +43,9 @@ export interface FoundationFoodTickResult {
 export const DEFAULT_FOUNDATION_FOOD_PARAMETERS: FoundationFoodParameters = {
   startingFoodStorage: FOUNDATION_STARTING_FOOD_STOCK,
   baseFoodStorageCapacity: FOUNDATION_BASE_FOOD_STOCK_CAPACITY,
-};
-
-const FOUNDATION_FOOD_STOCK_FLOW_MODEL: StockFlowModel = {
-  id: "foundation-food",
-  externalInputs: ["food.production", "food.demand", "food.capacity"],
-  systems: [
-    {
-      id: "food",
-      reads: ["food.production", "food.demand", "food.capacity"],
-      stocks: {
-        "food.stock": {
-          initial: 0,
-          min: 0,
-          max: ({ getNumber }) => getNumber("food.capacity"),
-        },
-      },
-      outputs: {
-        "food.produced": ({ getNumber }) => getNumber("food.production"),
-        "food.demanded": ({ getNumber }) => getNumber("food.demand"),
-        "food.rawNextStock": ({ getNumber }) =>
-          getNumber("food.stock") +
-          getNumber("food.production") -
-          getNumber("food.demand"),
-        "food.overflow": ({ getNumber }) =>
-          Math.max(
-            0,
-            getNumber("food.rawNextStock") - getNumber("food.capacity"),
-          ),
-      },
-      flows: {
-        "food.production": {
-          stock: "food.stock",
-          amount: ({ getNumber }) => getNumber("food.produced"),
-        },
-        "food.consumption": {
-          stock: "food.stock",
-          amount: ({ getNumber }) => -getNumber("food.demanded"),
-        },
-      },
-    },
-  ],
+  baseSilosOwned: FOUNDATION_BASE_SILOS_OWNED,
+  addedStorageCapacityPerSilo: FOUNDATION_ADDED_STORAGE_CAPACITY_PER_SILO,
+  stockpileGrowthRate: FOUNDATION_STOCKPILE_GROWTH_RATE,
 };
 
 export function normalizeFoundationFoodParameters(
@@ -88,6 +60,18 @@ export function normalizeFoundationFoodParameters(
       parameters.baseFoodStorageCapacity,
       DEFAULT_FOUNDATION_FOOD_PARAMETERS.baseFoodStorageCapacity,
     ),
+    baseSilosOwned: nonNegativeNumber(
+      parameters.baseSilosOwned,
+      DEFAULT_FOUNDATION_FOOD_PARAMETERS.baseSilosOwned,
+    ),
+    addedStorageCapacityPerSilo: nonNegativeNumber(
+      parameters.addedStorageCapacityPerSilo,
+      DEFAULT_FOUNDATION_FOOD_PARAMETERS.addedStorageCapacityPerSilo,
+    ),
+    stockpileGrowthRate: nonNegativeNumber(
+      parameters.stockpileGrowthRate,
+      DEFAULT_FOUNDATION_FOOD_PARAMETERS.stockpileGrowthRate,
+    ),
   };
 }
 
@@ -95,19 +79,36 @@ export function tickFoundationFood(
   player: Player,
   parameters: FoundationFoodParameters & FoundationTroopParameters,
 ): FoundationFoodTickResult {
-  const produced = player.placement
-    ? foodProductionForPlayer(player, parameters)
-    : 0;
-  const demanded = player.placement
-    ? foodDemandForPlayer(player, parameters)
-    : 0;
+  if (!player.placement) {
+    return {
+      player,
+      metrics: createEmptyFoundationFoodStockMetrics(player, parameters),
+    };
+  }
+
+  const produced = foodProductionForPlayer(player, parameters);
+  const producedForPeople = foodProductionForPeopleForPlayer(
+    player,
+    parameters,
+  );
+  const producedForStorage = foodProductionForStorageForPlayer(
+    player,
+    parameters,
+  );
+  const demanded = foodDemandForPlayer(player, parameters);
+  const populationCapacity = populationCapacityForPlayer(player, parameters);
+  const troopDelta = troopIncreaseRate(player, parameters);
   const metrics = evaluateFoundationFoodStock(player.foodStock, {
     produced,
+    producedForPeople,
+    producedForStorage,
     demanded,
+    populationCapacity,
     capacity: foodStockCapacityForPlayer(player, parameters),
+    stockpileGrowthRate: parameters.stockpileGrowthRate,
   });
 
-  if (metrics.stockAfter === player.foodStock) {
+  if (metrics.stockAfter === player.foodStock && troopDelta === 0) {
     return { player, metrics };
   }
 
@@ -115,6 +116,7 @@ export function tickFoundationFood(
     player: {
       ...player,
       foodStock: metrics.stockAfter,
+      troops: Math.max(1, player.troops + troopDelta),
     },
     metrics,
   };
@@ -127,7 +129,10 @@ export function createEmptyFoundationFoodStockMetrics(
   const stockCapacity = foodStockCapacityForPlayer(player, parameters);
   return {
     produced: 0,
+    producedForPeople: 0,
+    producedForStorage: 0,
     demanded: 0,
+    populationCapacity: 0,
     stockBefore: player.foodStock,
     stockAfter: player.foodStock,
     stockCapacity,
@@ -140,33 +145,70 @@ export function foodStockCapacityForPlayer(
   _player: Player,
   parameters: FoundationFoodParameters,
 ): number {
-  return parameters.baseFoodStorageCapacity;
+  return (
+    parameters.baseFoodStorageCapacity +
+    parameters.baseSilosOwned * parameters.addedStorageCapacityPerSilo
+  );
+}
+
+export function populationCapacityForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters,
+): number {
+  if (parameters.foodPerTroop <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return (
+    foodProductionForPeopleForPlayer(player, parameters) /
+    parameters.foodPerTroop
+  );
 }
 
 function evaluateFoundationFoodStock(
   stock: number,
-  inputs: { produced: number; demanded: number; capacity: number },
+  inputs: {
+    produced: number;
+    producedForPeople: number;
+    producedForStorage: number;
+    demanded: number;
+    populationCapacity: number;
+    capacity: number;
+    stockpileGrowthRate: number;
+  },
 ): FoundationFoodStockMetrics {
-  const result = runStockFlowStep(FOUNDATION_FOOD_STOCK_FLOW_MODEL, {
-    stocks: {
-      "food.stock": stock,
-    },
-    inputs: {
-      "food.production": inputs.produced,
-      "food.demand": inputs.demanded,
-      "food.capacity": inputs.capacity,
-    },
-  });
-  const stockAfter = result.stocks["food.stock"];
+  if (inputs.capacity <= 0) {
+    return {
+      produced: inputs.produced,
+      producedForPeople: inputs.producedForPeople,
+      producedForStorage: inputs.producedForStorage,
+      demanded: inputs.demanded,
+      populationCapacity: inputs.populationCapacity,
+      stockBefore: stock,
+      stockAfter: 0,
+      stockCapacity: 0,
+      stockDelta: -stock,
+      overflow: Math.max(0, stock),
+    };
+  }
+
+  const rawStockAfter =
+    stock +
+    inputs.producedForStorage *
+      inputs.stockpileGrowthRate *
+      (1 - stock / inputs.capacity);
+  const stockAfter = clamp(Math.max(rawStockAfter, 1), 0, inputs.capacity);
 
   return {
-    produced: result.outputs["food.produced"] as number,
-    demanded: result.outputs["food.demanded"] as number,
+    produced: inputs.produced,
+    producedForPeople: inputs.producedForPeople,
+    producedForStorage: inputs.producedForStorage,
+    demanded: inputs.demanded,
+    populationCapacity: inputs.populationCapacity,
     stockBefore: stock,
     stockAfter,
     stockCapacity: inputs.capacity,
     stockDelta: stockAfter - stock,
-    overflow: result.outputs["food.overflow"] as number,
+    overflow: Math.max(0, rawStockAfter - inputs.capacity),
   };
 }
 
@@ -177,4 +219,8 @@ function nonNegativeNumber(
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : fallback;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

@@ -6,10 +6,16 @@ export const FOUNDATION_TROOP_REGEN_BASE = 10;
 export const FOUNDATION_TROOP_REGEN_EXPONENT = 0.73;
 export const FOUNDATION_TROOP_REGEN_DIVISOR = 4;
 export const FOUNDATION_FOOD_PER_TROOP = 1;
+export const FOUNDATION_FOOD_PER_TILE = 1_000;
+export const FOUNDATION_FOOD_RESERVE_PERCENTAGE = 0.5;
+export const FOUNDATION_MAX_POPULATION_GROWTH_RATE = 0.05;
 
 export interface FoundationTroopParameters {
   startingTroops: number;
   foodPerTroop: number;
+  foodPerTile: number;
+  foodReservePercentage: number;
+  maxPopulationGrowthRate: number;
   maxTroopMultiplier: number;
   maxTroopTileExponent: number;
   maxTroopTileScale: number;
@@ -22,6 +28,9 @@ export interface FoundationTroopParameters {
 export const DEFAULT_FOUNDATION_TROOP_PARAMETERS: FoundationTroopParameters = {
   startingTroops: FOUNDATION_STARTING_TROOPS,
   foodPerTroop: FOUNDATION_FOOD_PER_TROOP,
+  foodPerTile: FOUNDATION_FOOD_PER_TILE,
+  foodReservePercentage: FOUNDATION_FOOD_RESERVE_PERCENTAGE,
+  maxPopulationGrowthRate: FOUNDATION_MAX_POPULATION_GROWTH_RATE,
   maxTroopMultiplier: 2,
   maxTroopTileExponent: 0.6,
   maxTroopTileScale: 1000,
@@ -42,6 +51,20 @@ export function normalizeFoundationTroopParameters(
     foodPerTroop: positiveNumber(
       parameters.foodPerTroop,
       DEFAULT_FOUNDATION_TROOP_PARAMETERS.foodPerTroop,
+    ),
+    foodPerTile: nonNegativeNumber(
+      parameters.foodPerTile,
+      DEFAULT_FOUNDATION_TROOP_PARAMETERS.foodPerTile,
+    ),
+    foodReservePercentage: clampNumber(
+      parameters.foodReservePercentage,
+      DEFAULT_FOUNDATION_TROOP_PARAMETERS.foodReservePercentage,
+      0,
+      0.999,
+    ),
+    maxPopulationGrowthRate: nonNegativeNumber(
+      parameters.maxPopulationGrowthRate,
+      DEFAULT_FOUNDATION_TROOP_PARAMETERS.maxPopulationGrowthRate,
     ),
     maxTroopMultiplier: positiveNumber(
       parameters.maxTroopMultiplier,
@@ -78,11 +101,26 @@ export function foodProductionForTileCount(
   tileCount: number,
   parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
 ): number {
+  return Math.max(0, tileCount) * parameters.foodPerTile;
+}
+
+export function foodProductionForPeopleForTileCount(
+  tileCount: number,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
   return (
-    parameters.maxTroopMultiplier *
-    (Math.pow(tileCount, parameters.maxTroopTileExponent) *
-      parameters.maxTroopTileScale +
-      parameters.maxTroopBase)
+    foodProductionForTileCount(tileCount, parameters) *
+    (1 - parameters.foodReservePercentage)
+  );
+}
+
+export function foodProductionForStorageForTileCount(
+  tileCount: number,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  return (
+    foodProductionForTileCount(tileCount, parameters) *
+    parameters.foodReservePercentage
   );
 }
 
@@ -94,7 +132,8 @@ export function foodSupportedTroopsForTileCount(
     return Number.POSITIVE_INFINITY;
   }
   return (
-    foodProductionForTileCount(tileCount, parameters) / parameters.foodPerTroop
+    foodProductionForPeopleForTileCount(tileCount, parameters) /
+    parameters.foodPerTroop
   );
 }
 
@@ -111,6 +150,22 @@ export function foodProductionForPlayer(
 ): number {
   const tilesOwned = player.placement?.claimedTileCount ?? 0;
   return foodProductionForTileCount(tilesOwned, parameters);
+}
+
+export function foodProductionForPeopleForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  const tilesOwned = player.placement?.claimedTileCount ?? 0;
+  return foodProductionForPeopleForTileCount(tilesOwned, parameters);
+}
+
+export function foodProductionForStorageForPlayer(
+  player: Player,
+  parameters: FoundationTroopParameters = DEFAULT_FOUNDATION_TROOP_PARAMETERS,
+): number {
+  const tilesOwned = player.placement?.claimedTileCount ?? 0;
+  return foodProductionForStorageForTileCount(tilesOwned, parameters);
 }
 
 export function foodDemandForPlayer(
@@ -134,7 +189,7 @@ export function foodSurplusForPlayer(
 ): number {
   return Math.max(
     0,
-    foodProductionForPlayer(player, parameters) -
+    foodProductionForPeopleForPlayer(player, parameters) -
       foodDemandForPlayer(player, parameters),
   );
 }
@@ -146,7 +201,7 @@ export function foodDeficitForPlayer(
   return Math.max(
     0,
     foodDemandForPlayer(player, parameters) -
-      foodProductionForPlayer(player, parameters),
+      foodProductionForPeopleForPlayer(player, parameters),
   );
 }
 
@@ -167,16 +222,14 @@ export function troopIncreaseRate(
   const max = foodSupportedTroopsForPlayer(player, parameters);
   const troops = player.troops;
   if (max <= 0) {
-    return -troops;
+    return 1 - troops;
   }
 
-  let toAdd =
-    parameters.troopRegenBase +
-    Math.pow(troops, parameters.troopRegenExponent) /
-      parameters.troopRegenDivisor;
-  toAdd *= 1 - troops / max;
-
-  return Math.min(troops + toAdd, max) - troops;
+  const nextTroops = Math.max(
+    troops + parameters.maxPopulationGrowthRate * troops * (1 - troops / max),
+    1,
+  );
+  return nextTroops - troops;
 }
 
 export function addTroopGrowth(
@@ -207,4 +260,16 @@ function nonNegativeNumber(
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : fallback;
+}
+
+function clampNumber(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, value));
 }

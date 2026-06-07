@@ -1,5 +1,4 @@
 import {
-  addTroopGrowth,
   createEmptyFoundationFoodStockMetrics,
   createFoundationMap,
   createPlayer,
@@ -185,7 +184,7 @@ export class FoundationRuntime {
 
     const foodTick = tickFoundationFood(this.player_, this.parameters);
     this.lastFoodStock = foodTick.metrics;
-    let nextPlayer = addTroopGrowth(foodTick.player, this.parameters);
+    let nextPlayer = foodTick.player;
     const explorationTargetTile =
       nextPlayer.activeExploration?.targetTile ?? -1;
     const exploration = tickWildernessExploration(

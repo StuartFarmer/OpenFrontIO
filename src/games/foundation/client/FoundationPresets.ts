@@ -50,8 +50,14 @@ export type FoundationGameMechanicPresetData = Pick<
   | "startingTroops"
   | "startingFoodStorage"
   | "baseFoodStorageCapacity"
+  | "baseSilosOwned"
+  | "addedStorageCapacityPerSilo"
+  | "stockpileGrowthRate"
   | "placementRadius"
   | "foodPerTroop"
+  | "foodPerTile"
+  | "foodReservePercentage"
+  | "maxPopulationGrowthRate"
   | "maxTroopMultiplier"
   | "maxTroopTileExponent"
   | "maxTroopTileScale"
@@ -118,8 +124,14 @@ export const FOUNDATION_GAME_MECHANIC_PRESET_KEYS = [
   "startingTroops",
   "startingFoodStorage",
   "baseFoodStorageCapacity",
+  "baseSilosOwned",
+  "addedStorageCapacityPerSilo",
+  "stockpileGrowthRate",
   "placementRadius",
   "foodPerTroop",
+  "foodPerTile",
+  "foodReservePercentage",
+  "maxPopulationGrowthRate",
   "maxTroopMultiplier",
   "maxTroopTileExponent",
   "maxTroopTileScale",
