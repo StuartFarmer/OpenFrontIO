@@ -9,6 +9,7 @@ import {
 } from "../../../../src/games/foundation/dynamics/FoundationDynamicsModel";
 import {
   dynamicsSystemToReactFlowGraph,
+  isValidFoundationConnection,
   reactFlowGraphToDynamicsSystem,
 } from "../../../../src/games/foundation/dynamics/react/FoundationDynamicsReactFlowMapping";
 
@@ -31,6 +32,18 @@ describe("Foundation dynamics React Flow mapping", () => {
     );
     expect(graph.nodes[0]?.initialWidth).toBeGreaterThan(0);
     expect(graph.nodes[0]?.initialHeight).toBeGreaterThan(0);
+    expect(graph.nodes[0]?.connectable).toBe(true);
+    expect(graph.nodes[0]?.sourcePosition).toBe("right");
+    expect(graph.nodes[0]?.handles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "out",
+          type: "source",
+          position: "right",
+          y: 38,
+        }),
+      ]),
+    );
     expect(schema.view.nodes[0]?.position).toEqual(
       FOUNDATION_DYNAMICS_NODES[0]?.position,
     );
@@ -44,6 +57,17 @@ describe("Foundation dynamics React Flow mapping", () => {
     expect(roundTripped.view.nodes[0]?.position).toEqual(
       schema.view.nodes[0]?.position,
     );
+  });
+
+  it("accepts live React Flow connection candidates without handle ids", () => {
+    expect(
+      isValidFoundationConnection([], {
+        source: "input-1",
+        target: "operator-1",
+        sourceHandle: null,
+        targetHandle: null,
+      }),
+    ).toBe(true);
   });
 
   it("keeps editable input controls in view metadata", () => {

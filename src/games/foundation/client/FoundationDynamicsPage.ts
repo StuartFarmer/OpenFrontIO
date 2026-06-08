@@ -1226,6 +1226,11 @@ export class FoundationDynamicsPage extends LitElement {
         ),
       ];
       saveFoundationDynamicsSystemLibrary(this.savedSystems);
+      const firstImported = systems[0];
+      if (firstImported !== undefined) {
+        this.selectedSystemRef = savedSystemRef(firstImported.definition.id);
+        this.loadSystem(savedDynamicsSystemFromSchema(firstImported));
+      }
       this.systemLibraryMessage = `Imported ${systems.length} system${
         systems.length === 1 ? "" : "s"
       }.`;
@@ -2469,7 +2474,9 @@ export class FoundationDynamicsPage extends LitElement {
       gap: 5px;
       position: relative;
       isolation: isolate;
+      box-sizing: border-box;
       width: 100%;
+      height: 100%;
       min-height: 100%;
       padding: 12px 14px;
       border: 1px solid rgb(125 200 166 / 0.52);

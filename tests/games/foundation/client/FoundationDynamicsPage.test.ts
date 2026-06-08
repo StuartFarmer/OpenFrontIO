@@ -240,8 +240,6 @@ describe("FoundationDynamicsPage", () => {
       ?.click();
     await page.updateComplete;
 
-    await selectPreset(page, `saved:${system.definition.id}`);
-
     expect(page.shadowRoot?.textContent ?? "").toContain("tilesOwned");
   });
 });

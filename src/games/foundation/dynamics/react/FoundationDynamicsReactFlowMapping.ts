@@ -3,11 +3,13 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   MarkerType,
+  Position,
   type Connection,
   type Edge,
   type EdgeChange,
   type Node,
   type NodeChange,
+  type NodeHandle,
 } from "@xyflow/react";
 import type { DynamicsSavedSystem } from "../../../../core/systems/dynamics";
 import {
@@ -140,8 +142,6 @@ export function isValidFoundationConnection(
     connection.source !== null &&
     connection.target !== null &&
     connection.source !== connection.target &&
-    (connection.sourceHandle ?? "out") === "out" &&
-    (connection.targetHandle ?? "in") === "in" &&
     foundationEdgeFromConnection(connection, edges) !== null
   );
 }
@@ -156,8 +156,13 @@ function foundationNodeToReactFlow(
     position: { x: node.position.x, y: node.position.y },
     data: { ...node.data },
     selected: node.selected,
+    connectable: true,
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
     initialWidth: dimensions.width,
     initialHeight: dimensions.height,
+    measured: dimensions,
+    handles: foundationNodeHandles(node, dimensions),
     style: {
       width: dimensions.width,
       minHeight: dimensions.height,
@@ -177,6 +182,48 @@ function foundationNodeDimensions(node: FoundationDynamicsNode): {
     case "sink":
       return { width: 202, height: 104 };
   }
+}
+
+function foundationNodeHandles(
+  node: FoundationDynamicsNode,
+  dimensions: { readonly width: number; readonly height: number },
+): NodeHandle[] {
+  const handles: NodeHandle[] = [];
+  const handleSize = 12;
+  const handleY =
+    dimensions.height / 2 -
+    handleSize / 2 +
+    visualHandleYOffset(node.data.primitive);
+
+  if (node.data.primitive !== "input") {
+    handles.push({
+      id: "in",
+      type: "target",
+      position: Position.Left,
+      x: -handleSize / 2,
+      y: handleY,
+      width: handleSize,
+      height: handleSize,
+    });
+  }
+  if (node.data.primitive !== "sink") {
+    handles.push({
+      id: "out",
+      type: "source",
+      position: Position.Right,
+      x: dimensions.width - handleSize / 2,
+      y: handleY,
+      width: handleSize,
+      height: handleSize,
+    });
+  }
+  return handles;
+}
+
+function visualHandleYOffset(
+  primitive: FoundationDynamicsNodeData["primitive"],
+) {
+  return primitive === "operator" ? -7 : 0;
 }
 
 export function reactFlowNodeToFoundation(

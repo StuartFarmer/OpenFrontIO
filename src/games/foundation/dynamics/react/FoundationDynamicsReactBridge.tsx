@@ -304,6 +304,7 @@ function FoundationDynamicsConnectionLine({
 
 function FoundationDynamicsNodeView({
   data,
+  isConnectable,
 }: NodeProps<FoundationDynamicsReactFlowNode>) {
   const primitive = data.primitive;
   const secondary = nodeSecondaryText(data);
@@ -317,6 +318,7 @@ function FoundationDynamicsNodeView({
           id="in"
           type="target"
           position={Position.Left}
+          isConnectable={isConnectable}
           className="foundation-dynamics-handle foundation-dynamics-handle--input"
         />
       ) : null}
@@ -332,6 +334,7 @@ function FoundationDynamicsNodeView({
           id="out"
           type="source"
           position={Position.Right}
+          isConnectable={isConnectable}
           className="foundation-dynamics-handle foundation-dynamics-handle--output"
         />
       ) : null}
