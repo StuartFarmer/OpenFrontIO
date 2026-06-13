@@ -707,13 +707,6 @@ export class HelpModal extends BaseModal {
                 <ul class="space-y-3">
                   <li class="flex items-center gap-3">
                     <img
-                      src=${assetUrl("images/BuildIconWhite.svg")}
-                      class="w-8 h-8 scale-75 origin-left"
-                    />
-                    <span>${translateText("help_modal.radial_build")}</span>
-                  </li>
-                  <li class="flex items-center gap-3">
-                    <img
                       src=${assetUrl("images/InfoIcon.svg")}
                       class="w-8 h-8 scale-75 origin-left"
                     />

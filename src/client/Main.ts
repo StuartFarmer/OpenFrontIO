@@ -19,6 +19,7 @@ import {
   UserSettings,
 } from "../core/game/UserSettings";
 import {
+  isFoundationDynamicLocation,
   isFoundationDynamicsLocation,
   isFoundationLocation,
 } from "../games/foundation/client/FoundationRoutes";
@@ -833,6 +834,7 @@ const isQuickGameTuningSandboxRoute = () =>
   window.location.search.includes("quick-game-tuning");
 
 const isFoundationDynamicsRoute = () => isFoundationDynamicsLocation();
+const isFoundationDynamicRoute = () => isFoundationDynamicLocation();
 
 const isFoundationRoute = () => isFoundationLocation();
 
@@ -867,7 +869,7 @@ const renderSandboxShell = (sandboxTag: string) => {
       <div id="app" slot="app"></div>
       <attacks-display slot="bottom-center-top" class="w-full"></attacks-display>
       <control-panel slot="bottom-center-main" class="w-full"></control-panel>
-      <unit-display slot="bottom-center-main" class="hidden lg:block w-full"></unit-display>
+      <build-bar slot="bottom-center-main" class="w-full"></build-bar>
       <chat-display slot="bottom-side" class="w-full sm:w-auto"></chat-display>
       <events-display slot="bottom-side" class="w-full sm:w-auto"></events-display>
       <game-right-sidebar slot="top-right"></game-right-sidebar>
@@ -933,6 +935,14 @@ const renderFoundation = async () => {
   document.body.append(document.createElement("foundation-page"));
 };
 
+const renderFoundationDynamic = async () => {
+  await import("../games/foundation/client/FoundationDynamicPage");
+  removeExistingGameSurfaces();
+  document.body.classList.remove("in-game");
+  document.body.innerHTML = "";
+  document.body.append(document.createElement("foundation-dynamic-page"));
+};
+
 const renderFoundationDynamics = async () => {
   await import("../games/foundation/client/FoundationDynamicsPage");
   removeExistingGameSurfaces();
@@ -956,6 +966,12 @@ const loadLandingShellComponents = async () => {
 const bootstrap = async () => {
   if (isFoundationDynamicsRoute()) {
     await renderFoundationDynamics();
+    installSafariPinchZoomBlocker();
+    return;
+  }
+
+  if (isFoundationDynamicRoute()) {
+    await renderFoundationDynamic();
     installSafariPinchZoomBlocker();
     return;
   }

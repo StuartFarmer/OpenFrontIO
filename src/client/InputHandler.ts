@@ -2,6 +2,7 @@ import { EventBus, GameEvent } from "../core/EventBus";
 import { PlayerBuildableUnitType, UnitType } from "../core/game/Game";
 import { GameView, UnitView } from "../core/game/GameView";
 import { UserSettings } from "../core/game/UserSettings";
+import { isPaintableBuildUnit } from "./controllers/PlacementMode";
 import { Platform } from "./Platform";
 import { UIState } from "./UIState";
 import { ReplaySpeedMultiplier } from "./utilities/ReplaySpeedMultiplier";
@@ -53,6 +54,24 @@ export class MouseMoveEvent implements GameEvent {
     public readonly y: number,
   ) {}
 }
+
+export class PaintStrokeStartEvent implements GameEvent {
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
+}
+
+export class PaintStrokeMoveEvent implements GameEvent {
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
+}
+
+export class PaintStrokeEndEvent implements GameEvent {}
+
+export class PaintStrokeCancelEvent implements GameEvent {}
 
 export class ContextMenuEvent implements GameEvent {
   public consumed = false;
@@ -205,6 +224,7 @@ export class InputHandler {
   private lastPinchDistance: number = 0;
 
   private pointerDown: boolean = false;
+  private paintStrokeActive: boolean = false;
 
   private alternateView = false;
 
@@ -227,6 +247,8 @@ export class InputHandler {
   private readonly PAN_SPEED = 5;
   private readonly ZOOM_SPEED = 10;
   private readonly DRAG_THRESHOLD_PX = 10;
+  private readonly PAINT_CURSOR =
+    'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M18 3l3 3-9 9-3-3 9-9z%22/%3E%3Cpath d=%22M9 12c-3 1-5 3-5 6 3 0 5-2 6-5%22/%3E%3Cpath d=%22M15 6l3 3%22/%3E%3C/svg%3E") 4 20, cell';
 
   private readonly userSettings: UserSettings = new UserSettings();
 
@@ -260,6 +282,13 @@ export class InputHandler {
     });
 
     this.canvas.addEventListener("pointerdown", (e) => this.onPointerDown(e));
+    this.eventBus.on(PaintStrokeCancelEvent, () => {
+      if (!isPaintableBuildUnit(this.uiState.ghostStructure)) {
+        return;
+      }
+      this.setGhostStructure(null);
+      this.paintStrokeActive = false;
+    });
     window.addEventListener("pointerup", (e) => this.onPointerUp(e));
     window.addEventListener("pointercancel", (e) => this.onPointerUp(e));
     this.canvas.addEventListener(
@@ -289,6 +318,7 @@ export class InputHandler {
         this.eventBus.emit(new AlternateViewEvent(false));
       }
       this.pointerDown = false;
+      this.paintStrokeActive = false;
       this.pointers.clear();
       if (this.longPressTimer !== null) {
         clearTimeout(this.longPressTimer);
@@ -301,7 +331,7 @@ export class InputHandler {
         this.multiSelectionActive = false;
         this.eventBus.emit(new WarshipSelectionBoxCancelEvent());
       }
-      this.canvas.style.cursor = "";
+      this.updatePlacementCursor();
     });
     this.pointers.clear();
 
@@ -607,6 +637,14 @@ export class InputHandler {
 
       this.eventBus.emit(new MouseDownEvent(event.clientX, event.clientY));
 
+      if (isPaintableBuildUnit(this.uiState.ghostStructure)) {
+        this.paintStrokeActive = true;
+        this.eventBus.emit(
+          new PaintStrokeStartEvent(event.clientX, event.clientY),
+        );
+        return;
+      }
+
       // Start long-press timer for touch devices
       if (event.pointerType === "touch") {
         this.longPressActive = false;
@@ -651,7 +689,15 @@ export class InputHandler {
       return;
     }
     this.pointerDown = false;
+    const wasPaintStrokeActive = this.paintStrokeActive;
+    this.paintStrokeActive = false;
     this.pointers.clear();
+
+    if (wasPaintStrokeActive) {
+      this.eventBus.emit(new PaintStrokeEndEvent());
+      event.preventDefault();
+      return;
+    }
 
     // Clean up long-press state
     if (this.longPressTimer !== null) {
@@ -814,6 +860,10 @@ export class InputHandler {
             event.clientY,
           ),
         );
+      } else if (this.paintStrokeActive) {
+        this.eventBus.emit(
+          new PaintStrokeMoveEvent(event.clientX, event.clientY),
+        );
       } else {
         this.eventBus.emit(new DragEvent(deltaX, deltaY));
       }
@@ -851,6 +901,18 @@ export class InputHandler {
 
   private setGhostStructure(ghostStructure: PlayerBuildableUnitType | null) {
     this.uiState.ghostStructure = ghostStructure;
+    if (ghostStructure === null) {
+      this.paintStrokeActive = false;
+    }
+    this.updatePlacementCursor();
+  }
+
+  private updatePlacementCursor() {
+    if (isPaintableBuildUnit(this.uiState.ghostStructure)) {
+      this.canvas.style.cursor = this.PAINT_CURSOR;
+    } else {
+      this.canvas.style.cursor = "";
+    }
   }
 
   /**

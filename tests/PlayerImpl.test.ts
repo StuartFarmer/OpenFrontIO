@@ -184,6 +184,54 @@ describe("PlayerImpl", () => {
     expect(buDefensePost!.canUpgrade).toBeFalsy();
   });
 
+  test("Farmland is a one-tile owned-land buildable", () => {
+    const tile = game.ref(0, 0);
+
+    expect(player.canBuild(UnitType.Farmland, tile)).toBe(tile);
+
+    const buFarmland = player
+      .buildableUnits(tile, [UnitType.Farmland])
+      .find((bu) => bu.type === UnitType.Farmland);
+    expect(buFarmland).toBeDefined();
+    expect(buFarmland!.canBuild).toBe(tile);
+    expect(buFarmland!.canUpgrade).toBe(false);
+  });
+
+  test("Farmland cannot be placed twice on the same tile", () => {
+    const tile = game.ref(0, 0);
+
+    player.buildUnit(UnitType.Farmland, tile, {});
+
+    expect(player.canBuild(UnitType.Farmland, tile)).toBe(false);
+    const buFarmland = player
+      .buildableUnits(tile, [UnitType.Farmland])
+      .find((bu) => bu.type === UnitType.Farmland);
+    expect(buFarmland).toBeDefined();
+    expect(buFarmland!.canBuild).toBe(false);
+    expect(buFarmland!.canUpgrade).toBe(false);
+  });
+
+  test("Farmland cannot be built on unowned tiles", () => {
+    expect(player.canBuild(UnitType.Farmland, game.ref(1, 0))).toBe(false);
+  });
+
+  test("disabled Farmland cannot be built", async () => {
+    const customGame = await setup(
+      "plains",
+      { instantBuild: true, disabledUnits: [UnitType.Farmland] },
+      [new PlayerInfo("player", PlayerType.Human, null, "player_id")],
+    );
+    const customPlayer = customGame.player("player_id");
+    const tile = customGame.ref(0, 0);
+    customPlayer.conquer(tile);
+    customPlayer.addGold(100_000n);
+
+    expect(customPlayer.canBuild(UnitType.Farmland, tile)).toBe(false);
+    expect(() => customPlayer.buildUnit(UnitType.Farmland, tile, {})).toThrow(
+      "Attempted to build disabled unit Farmland",
+    );
+  });
+
   test("City can be upgraded from another city", () => {
     const city = player.buildUnit(UnitType.City, game.ref(0, 0), {});
     const cityToUpgrade = player.findUnitToUpgrade(

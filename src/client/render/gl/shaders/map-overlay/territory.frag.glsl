@@ -15,6 +15,7 @@ uniform float uCharcoalVariation;
 uniform float uCharcoalAlpha;
 uniform uint uHighlightOwner;      // 0 = no highlight; otherwise smallID of hovered owner
 uniform float uHighlightBrighten;  // mix amount toward white for highlighted tiles
+uniform uint uLocalPlayerID;        // 0 = no local player; local territory fill is hidden
 
 in vec2 vWorldPos;
 out vec4 fragColor;
@@ -32,6 +33,10 @@ void main() {
 
   // Alt-view: hide territory fill, keep fallout charcoal
   if (uAltView != 0 && owner != 0u) discard;
+
+  // The local player's territory is left as the raw board. The separate
+  // local-territory mask pass darkens only the area outside these borders.
+  if (uLocalPlayerID != 0u && owner == uLocalPlayerID) discard;
 
   // --- Fallout charcoal ground (unowned) ---
   if (owner == 0u && fallout) {
@@ -51,17 +56,17 @@ void main() {
       int pWidth = int(meta.g);
       int pHeight = int(meta.b);
       int pScale = int(meta.a);
-      
+
       int px = tc.x >> pScale;
       int py = tc.y >> pScale;
       int mx = ((px % pWidth) + pWidth) % pWidth;
       int my = ((py % pHeight) + pHeight) % pHeight;
       int bitIndex = my * pWidth + mx;
       int byteIndex = bitIndex >> 3;
-      
+
       uint patternByte = texelFetch(uPatternData, ivec2(byteIndex, int(owner)), 0).r;
       bool isPrimary = (patternByte & (1u << uint(bitIndex & 7))) == 0u;
-      
+
       if (!isPrimary) {
         color = texture(uPalette, vec2(u, 0.75));
       }

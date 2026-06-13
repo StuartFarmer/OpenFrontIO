@@ -1,4 +1,7 @@
+export type FoundationWildernessMechanics = "foundation" | "openfront";
+
 export interface FoundationWildernessParameters {
+  wildernessMechanics: FoundationWildernessMechanics;
   wildernessBaseSpeed: number;
   elevationSlopeScale: number;
   minToblerSpeedMultiplier: number;
@@ -12,6 +15,7 @@ export interface FoundationWildernessParameters {
 
 export const DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS: FoundationWildernessParameters =
   {
+    wildernessMechanics: "foundation",
     wildernessBaseSpeed: 16.5,
     elevationSlopeScale: 0.3,
     minToblerSpeedMultiplier: 0.1,
@@ -19,14 +23,18 @@ export const DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS: FoundationWildernessParam
     terrainPriorityElevationScale: 1,
     wildernessDistanceFocus: 1,
     wildernessFrontCapacity: 3_000,
-    wildernessAttackerLossPerTile: 16,
-    wildernessTilesPerTickMultiplier: 2,
+    wildernessAttackerLossPerTile: 80,
+    wildernessTilesPerTickMultiplier: 0.5,
   };
 
 export function normalizeFoundationWildernessParameters(
   parameters: Partial<FoundationWildernessParameters> = {},
 ): FoundationWildernessParameters {
   return {
+    wildernessMechanics:
+      parameters.wildernessMechanics === "openfront"
+        ? "openfront"
+        : DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.wildernessMechanics,
     wildernessBaseSpeed: positiveNumber(
       parameters.wildernessBaseSpeed,
       DEFAULT_FOUNDATION_WILDERNESS_PARAMETERS.wildernessBaseSpeed,

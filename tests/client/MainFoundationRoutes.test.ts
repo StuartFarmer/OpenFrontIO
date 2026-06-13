@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFoundationDynamicLocation,
   isFoundationDynamicsLocation,
   isFoundationLocation,
 } from "../../src/games/foundation/client/FoundationRoutes";
@@ -14,6 +15,13 @@ describe("Foundation route helpers", () => {
     expect(isFoundationLocation("/foundation/dynamics/", "")).toBe(false);
   });
 
+  it("keeps foundation dynamic tuning distinct from the foundation world route", () => {
+    expect(isFoundationDynamicLocation("/foundation/dynamic", "")).toBe(true);
+    expect(isFoundationDynamicLocation("/foundation/dynamic/", "")).toBe(true);
+    expect(isFoundationLocation("/foundation/dynamic", "")).toBe(false);
+    expect(isFoundationLocation("/foundation/dynamic/", "")).toBe(false);
+  });
+
   it("still matches the foundation world route", () => {
     expect(isFoundationLocation("/foundation", "")).toBe(true);
     expect(isFoundationLocation("/foundation/", "")).toBe(true);
@@ -26,5 +34,10 @@ describe("Foundation route helpers", () => {
       true,
     );
     expect(isFoundationLocation("/", "?foundation-dynamics")).toBe(false);
+  });
+
+  it("lets the dynamic search flag win over the broad foundation search flag", () => {
+    expect(isFoundationDynamicLocation("/", "?foundation-dynamic")).toBe(true);
+    expect(isFoundationLocation("/", "?foundation-dynamic")).toBe(false);
   });
 });

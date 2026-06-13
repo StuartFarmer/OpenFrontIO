@@ -13,6 +13,7 @@ import {
   Play,
   RotateCcw,
   Save,
+  Sprout,
   Trash2,
   Upload,
   Warehouse,
@@ -28,7 +29,15 @@ import {
   type BaseMapTileStateDelta,
 } from "../../../client/render/base-map";
 import { renderTroops } from "../../../client/Utils";
+import type {
+  DynamicsInputControl,
+  DynamicsInputNodeDefinition,
+  DynamicsSavedSystem,
+} from "../../../core/systems/dynamics";
 import {
+  FOUNDATION_BUILDING_BY_ID,
+  FOUNDATION_BUILD_BAR_BUILDINGS,
+  FOUNDATION_STORAGE_BUILDINGS,
   FoundationEngineTileMap,
   applyLogisticProductionModifier,
   buildWorldEngineTerrainColors,
@@ -37,6 +46,7 @@ import {
   deriveWorldEngineOcean,
   deriveWorldEngineSeaDepth,
   distanceFrontWeight,
+  foundationBuildingDefinition,
   foundationLandTerrainByteForElevation,
   foundationWaterTerrainByteForElevation,
   generateWorldEngineBiome,
@@ -48,15 +58,20 @@ import {
   generateWorldEngineResourceMaps,
   generateWorldEngineTemperature,
   generateWorldEngineWatermap,
+  isFoundationBuildingType,
   isFoundationLandTerrainByte,
+  isLandTile,
   normalizeFoundationWorldEngineMapConfig,
   normalizeWorldEngineLand,
   ownerIdFromState,
+  type FoundationBuildingDefinition,
   type FoundationWorldEngineLayers,
   type WorldEngineResourceMaps,
 } from "../domain";
+import { FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS } from "../dynamics/FoundationDynamicsModel";
 import {
   FoundationRuntime,
+  createBuildStructureCommand,
   createFoundationRuntime,
   createGrowTerritoryCommand,
   createPlacePlayerCommand,
@@ -104,6 +119,7 @@ interface FoundationContextMenuItem {
   icon: IconNode;
   meta?: string;
   disabled?: boolean;
+  building?: FoundationBuildingDefinition;
   children?: FoundationContextMenuItem[];
 }
 
@@ -125,30 +141,45 @@ interface FoundationPlacedBuilding {
   tileRef: number;
 }
 
+const FOUNDATION_CONTEXT_MENU_MAIN_WIDTH = 160;
 const FOUNDATION_DIRECTIONAL_BORDER_BASELINE_HEAT = 0;
 const FOUNDATION_BORDER_HEAT_BUCKETS = 100;
-const FOUNDATION_VECTOR_LINE_BASE_ALPHA = 0.025;
-const FOUNDATION_VECTOR_LINE_WEIGHT_ALPHA = 0.22;
-const FOUNDATION_CONTEXT_MENU_MAIN_WIDTH = 160;
 const FOUNDATION_CONTEXT_MENU_SUBMENU_WIDTH = 160;
 const FOUNDATION_CONTEXT_MENU_BUILDING_WIDTH = 210;
 const FOUNDATION_CONTEXT_MENU_GAP = 0;
 const FOUNDATION_CONTEXT_MENU_EDGE_GAP = 8;
-const FOUNDATION_BUILDING_TILE_SIZE = 4;
-const FOUNDATION_BUILDING_CENTER_OFFSET = Math.floor(
-  FOUNDATION_BUILDING_TILE_SIZE / 2,
-);
+const FOUNDATION_ATTACK_DRAG_MIN_MAX_DISTANCE_TILES = 8;
+const FOUNDATION_ATTACK_DRAG_MAX_MAX_DISTANCE_TILES = 200;
+const FOUNDATION_ATTACK_DRAG_SIGMOID_STEEPNESS = 8;
+const FOUNDATION_PAINT_CURSOR =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23ffffff' stroke='%23050708' stroke-width='1.6' d='M19.8 3.9c1.2-1.2 3.1-1.2 4.2 0 1.2 1.2 1.2 3.1 0 4.2l-9.7 9.7-4.2-4.2 9.7-9.7Z'/%3E%3Cpath fill='%2390c765' stroke='%23050708' stroke-width='1.4' d='M8.7 14.8c2.4.7 3.9 2.2 4.6 4.5-2.5 3.2-6.2 3.9-9.9 3.3 2.4-1.4 1.4-5.8 5.3-7.8Z'/%3E%3C/svg%3E\") 5 23, crosshair";
 
-const FOUNDATION_STORAGE_BUILDINGS: readonly FoundationContextMenuItem[] = [
-  { id: "grain-silo", label: "Grain Silo", icon: Wheat, meta: "Food" },
-  { id: "oil-tank", label: "Oil Tank", icon: Fuel, meta: "Fuel" },
-  {
-    id: "mineral-stockpile",
-    label: "Mineral Stockpile",
-    icon: Gem,
-    meta: "Ore",
-  },
-];
+const FOUNDATION_BUILDING_ICON_BY_KEY: Readonly<
+  Record<FoundationBuildingDefinition["iconKey"], IconNode>
+> = {
+  fuel: Fuel,
+  gem: Gem,
+  sprout: Sprout,
+  wheat: Wheat,
+};
+
+const FOUNDATION_STORAGE_BUILDING_ITEMS: readonly FoundationContextMenuItem[] =
+  FOUNDATION_STORAGE_BUILDINGS.map(foundationContextMenuItemForBuilding);
+
+const FOUNDATION_BUILD_BAR_ITEMS: readonly FoundationContextMenuItem[] =
+  FOUNDATION_BUILD_BAR_BUILDINGS.map(foundationContextMenuItemForBuilding);
+
+function foundationContextMenuItemForBuilding(
+  building: FoundationBuildingDefinition,
+): FoundationContextMenuItem {
+  return {
+    id: building.id,
+    label: building.label,
+    icon: FOUNDATION_BUILDING_ICON_BY_KEY[building.iconKey],
+    meta: building.meta,
+    building,
+  };
+}
 
 const FOUNDATION_CONTEXT_BUILD_MENU: FoundationContextMenuItem = {
   id: "build",
@@ -159,31 +190,67 @@ const FOUNDATION_CONTEXT_BUILD_MENU: FoundationContextMenuItem = {
       id: "storage",
       label: "Storage",
       icon: Warehouse,
-      children: [...FOUNDATION_STORAGE_BUILDINGS],
+      children: [...FOUNDATION_STORAGE_BUILDING_ITEMS],
     },
   ],
 };
 
 const FOUNDATION_CONTEXT_ROOT_MENU: readonly FoundationContextMenuItem[] = [
-  FOUNDATION_CONTEXT_BUILD_MENU,
   { id: "section-two", label: "Section 2", icon: Package, disabled: true },
   { id: "section-three", label: "Section 3", icon: Boxes, disabled: true },
   { id: "section-four", label: "Section 4", icon: Warehouse, disabled: true },
 ];
 
-const FOUNDATION_BUILDING_COLOR_BY_ID: Readonly<Record<string, string>> = {
-  "grain-silo": "rgb(214 162 58)",
-  "oil-tank": "rgb(5 7 8)",
-  "mineral-stockpile": "rgb(185 193 199)",
-};
+export function foundationAttackDragMaxDistance(
+  borderTileCount: number,
+): number {
+  const borderScale = Math.sqrt(Math.max(1, borderTileCount));
+  return clampFoundationNumber(
+    borderScale * 2,
+    FOUNDATION_ATTACK_DRAG_MIN_MAX_DISTANCE_TILES,
+    FOUNDATION_ATTACK_DRAG_MAX_MAX_DISTANCE_TILES,
+  );
+}
 
-type FoundationControlTab = "world" | "river" | "combat" | "ecology" | "colors";
+export function foundationAttackDragFocus(
+  distanceFromBorder: number,
+  maxDistance: number,
+): number {
+  if (
+    !Number.isFinite(distanceFromBorder) ||
+    !Number.isFinite(maxDistance) ||
+    maxDistance <= 0
+  ) {
+    return 0;
+  }
+
+  const x = clampFoundationNumber(distanceFromBorder / maxDistance, 0, 1);
+  const steepness = FOUNDATION_ATTACK_DRAG_SIGMOID_STEEPNESS;
+  const low = sigmoid(-steepness / 2);
+  const high = sigmoid(steepness / 2);
+  const value = sigmoid((x - 0.5) * steepness);
+  return clampFoundationNumber((value - low) / (high - low), 0, 1);
+}
+
+function sigmoid(value: number): number {
+  return 1 / (1 + Math.exp(-value));
+}
+
+type FoundationControlTab =
+  | "world"
+  | "river"
+  | "combat"
+  | "systems"
+  | "ecology"
+  | "colors";
 type FoundationYieldResource = "food" | "oil" | "metal";
+type FoundationCanvasDragMode = "pan" | "attack";
 
 const FOUNDATION_CONTROL_TABS = [
   { id: "world", label: "World" },
   { id: "river", label: "River" },
   { id: "combat", label: "Combat" },
+  { id: "systems", label: "Systems" },
   { id: "ecology", label: "Ecology" },
   { id: "colors", label: "Colors" },
 ];
@@ -402,6 +469,19 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
     formula:
       "foodProduction = maxTroopMultiplier * (tileCount^maxTroopTileExponent * maxTroopTileScale + maxTroopBase)",
   },
+  wildernessMechanics: {
+    does: "Switches wilderness conquest between Foundation progress fronts and OpenFront-style tile budget conquest.",
+    exists:
+      "Lets the same map be tested with stock-flow frontier pressure or the original OpenFront attack feel.",
+    represents:
+      "The algorithm used to spend active exploration troops into new tiles.",
+    increase:
+      "OpenFront mode uses terrain class cost, tile budget, and per-tile attrition.",
+    decrease:
+      "Foundation mode uses per-front progress, troop shares, and slope-sensitive velocity.",
+    formula:
+      "Foundation: progress += velocity(troopShare, slope); OpenFront: tileBudget -= terrainTileCost(troops)",
+  },
   foodPerTile: {
     does: "Sets total food production generated by each owned tile.",
     exists: "Makes land ownership the direct driver of food production.",
@@ -560,14 +640,16 @@ const FOUNDATION_MECHANIC_BREAKDOWNS: Partial<
       "priority = (randomInt(0, 7) + 10) * (1 - ownedNeighborCount * 0.5 + (1 + elevation * priorityScale) / 2) + tick",
   },
   wildernessDistanceFocus: {
-    does: "Sharpens the Gaussian distance falloff from border tiles to the cursor.",
+    does: "Sets the maximum Gaussian sharpness for click-drag concentrated fronts.",
     exists:
-      "Makes close clicks create narrow launch fronts while distant clicks stay broad.",
-    represents: "Focus multiplier applied to direct Euclidean cursor distance.",
-    increase: "Concentrates troops on the closest border tiles to the cursor.",
-    decrease: "Spreads troops across a wider section of the border.",
+      "Lets plain clicks stay broad while long drags can create narrow launch fronts.",
+    represents: "Maximum concentration applied when drag focus reaches 100%.",
+    increase:
+      "Makes fully concentrated drag attacks sharper around the target.",
+    decrease:
+      "Spreads even fully dragged attacks across a wider border section.",
     formula:
-      "weight(tile) = exp(-0.5 * (distance(tile, cursor) * distanceFocus)^2)",
+      "effectiveFocus = dragFocus * wildernessDistanceFocus; weight(tile) = exp(-0.5 * (distance(tile, target) * effectiveFocus)^2)",
   },
   wildernessFrontCapacity: {
     does: "Sets the troop mass where a frontier tile reaches terminal velocity.",
@@ -754,6 +836,8 @@ interface FoundationResourceLayerPreviewItem {
 
 @customElement("foundation-page")
 export class FoundationPage extends LitElement {
+  protected useDynamicSystemsTuning = false;
+
   @query("canvas.board-canvas")
   private canvas!: HTMLCanvasElement;
 
@@ -851,6 +935,12 @@ export class FoundationPage extends LitElement {
   private dragStartX = 0;
   private dragStartY = 0;
   private dragMoved = false;
+  private dragMode: FoundationCanvasDragMode | null = null;
+  private attackDragStartTileRef: number | null = null;
+  private attackDragTargetTileRef: number | null = null;
+  private attackDragFocus = 0;
+  private buildPaintPointerId: number | null = null;
+  private buildPaintStrokeTiles = new Set<number>();
   private suppressNextCanvasClick = false;
 
   static styles = css`
@@ -1132,6 +1222,17 @@ export class FoundationPage extends LitElement {
 
     .control-widget {
       min-width: 0;
+    }
+
+    .control-select {
+      width: 100%;
+      border: 1px solid rgb(125 200 166 / 0.24);
+      border-radius: 6px;
+      background: rgb(10 18 16 / 0.86);
+      color: var(--panel-text);
+      font: inherit;
+      font-size: 12px;
+      padding: 6px 8px;
     }
 
     .color-actions {
@@ -1721,6 +1822,97 @@ export class FoundationPage extends LitElement {
       white-space: nowrap;
     }
 
+    .foundation-build-bar {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      z-index: 4;
+      display: flex;
+      max-width: calc(100% - 24px);
+      align-items: stretch;
+      gap: 6px;
+      border: 1px solid rgb(48 56 61 / 0.92);
+      border-radius: 8px;
+      background: rgb(16 20 22 / 0.92);
+      box-shadow:
+        0 18px 48px rgb(0 0 0 / 0.38),
+        inset 0 1px 0 rgb(255 255 255 / 0.05);
+      padding: 6px;
+      pointer-events: auto;
+      transform: translateX(-50%);
+      backdrop-filter: blur(8px);
+    }
+
+    .foundation-build-button {
+      display: grid;
+      min-width: 84px;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      align-items: center;
+      column-gap: 7px;
+      row-gap: 2px;
+      border: 1px solid rgb(87 101 107 / 0.9);
+      border-radius: 6px;
+      background:
+        linear-gradient(rgb(255 255 255 / 0.06), rgb(255 255 255 / 0)),
+        rgb(27 33 36 / 0.96);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      padding: 7px 9px;
+      text-align: left;
+    }
+
+    .foundation-build-button:hover:not(:disabled),
+    .foundation-build-button.is-active {
+      border-color: rgb(230 191 99 / 0.9);
+      background:
+        linear-gradient(rgb(230 191 99 / 0.13), rgb(230 191 99 / 0.04)),
+        rgb(31 37 39 / 0.98);
+    }
+
+    .foundation-build-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .foundation-build-icon {
+      grid-row: 1 / span 2;
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      color: var(--accent-2);
+    }
+
+    .foundation-build-icon .context-menu-svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .foundation-build-label,
+    .foundation-build-meta {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .foundation-build-label {
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .foundation-build-meta {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
     .placed-building {
       position: absolute;
       z-index: 3;
@@ -1764,6 +1956,17 @@ export class FoundationPage extends LitElement {
       .statusbar {
         align-items: flex-start;
         flex-direction: column;
+      }
+
+      .foundation-build-bar {
+        bottom: 8px;
+        width: calc(100% - 16px);
+        justify-content: center;
+        overflow-x: auto;
+      }
+
+      .foundation-build-button {
+        min-width: 78px;
       }
     }
   `;
@@ -2039,6 +2242,7 @@ export class FoundationPage extends LitElement {
                     0,
                   )}
                   ${this.percentRangeInput("Attack", "attackRatio", 1, 100, 1)}
+                  ${this.wildernessMechanicsInput()}
                   ${this.rangeInput(
                     "Starting troops",
                     "startingTroops",
@@ -2057,39 +2261,14 @@ export class FoundationPage extends LitElement {
                   )}
                 `,
               )}
-              ${this.controlSection(
-                "Troop Growth",
-                html`
-                  ${this.rangeInput(
-                    "Food per tile",
-                    "foodPerTile",
-                    0,
-                    5000,
-                    50,
-                    0,
-                  )}
-                  ${this.percentRangeInput(
-                    "Reserve share",
-                    "foodReservePercentage",
-                    0,
-                    99,
-                    1,
-                  )}
-                  ${this.rangeInput(
-                    "Max pop growth",
-                    "maxPopulationGrowthRate",
-                    0,
-                    0.25,
-                    0.005,
-                    3,
-                  )}
-                `,
-              )}
+              ${this.useDynamicSystemsTuning
+                ? this.renderDynamicSystemsTuningSections()
+                : this.renderManualTroopGrowthSection()}
               ${this.controlSection(
                 "Front Mechanics",
                 html`
                   ${this.logRangeInput(
-                    "Distance focus",
+                    "Max concentration",
                     "wildernessDistanceFocus",
                     0.001,
                     10000,
@@ -2166,48 +2345,23 @@ export class FoundationPage extends LitElement {
               )}
               ${this.controlSection(
                 "Food Stock",
-                html`
-                  ${this.rangeInput(
-                    "Starting food",
-                    "startingFoodStorage",
-                    0,
-                    100000,
-                    500,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Base capacity",
-                    "baseFoodStorageCapacity",
-                    0,
-                    200000,
-                    1000,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Starter silos",
-                    "baseSilosOwned",
-                    0,
-                    10,
-                    1,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Capacity per silo",
-                    "addedStorageCapacityPerSilo",
-                    0,
-                    200000,
-                    1000,
-                    0,
-                  )}
-                  ${this.rangeInput(
-                    "Stockpile growth",
-                    "stockpileGrowthRate",
-                    0,
-                    0.25,
-                    0.005,
-                    3,
-                  )}
-                `,
+                this.useDynamicSystemsTuning
+                  ? html`
+                      ${this.rangeInput(
+                        "Starting food",
+                        "startingFoodStorage",
+                        0,
+                        100000,
+                        500,
+                        0,
+                      )}
+                      <div class="mechanic-detail" role="note">
+                        Storage capacity and stockpile growth controls are
+                        generated from the dynamics system metadata in the
+                        Combat tab.
+                      </div>
+                    `
+                  : this.renderManualFoodStockControls(),
               )}
               ${this.controlSection(
                 "Wilderness Exploration",
@@ -2254,6 +2408,14 @@ export class FoundationPage extends LitElement {
                   )}
                 `,
               )}
+            </div>
+
+            <div
+              class="control-panel"
+              ?hidden=${this.activeControlTab !== "systems"}
+            >
+              ${this.renderPresetControls("game-mechanics")}
+              ${this.renderDynamicSystemsTuningSections()}
             </div>
 
             <div
@@ -2333,7 +2495,7 @@ export class FoundationPage extends LitElement {
                 ${this.renderContextMenu()}
                 ${this.renderBuildPlacementPreview()}
                 ${this.renderPlacedBuildings()}
-                ${this.renderResourceLayerOverlay()}
+                ${this.renderResourceLayerOverlay()} ${this.renderBuildBar()}
                 ${this.renderBoardStateOverlay()}
               </div>
             </hud-surface-body>
@@ -2356,7 +2518,7 @@ export class FoundationPage extends LitElement {
     const buildingItems =
       this.contextMenuActiveRootId === "build" &&
       this.contextMenuActiveBuildId === "storage"
-        ? FOUNDATION_STORAGE_BUILDINGS
+        ? FOUNDATION_STORAGE_BUILDING_ITEMS
         : [];
 
     return html`
@@ -2408,7 +2570,10 @@ export class FoundationPage extends LitElement {
       return null;
     }
 
-    const bounds = this.tileOverlayBounds(this.buildPlacementTileRef);
+    const bounds = this.tileOverlayBounds(
+      this.buildPlacementTileRef,
+      this.activeBuildPlacementItem.building?.footprintSize ?? 1,
+    );
     if (!bounds) {
       return null;
     }
@@ -2425,25 +2590,63 @@ export class FoundationPage extends LitElement {
     `;
   }
 
+  private renderBuildBar(): TemplateResult {
+    const disabled =
+      this.loading || !this.runtime || !this.snapshot?.player.placed;
+    return html`
+      <div
+        class="foundation-build-bar"
+        aria-label="Foundation build bar"
+        @pointerdown=${this.stopBuildBarEvent}
+        @mousedown=${this.stopBuildBarEvent}
+        @click=${this.stopBuildBarEvent}
+        @contextmenu=${this.stopBuildBarEvent}
+      >
+        ${FOUNDATION_BUILD_BAR_ITEMS.map((item) => {
+          const active = this.activeBuildPlacementItem?.id === item.id;
+          return html`
+            <button
+              class=${`foundation-build-button ${active ? "is-active" : ""}`}
+              type="button"
+              title=${item.label}
+              ?disabled=${disabled || item.disabled}
+              @click=${(event: Event) => this.selectBuildBarItem(event, item)}
+            >
+              <span class="foundation-build-icon" aria-hidden="true">
+                ${renderLucideIcon(item.icon, "context-menu-svg")}
+              </span>
+              <span class="foundation-build-label">${item.label}</span>
+              <span class="foundation-build-meta">${item.meta ?? "Build"}</span>
+            </button>
+          `;
+        })}
+      </div>
+    `;
+  }
+
   private renderPlacedBuildings(): TemplateResult | null {
-    if (!this.runtime || !this.renderer || this.placedBuildings.length === 0) {
+    const buildings = this.snapshot?.player.buildings ?? [];
+    if (!this.runtime || !this.renderer || buildings.length === 0) {
       return null;
     }
 
     return html`
-      ${this.placedBuildings.map((building) => {
-        const bounds = this.tileOverlayBounds(building.tileRef);
-        const color = FOUNDATION_BUILDING_COLOR_BY_ID[building.id];
-        if (!bounds || !color) {
+      ${buildings.map((building) => {
+        const definition = FOUNDATION_BUILDING_BY_ID[building.type];
+        const bounds = this.tileOverlayBounds(
+          building.tileRef,
+          definition.footprintSize,
+        );
+        if (!bounds) {
           return null;
         }
 
         return html`
           <div
             class="placed-building"
-            title=${building.label}
-            aria-label=${building.label}
-            style="--foundation-building-color: ${color}; left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; height: ${bounds.height}px;"
+            title=${definition.label}
+            aria-label=${definition.label}
+            style="--foundation-building-color: ${definition.color}; left: ${bounds.left}px; top: ${bounds.top}px; width: ${bounds.width}px; height: ${bounds.height}px;"
           ></div>
         `;
       })}
@@ -2479,7 +2682,7 @@ export class FoundationPage extends LitElement {
             : null}
           ${this.contextMenuActiveRootId === "build" &&
           this.contextMenuActiveBuildId === "storage"
-            ? FOUNDATION_STORAGE_BUILDINGS.map((item) =>
+            ? FOUNDATION_STORAGE_BUILDING_ITEMS.map((item) =>
                 this.renderCompactContextMenuItem(item, 2, () => {}),
               )
             : null}
@@ -2825,6 +3028,34 @@ export class FoundationPage extends LitElement {
     this.startBuildPlacement(item);
   }
 
+  private selectBuildBarItem(
+    event: Event,
+    item: FoundationContextMenuItem,
+  ): void {
+    this.stopBuildBarEvent(event);
+    if (item.disabled || item.children || !this.runtime || this.loading) {
+      return;
+    }
+    if (!this.snapshot?.player.placed) {
+      this.status = {
+        tone: "idle",
+        text: "Place your settlement before building.",
+      };
+      return;
+    }
+    if (this.activeBuildPlacementItem?.id === item.id) {
+      this.cancelBuildPlacement();
+      return;
+    }
+    this.selectedContextBuilding = item.label;
+    this.startBuildPlacement(item);
+  }
+
+  private stopBuildBarEvent(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   private closeContextMenu(): void {
     this.contextMenuOpen = false;
     this.contextMenuActiveRootId = "";
@@ -2834,8 +3065,10 @@ export class FoundationPage extends LitElement {
   private startBuildPlacement(item: FoundationContextMenuItem): void {
     this.closeContextMenu();
     this.activeBuildPlacementItem = item;
+    this.buildPaintPointerId = null;
+    this.buildPaintStrokeTiles.clear();
     this.updateBuildPlacementPreviewFromLastPointer();
-    this.canvas.style.cursor = "crosshair";
+    this.canvas.style.cursor = this.cursorForBuildPlacement(item);
     this.status = {
       tone: "idle",
       text: `${item.label} placement selected.`,
@@ -2846,6 +3079,8 @@ export class FoundationPage extends LitElement {
     const label = this.activeBuildPlacementItem?.label;
     this.activeBuildPlacementItem = null;
     this.buildPlacementTileRef = null;
+    this.buildPaintPointerId = null;
+    this.buildPaintStrokeTiles.clear();
     this.canvas.style.cursor = "";
     if (label) {
       this.status = {
@@ -2856,33 +3091,167 @@ export class FoundationPage extends LitElement {
   }
 
   private confirmBuildPlacement(tile: { x: number; y: number; ref: number }) {
+    this.placeActiveBuildAtTile(tile, { keepActive: false });
+  }
+
+  private paintBuildPlacementForPointer(
+    event: PointerEvent,
+    options: { cancelOnInvalid: boolean },
+  ): void {
+    const tile = this.tileFromClientPoint(event.clientX, event.clientY);
+    if (!tile) {
+      if (options.cancelOnInvalid) {
+        this.cancelBuildPlacementIntoPan(event);
+      }
+      return;
+    }
+    this.updateBuildPlacementPreviewForPointer(event);
+    const anchorTile = this.anchorTileForBuilding(
+      tile,
+      this.activeBuildFootprintSize(),
+    );
+    if (!anchorTile || !this.canPlaceActiveBuildAtAnchor(anchorTile.ref)) {
+      if (options.cancelOnInvalid) {
+        this.cancelBuildPlacementIntoPan(event);
+      }
+      return;
+    }
+    if (!anchorTile || this.buildPaintStrokeTiles.has(anchorTile.ref)) {
+      return;
+    }
+    this.buildPaintStrokeTiles.add(anchorTile.ref);
+    this.placeActiveBuildAtTile(tile, { keepActive: true });
+  }
+
+  private placeActiveBuildAtTile(
+    tile: { x: number; y: number; ref: number },
+    options: { keepActive: boolean },
+  ): void {
     const item = this.activeBuildPlacementItem;
     if (!item) return;
-    const anchorTile = this.anchorTileForBuilding(tile);
+    if (!this.runtime || !isFoundationBuildingType(item.id)) {
+      this.status = {
+        tone: "error",
+        text: "Selected building is not available.",
+      };
+      return;
+    }
+    const definition = foundationBuildingDefinition(item.id);
+    const anchorTile = this.anchorTileForBuilding(
+      tile,
+      definition.footprintSize,
+    );
     if (!anchorTile) {
       return;
     }
-    this.activeBuildPlacementItem = null;
-    this.buildPlacementTileRef = null;
-    this.selectedContextBuilding = item.label;
-    this.placedBuildings = [
-      ...this.placedBuildings.filter(
-        (building) => building.tileRef !== anchorTile.ref,
-      ),
-      {
-        id: item.id,
-        label: item.label,
+    const currentSnapshot = this.snapshot ?? this.runtime.snapshot();
+    const result = this.runtime.dispatch(
+      createBuildStructureCommand({
+        buildingType: item.id,
         tileRef: anchorTile.ref,
-      },
-    ];
-    this.canvas.style.cursor = "";
-    this.status = {
-      tone: "ok",
-      text: `Built ${item.label} at ${anchorTile.x}, ${anchorTile.y}.`,
-    };
+        turnNumber: currentSnapshot.tick,
+      }),
+    );
+
+    if (!options.keepActive || definition.placementMode !== "paint") {
+      this.activeBuildPlacementItem = null;
+      this.buildPlacementTileRef = null;
+      this.canvas.style.cursor = "";
+    } else {
+      this.buildPlacementTileRef = anchorTile.ref;
+      this.canvas.style.cursor = this.cursorForBuildPlacement(item);
+    }
+    this.selectedContextBuilding = item.label;
+    this.applyMapUpdate(result.update.map);
+    this.snapshot = this.runtime.snapshot();
+    this.status = this.statusFromBuildResult(result, item.label, anchorTile);
   }
 
-  private tileOverlayBounds(tileRef: number): {
+  private activeBuildFootprintSize(): number {
+    const item = this.activeBuildPlacementItem;
+    if (!item || !isFoundationBuildingType(item.id)) {
+      return 1;
+    }
+    return foundationBuildingDefinition(item.id).footprintSize;
+  }
+
+  private activeBuildPlacementMode(): "paint" | "single" {
+    const item = this.activeBuildPlacementItem;
+    if (!item || !isFoundationBuildingType(item.id)) {
+      return "single";
+    }
+    return foundationBuildingDefinition(item.id).placementMode;
+  }
+
+  private cursorForBuildPlacement(item: FoundationContextMenuItem): string {
+    if (isFoundationBuildingType(item.id)) {
+      const definition = foundationBuildingDefinition(item.id);
+      return definition.placementMode === "paint"
+        ? FOUNDATION_PAINT_CURSOR
+        : "crosshair";
+    }
+    return "crosshair";
+  }
+
+  private canPlaceActiveBuildAtAnchor(tileRef: number): boolean {
+    if (!this.runtime || !this.activeBuildPlacementItem) {
+      return false;
+    }
+    if (!isFoundationBuildingType(this.activeBuildPlacementItem.id)) {
+      return false;
+    }
+
+    const map = this.runtime.map();
+    if (!map.isValidRef(tileRef)) {
+      return false;
+    }
+    if (!isLandTile(map, tileRef)) {
+      return false;
+    }
+    if (
+      ownerIdFromState(map.stateBuffer()[tileRef]) !==
+      this.runtime.player().ownerId
+    ) {
+      return false;
+    }
+    return !this.runtime
+      .player()
+      .buildings.some((building) => building.tileRef === tileRef);
+  }
+
+  private cancelBuildPlacementIntoPan(event: PointerEvent): void {
+    const label = this.activeBuildPlacementItem?.label;
+    this.activeBuildPlacementItem = null;
+    this.buildPlacementTileRef = null;
+    this.buildPaintPointerId = null;
+    this.buildPaintStrokeTiles.clear();
+    this.beginCameraPanDrag(event);
+    if (label) {
+      this.status = {
+        tone: "idle",
+        text: `${label} placement cancelled.`,
+      };
+    }
+  }
+
+  private beginCameraPanDrag(event: PointerEvent): void {
+    this.dragPointerId = event.pointerId;
+    this.dragLastX = event.clientX;
+    this.dragLastY = event.clientY;
+    this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
+    this.dragMoved = false;
+    this.dragMode = "pan";
+    this.attackDragStartTileRef = null;
+    this.attackDragTargetTileRef = null;
+    this.attackDragFocus = 0;
+    this.canvas.style.cursor = "grabbing";
+  }
+
+  private tileOverlayBounds(
+    tileRef: number,
+    footprintSize: number,
+  ): {
     left: number;
     top: number;
     width: number;
@@ -2901,8 +3270,8 @@ export class FoundationPage extends LitElement {
     const tileY = map.y(tileRef);
     const topLeft = this.worldToOverlayScreen(tileX, tileY, rect);
     const bottomRight = this.worldToOverlayScreen(
-      tileX + FOUNDATION_BUILDING_TILE_SIZE,
-      tileY + FOUNDATION_BUILDING_TILE_SIZE,
+      tileX + footprintSize,
+      tileY + footprintSize,
       rect,
     );
     return {
@@ -2927,35 +3296,97 @@ export class FoundationPage extends LitElement {
       screenY: this.contextMenuY,
     });
     this.buildPlacementTileRef = tile
-      ? (this.anchorTileForBuilding(tile)?.ref ?? null)
+      ? (this.anchorTileForBuilding(tile, this.activeBuildFootprintSize())
+          ?.ref ?? null)
       : null;
   }
 
   private updateBuildPlacementPreviewForPointer(event: PointerEvent): void {
     const tile = this.tileFromClientPoint(event.clientX, event.clientY);
     this.buildPlacementTileRef = tile
-      ? (this.anchorTileForBuilding(tile)?.ref ?? null)
+      ? (this.anchorTileForBuilding(tile, this.activeBuildFootprintSize())
+          ?.ref ?? null)
       : null;
   }
 
-  private anchorTileForBuilding(tile: {
-    x: number;
-    y: number;
-    ref: number;
-  }): { x: number; y: number; ref: number } | null {
+  private updateAttackDragForPointer(event: PointerEvent): void {
+    const tile = this.tileFromClientPoint(event.clientX, event.clientY);
+    if (!tile) {
+      this.attackDragTargetTileRef = null;
+      this.attackDragFocus = 0;
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    this.attackDragTargetTileRef = tile.ref;
+    this.attackDragFocus = this.focusForAttackDragTarget(tile.ref);
+    this.updateDirectionalBorderPreviewForPointer(event);
+    this.requestUpdate();
+  }
+
+  private confirmAttackDrag(): void {
+    if (
+      !this.runtime ||
+      !this.renderer ||
+      this.attackDragTargetTileRef === null
+    ) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    const map = this.runtime.map();
+    const targetTileRef = this.attackDragTargetTileRef;
+    if (
+      !map.isValidRef(targetTileRef) ||
+      ownerIdFromState(map.stateBuffer()[targetTileRef]) ===
+        this.runtime.player().ownerId
+    ) {
+      this.clearDirectionalBorderPreview();
+      return;
+    }
+
+    const currentSnapshot = this.snapshot ?? this.runtime.snapshot();
+    const result = this.runtime.dispatch(
+      createGrowTerritoryCommand({
+        targetTileRef,
+        turnNumber: currentSnapshot.tick,
+        troopRatio: this.tuningSettings.attackRatio,
+        frontMode: "focused",
+        frontFocus: this.attackDragFocus,
+      }),
+    );
+
+    this.applyMapUpdate(result.update.map);
+    this.clearDirectionalBorderPreview();
+    this.snapshot = this.runtime.snapshot();
+    this.status = this.statusFromCommandResult(result, {
+      x: map.x(targetTileRef),
+      y: map.y(targetTileRef),
+    });
+  }
+
+  private anchorTileForBuilding(
+    tile: {
+      x: number;
+      y: number;
+      ref: number;
+    },
+    footprintSize: number,
+  ): { x: number; y: number; ref: number } | null {
     if (!this.runtime) {
       return null;
     }
     const map = this.runtime.map();
+    const centerOffset = Math.floor(footprintSize / 2);
     const x = clampFoundationNumber(
-      tile.x - FOUNDATION_BUILDING_CENTER_OFFSET,
+      tile.x - centerOffset,
       0,
-      Math.max(0, map.width() - FOUNDATION_BUILDING_TILE_SIZE),
+      Math.max(0, map.width() - footprintSize),
     );
     const y = clampFoundationNumber(
-      tile.y - FOUNDATION_BUILDING_CENTER_OFFSET,
+      tile.y - centerOffset,
       0,
-      Math.max(0, map.height() - FOUNDATION_BUILDING_TILE_SIZE),
+      Math.max(0, map.height() - footprintSize),
     );
     return { x, y, ref: map.ref(x, y) };
   }
@@ -2979,6 +3410,76 @@ export class FoundationPage extends LitElement {
       return null;
     }
     return this.renderer.screenToTile({ screenX, screenY });
+  }
+
+  private isOwnedTile(tileRef: number | null): boolean {
+    if (!this.runtime || tileRef === null) {
+      return false;
+    }
+
+    const map = this.runtime.map();
+    if (!map.isValidRef(tileRef)) {
+      return false;
+    }
+
+    return (
+      ownerIdFromState(map.stateBuffer()[tileRef]) ===
+      this.runtime.player().ownerId
+    );
+  }
+
+  private focusForAttackDragTarget(targetTileRef: number): number {
+    if (!this.runtime) {
+      return 0;
+    }
+
+    const border = this.ownedBorderTiles();
+    if (border.length === 0) {
+      return 0;
+    }
+
+    const distance = this.distanceToClosestTile(targetTileRef, border);
+    return foundationAttackDragFocus(
+      distance,
+      foundationAttackDragMaxDistance(border.length),
+    );
+  }
+
+  private ownedBorderTiles(): number[] {
+    if (!this.runtime) {
+      return [];
+    }
+
+    const placement = this.runtime.player().placement;
+    if (!placement) {
+      return [];
+    }
+
+    return placement.claimedTiles.filter((tile) =>
+      this.isOwnedBorderTile(tile),
+    );
+  }
+
+  private distanceToClosestTile(
+    targetTileRef: number,
+    tiles: readonly number[],
+  ): number {
+    if (!this.runtime || tiles.length === 0) {
+      return 0;
+    }
+
+    const map = this.runtime.map();
+    const targetX = map.x(targetTileRef) + 0.5;
+    const targetY = map.y(targetTileRef) + 0.5;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const tile of tiles) {
+      const dx = map.x(tile) + 0.5 - targetX;
+      const dy = map.y(tile) + 0.5 - targetY;
+      closestDistance = Math.min(closestDistance, Math.hypot(dx, dy));
+    }
+
+    return Number.isFinite(closestDistance) ? closestDistance : 0;
   }
 
   private contextMenuLayout(): FoundationContextMenuLayout {
@@ -3103,6 +3604,18 @@ export class FoundationPage extends LitElement {
 
     if (this.activeBuildPlacementItem) {
       event.preventDefault();
+      if (
+        event.button === 0 &&
+        this.activeBuildPlacementMode() === "paint" &&
+        !this.loading &&
+        this.runtime &&
+        this.renderer
+      ) {
+        this.buildPaintPointerId = event.pointerId;
+        this.buildPaintStrokeTiles.clear();
+        this.suppressNextCanvasClick = true;
+        this.paintBuildPlacementForPointer(event, { cancelOnInvalid: true });
+      }
       return;
     }
 
@@ -3116,7 +3629,19 @@ export class FoundationPage extends LitElement {
     this.dragStartX = event.clientX;
     this.dragStartY = event.clientY;
     this.dragMoved = false;
-    this.canvas.style.cursor = "grabbing";
+    this.attackDragStartTileRef = null;
+    this.attackDragTargetTileRef = null;
+    this.attackDragFocus = 0;
+
+    const startTile = this.tileFromClientPoint(event.clientX, event.clientY);
+    this.dragMode = this.isOwnedTile(startTile?.ref ?? null) ? "attack" : "pan";
+    if (this.dragMode === "attack") {
+      this.attackDragStartTileRef = startTile?.ref ?? null;
+      this.attackDragTargetTileRef = startTile?.ref ?? null;
+      this.canvas.style.cursor = "crosshair";
+    } else {
+      this.canvas.style.cursor = "grabbing";
+    }
   };
 
   private readonly handleCanvasPointerMove = (event: PointerEvent): void => {
@@ -3125,7 +3650,15 @@ export class FoundationPage extends LitElement {
     }
 
     if (this.activeBuildPlacementItem) {
-      this.updateBuildPlacementPreviewForPointer(event);
+      if (
+        this.buildPaintPointerId === event.pointerId &&
+        this.activeBuildPlacementMode() === "paint"
+      ) {
+        event.preventDefault();
+        this.paintBuildPlacementForPointer(event, { cancelOnInvalid: true });
+      } else {
+        this.updateBuildPlacementPreviewForPointer(event);
+      }
       return;
     }
 
@@ -3150,6 +3683,11 @@ export class FoundationPage extends LitElement {
     this.dragMoved = true;
     event.preventDefault();
 
+    if (this.dragMode === "attack") {
+      this.updateAttackDragForPointer(event);
+      return;
+    }
+
     const zoom = this.renderer.getCameraState().zoom;
     if (zoom <= 0) {
       return;
@@ -3162,6 +3700,13 @@ export class FoundationPage extends LitElement {
   };
 
   private readonly handleCanvasPointerUp = (event: PointerEvent): void => {
+    if (this.buildPaintPointerId === event.pointerId) {
+      this.buildPaintPointerId = null;
+      this.buildPaintStrokeTiles.clear();
+      event.preventDefault();
+      return;
+    }
+
     if (this.dragPointerId !== event.pointerId) {
       return;
     }
@@ -3169,11 +3714,21 @@ export class FoundationPage extends LitElement {
     this.dragPointerId = null;
     this.canvas.style.cursor = "";
 
+    const shouldConfirmAttackDrag =
+      event.type === "pointerup" && this.dragMode === "attack";
+
     if (this.dragMoved) {
       this.suppressNextCanvasClick = true;
       this.dragMoved = false;
+      if (shouldConfirmAttackDrag) {
+        this.confirmAttackDrag();
+      }
       event.preventDefault();
     }
+    this.dragMode = null;
+    this.attackDragStartTileRef = null;
+    this.attackDragTargetTileRef = null;
+    this.attackDragFocus = 0;
   };
 
   private readonly handleCanvasClick = (event: MouseEvent): void => {
@@ -3209,6 +3764,8 @@ export class FoundationPage extends LitElement {
             targetTileRef: tile.ref,
             turnNumber: currentSnapshot.tick,
             troopRatio: this.tuningSettings.attackRatio,
+            frontMode: "uniform",
+            frontFocus: 0,
           })
         : createPlacePlayerCommand({
             tileRef: tile.ref,
@@ -3439,11 +3996,13 @@ export class FoundationPage extends LitElement {
         ? "colors"
         : event.detail.id === "ecology"
           ? "ecology"
-          : event.detail.id === "combat"
-            ? "combat"
-            : event.detail.id === "river"
-              ? "river"
-              : "world";
+          : event.detail.id === "systems"
+            ? "systems"
+            : event.detail.id === "combat"
+              ? "combat"
+              : event.detail.id === "river"
+                ? "river"
+                : "world";
   };
 
   private readonly handleYieldResourceChange = (
@@ -3646,6 +4205,135 @@ export class FoundationPage extends LitElement {
         ({ resource }) => resource === this.activeYieldResource,
       ) ?? FOUNDATION_YIELD_RESOURCE_DEFINITIONS[0]
     );
+  }
+
+  private renderManualTroopGrowthSection(): TemplateResult {
+    return this.controlSection(
+      "Troop Growth",
+      html`
+        ${this.rangeInput("Food per tile", "foodPerTile", 0, 5000, 50, 0)}
+        ${this.rangeInput("Food per troop", "foodPerTroop", 0.1, 10, 0.1, 1)}
+        ${this.percentRangeInput(
+          "Reserve share",
+          "foodReservePercentage",
+          0,
+          99,
+          1,
+        )}
+        ${this.rangeInput(
+          "Max pop growth",
+          "maxPopulationGrowthRate",
+          0,
+          0.25,
+          0.005,
+          3,
+        )}
+      `,
+    );
+  }
+
+  private renderManualFoodStockControls(): TemplateResult {
+    return html`
+      ${this.rangeInput(
+        "Starting food",
+        "startingFoodStorage",
+        0,
+        100000,
+        500,
+        0,
+      )}
+      ${this.rangeInput(
+        "Base capacity",
+        "baseFoodStorageCapacity",
+        0,
+        200000,
+        1000,
+        0,
+      )}
+      ${this.rangeInput("Starter silos", "baseSilosOwned", 0, 10, 1, 0)}
+      ${this.rangeInput(
+        "Capacity per silo",
+        "addedStorageCapacityPerSilo",
+        0,
+        200000,
+        1000,
+        0,
+      )}
+      ${this.rangeInput(
+        "Stockpile growth",
+        "stockpileGrowthRate",
+        0,
+        0.25,
+        0.005,
+        3,
+      )}
+    `;
+  }
+
+  private renderDynamicSystemsTuningSections(): TemplateResult {
+    const sections = FOUNDATION_DYNAMICS_BUILTIN_SYSTEMS.map((system) =>
+      this.renderDynamicSystemTuningSection(system),
+    ).filter((section): section is TemplateResult => section !== null);
+
+    if (sections.length === 0) {
+      return this.renderManualTroopGrowthSection();
+    }
+
+    return html`${sections}`;
+  }
+
+  private renderDynamicSystemTuningSection(
+    system: DynamicsSavedSystem,
+  ): TemplateResult | null {
+    const viewControls = new Map(
+      system.view.nodes.map((node) => [node.id, node.inputControl]),
+    );
+    const controls = system.definition.nodes
+      .filter((node): node is DynamicsInputNodeDefinition => {
+        return node.primitive === "input" && node.inputKind === "constant";
+      })
+      .map((node) => {
+        if (!isFoundationTuningKey(node.name)) {
+          return null;
+        }
+        const control = viewControls.get(node.id);
+        return control
+          ? this.renderDynamicSystemTuningControl(node.name, control)
+          : null;
+      })
+      .filter((control): control is TemplateResult => control !== null);
+
+    if (controls.length === 0) {
+      return null;
+    }
+
+    return this.controlSection(
+      `System: ${system.definition.name}`,
+      html`${controls}`,
+    );
+  }
+
+  private renderDynamicSystemTuningControl(
+    key: keyof FoundationTuningSettings,
+    control: DynamicsInputControl,
+  ): TemplateResult {
+    const min = control.sliderMin ?? 0;
+    const max =
+      control.sliderMax ?? Math.max(min + 1, Number(this.tuningSettings[key]));
+    const step = control.actionAmount ?? Math.max((max - min) / 100, 1);
+    const label = humanizeDynamicsTuningKey(String(key));
+
+    if (String(key).endsWith("Percentage")) {
+      return this.percentRangeInput(
+        label,
+        key,
+        Math.round(min * 100),
+        Math.round(max * 100),
+        Math.max(1, Math.round(step * 100)),
+      );
+    }
+
+    return this.rangeInput(label, key, min, max, step, precisionForStep(step));
   }
 
   private renderTerrainColorControl(
@@ -4024,6 +4712,26 @@ export class FoundationPage extends LitElement {
     `;
   }
 
+  private wildernessMechanicsInput() {
+    return html`
+      <div class="control-row" role="row">
+        ${this.renderControlName("Mechanics", "wildernessMechanics")}
+        <span class="control-widget" role="cell">
+          <select
+            class="control-select"
+            .value=${this.tuningSettings.wildernessMechanics}
+            ?disabled=${this.loading}
+            @change=${this.handleWildernessMechanicsChange}
+          >
+            <option value="foundation">Foundation</option>
+            <option value="openfront">OpenFront</option>
+          </select>
+        </span>
+      </div>
+      ${this.renderMechanicBreakdown("wildernessMechanics")}
+    `;
+  }
+
   private renderMechanicBreakdown(
     key: keyof FoundationTuningSettings,
   ): TemplateResult | null {
@@ -4170,6 +4878,14 @@ export class FoundationPage extends LitElement {
       force: true,
     });
   }
+
+  private readonly handleWildernessMechanicsChange = (event: Event): void => {
+    const target = event.currentTarget as HTMLSelectElement;
+    this.updateSettings({
+      wildernessMechanics:
+        target.value === "openfront" ? "openfront" : "foundation",
+    });
+  };
 
   private statusPillTone(): "blue" | "green" | "red" {
     if (this.status.tone === "ok") return "green";
@@ -4342,7 +5058,7 @@ export class FoundationPage extends LitElement {
       sharpness: 1,
       heatMap: this.createDirectionalBorderHeatMap(preview),
     });
-    this.drawDistanceVectorOverlay(preview);
+    this.clearVectorOverlay();
   }
 
   private createDirectionalBorderHeatMap(
@@ -4373,6 +5089,7 @@ export class FoundationPage extends LitElement {
       return heatMap;
     }
 
+    const effectiveDistanceFocus = this.previewDistanceFocus();
     let totalWeight = 0;
     const weights = new Map<number, number>();
     const distances = new Map<number, number>();
@@ -4388,11 +5105,14 @@ export class FoundationPage extends LitElement {
     }
 
     for (const tile of borderTiles) {
-      const weight = distanceFrontWeight(
-        distances.get(tile) ?? 0,
-        this.tuningSettings.wildernessDistanceFocus,
-        minDistance,
-      );
+      const weight =
+        effectiveDistanceFocus > 0
+          ? distanceFrontWeight(
+              distances.get(tile) ?? 0,
+              effectiveDistanceFocus,
+              minDistance,
+            )
+          : 1;
       weights.set(tile, weight);
       totalWeight += weight;
     }
@@ -4414,179 +5134,8 @@ export class FoundationPage extends LitElement {
   private drawDistanceVectorOverlay(
     preview: FoundationDirectionalBorderPreview | null,
   ): void {
-    if (!preview) {
-      this.clearVectorOverlay();
-      return;
-    }
-
-    const runtime = this.runtime;
-    const renderer = this.renderer;
-    const overlay = this.vectorOverlayCanvas;
-    const canvas = this.canvas;
-    if (!runtime || !renderer || !overlay || !canvas) {
-      return;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const pixelWidth = Math.max(1, Math.round(rect.width * dpr));
-    const pixelHeight = Math.max(1, Math.round(rect.height * dpr));
-    if (overlay.width !== pixelWidth || overlay.height !== pixelHeight) {
-      overlay.width = pixelWidth;
-      overlay.height = pixelHeight;
-    }
-
-    const context = overlay.getContext("2d");
-    if (!context) {
-      return;
-    }
-
-    context.clearRect(0, 0, overlay.width, overlay.height);
-    context.save();
-    context.scale(dpr, dpr);
-
-    const map = runtime.map();
-    const placement = runtime.player().placement;
-    if (!placement) {
-      context.restore();
-      return;
-    }
-
-    const target = this.worldToOverlayScreen(
-      map.x(preview.targetTile) + 0.5,
-      map.y(preview.targetTile) + 0.5,
-      rect,
-    );
-    const weightedTiles: { tile: number; weight: number }[] = [];
-    const distances = new Map<number, number>();
-    let totalWeight = 0;
-    let minDistance = Number.POSITIVE_INFINITY;
-    const targetX = map.x(preview.targetTile);
-    const targetY = map.y(preview.targetTile);
-
-    for (const tile of placement.claimedTiles) {
-      if (!this.isOwnedBorderTile(tile)) {
-        continue;
-      }
-
-      const dx = map.x(tile) - targetX;
-      const dy = map.y(tile) - targetY;
-      const distance = Math.hypot(dx, dy);
-      distances.set(tile, distance);
-      minDistance = Math.min(minDistance, distance);
-    }
-
-    for (const tile of placement.claimedTiles) {
-      if (!this.isOwnedBorderTile(tile)) {
-        continue;
-      }
-
-      const weight = distanceFrontWeight(
-        distances.get(tile) ?? 0,
-        this.tuningSettings.wildernessDistanceFocus,
-        minDistance,
-      );
-      weightedTiles.push({ tile, weight });
-      totalWeight += weight;
-    }
-
-    if (weightedTiles.length === 0 || totalWeight <= 0) {
-      context.restore();
-      return;
-    }
-
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    let maxShare = 0;
-    const shares = weightedTiles.map(({ weight }) => {
-      const share = weight / totalWeight;
-      maxShare = Math.max(maxShare, share);
-      return share;
-    });
-    if (maxShare <= 0) {
-      context.restore();
-      return;
-    }
-
-    const targetWorldX = targetX + 0.5;
-    const targetWorldY = targetY + 0.5;
-    let centroidWorldX = 0;
-    let centroidWorldY = 0;
-    let centroidTileCount = 0;
-    for (let i = 0; i < weightedTiles.length; i++) {
-      const { tile } = weightedTiles[i];
-      const share = shares[i];
-      const relativeShare = share / maxShare;
-      centroidWorldX += map.x(tile) + 0.5;
-      centroidWorldY += map.y(tile) + 0.5;
-      centroidTileCount++;
-      const start = this.worldToOverlayScreen(
-        map.x(tile) + 0.5,
-        map.y(tile) + 0.5,
-        rect,
-      );
-      const alpha = clampFoundationNumber(
-        FOUNDATION_VECTOR_LINE_BASE_ALPHA +
-          relativeShare * FOUNDATION_VECTOR_LINE_WEIGHT_ALPHA,
-        0.025,
-        0.28,
-      );
-      context.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-      context.lineWidth = clampFoundationNumber(
-        0.75 + relativeShare * 1.25,
-        0.75,
-        2,
-      );
-      context.beginPath();
-      context.moveTo(start.x, start.y);
-      context.lineTo(target.x, target.y);
-      context.stroke();
-    }
-
-    if (centroidTileCount === 0) {
-      context.restore();
-      return;
-    }
-
-    const averageStartWorldX = centroidWorldX / centroidTileCount;
-    const averageStartWorldY = centroidWorldY / centroidTileCount;
-    const averageDx = targetWorldX - averageStartWorldX;
-    const averageDy = targetWorldY - averageStartWorldY;
-    if (Math.hypot(averageDx, averageDy) > 0.001) {
-      const averageStart = this.worldToOverlayScreen(
-        averageStartWorldX,
-        averageStartWorldY,
-        rect,
-      );
-      const averageEnd = this.worldToOverlayScreen(
-        targetWorldX + averageDx * 0.25,
-        targetWorldY + averageDy * 0.25,
-        rect,
-      );
-
-      context.strokeStyle = "rgba(5, 7, 8, 0.88)";
-      context.lineWidth = 5;
-      context.beginPath();
-      context.moveTo(averageStart.x, averageStart.y);
-      context.lineTo(averageEnd.x, averageEnd.y);
-      context.stroke();
-
-      context.strokeStyle = "rgba(74, 222, 255, 0.95)";
-      context.lineWidth = 2.5;
-      context.beginPath();
-      context.moveTo(averageStart.x, averageStart.y);
-      context.lineTo(averageEnd.x, averageEnd.y);
-      context.stroke();
-    }
-
-    context.fillStyle = "rgba(255, 255, 255, 0.95)";
-    context.strokeStyle = "rgba(5, 7, 8, 0.85)";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.arc(target.x, target.y, 4, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-    context.restore();
+    void preview;
+    this.clearVectorOverlay();
   }
 
   private worldToOverlayScreen(
@@ -4859,6 +5408,14 @@ export class FoundationPage extends LitElement {
     }
   }
 
+  private previewDistanceFocus(): number {
+    if (this.dragMode !== "attack") {
+      return 0;
+    }
+
+    return this.attackDragFocus * this.tuningSettings.wildernessDistanceFocus;
+  }
+
   private statusFromCommandResult(
     result: ReturnType<FoundationRuntime["dispatch"]>,
     tile: { x: number; y: number },
@@ -4901,6 +5458,33 @@ export class FoundationPage extends LitElement {
     };
   }
 
+  private statusFromBuildResult(
+    result: ReturnType<FoundationRuntime["dispatch"]>,
+    label: string,
+    tile: { x: number; y: number },
+  ): FoundationClientStatus {
+    if (result.ok) {
+      return {
+        tone: "ok",
+        text: `Built ${label} at ${tile.x}, ${tile.y}.`,
+      };
+    }
+
+    return {
+      tone: "error",
+      text:
+        result.error === "player_not_placed"
+          ? "Place your settlement before building."
+          : result.error === "tile_not_owned"
+            ? "Buildings must be placed on owned land."
+            : result.error === "tile_occupied"
+              ? "That tile already has a building."
+              : result.error === "water_tile"
+                ? "Buildings cannot be placed on water."
+                : `Build rejected: ${result.error ?? "unknown"}.`,
+    };
+  }
+
   private applyMapUpdate(mapUpdate: FoundationMapUpdate | undefined): void {
     if (!this.runtime || !this.renderer || !mapUpdate) return;
     const changedTiles = mapUpdate.changedTiles;
@@ -4937,7 +5521,6 @@ export class FoundationPage extends LitElement {
     this.directionalBorderPreview = null;
     this.activeBuildPlacementItem = null;
     this.buildPlacementTileRef = null;
-    this.placedBuildings = [];
     this.updateDirectionalBorderIntent(null);
     this.clearVectorOverlay();
     this.renderer?.dispose();
@@ -5265,6 +5848,27 @@ function formatControlValue(value: number, precision: number): string {
   return precision === 0
     ? Math.round(value).toLocaleString()
     : value.toFixed(precision);
+}
+
+function precisionForStep(step: number): number {
+  if (!Number.isFinite(step) || step <= 0 || Number.isInteger(step)) {
+    return 0;
+  }
+
+  const [, decimals = ""] = String(step).split(".");
+  return Math.min(4, decimals.length);
+}
+
+function humanizeDynamicsTuningKey(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
+    .replace(/^./u, (character) => character.toUpperCase());
+}
+
+function isFoundationTuningKey(
+  value: string,
+): value is keyof FoundationTuningSettings {
+  return value in DEFAULT_FOUNDATION_TUNING_SETTINGS;
 }
 
 function presetPatch(

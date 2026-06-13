@@ -312,6 +312,11 @@ export class GameView {
     this.renderer.updateSpawnOverlay(inSpawnPhase, centers);
   }
 
+  /** Update post-spawn local territory focus mask. */
+  updateLocalTerritoryMask(players: ReadonlyMap<number, PlayerState>): void {
+    this.renderer.updateLocalTerritoryMask(players);
+  }
+
   // ---- Selection box ----
 
   /** Show/hide the stippled selection box around a unit (warship selection). */

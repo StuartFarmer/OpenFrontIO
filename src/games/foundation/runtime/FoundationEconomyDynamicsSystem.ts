@@ -7,6 +7,7 @@ import {
 } from "../../../core/systems/dynamics";
 import type { GameSystemContext } from "../../../core/systems/GameSystemContext";
 import {
+  countFoundationBuildings,
   createEmptyFoundationFoodStockMetrics,
   type FoundationFoodStockMetrics,
   type FoundationSimulationParameters,
@@ -153,7 +154,9 @@ function createSystemForPlayer(
       [FOUNDATION_ECONOMY_NODE_IDS.foodPerTroop]: parameters.foodPerTroop,
       [FOUNDATION_ECONOMY_NODE_IDS.baseFoodStorageCapacity]:
         parameters.baseFoodStorageCapacity,
-      [FOUNDATION_ECONOMY_NODE_IDS.baseSilosOwned]: parameters.baseSilosOwned,
+      [FOUNDATION_ECONOMY_NODE_IDS.baseSilosOwned]:
+        parameters.baseSilosOwned +
+        countFoundationBuildings(player, "grain-silo"),
       [FOUNDATION_ECONOMY_NODE_IDS.addedStorageCapacityPerSilo]:
         parameters.addedStorageCapacityPerSilo,
       [FOUNDATION_ECONOMY_NODE_IDS.stockpileGrowthRate]:

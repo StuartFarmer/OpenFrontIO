@@ -13,6 +13,7 @@ import {
   UT_CITY,
   UT_DEFENSE_POST,
   UT_FACTORY,
+  UT_FARMLAND,
   UT_MISSILE_SILO,
   UT_PORT,
   UT_RAIL_STATION,
@@ -48,6 +49,7 @@ const STRUCTURE_ORDER = [
   UT_MISSILE_SILO,
   UT_RAIL_STATION,
   UT_SILO,
+  UT_FARMLAND,
 ] as const;
 
 /** Max characters per level label (handles up to "99"). */

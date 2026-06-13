@@ -45,6 +45,7 @@ export interface FrameUploadTarget {
     snap: boolean,
     statusData?: ReadonlyMap<number, PlayerStatusData>,
   ): void;
+  updateLocalTerritoryMask(players: ReadonlyMap<number, PlayerState>): void;
   updateRelations(data: Uint8Array, size: number): void;
   setSAMAllianceClusters(clusters: ReadonlyMap<number, number>): void;
 }
@@ -134,6 +135,7 @@ export function uploadFrameData(
 
   // --- Names + player status ---
   view.updateNames(frame.names, frame.players, snap, frame.playerStatus);
+  view.updateLocalTerritoryMask(frame.players);
 
   // --- Relations ---
   view.updateRelations(frame.relationMatrix, frame.relationSize);

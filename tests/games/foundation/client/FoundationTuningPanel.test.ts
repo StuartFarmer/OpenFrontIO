@@ -21,6 +21,9 @@ describe("FoundationTuningPanel", () => {
     expect(text).toContain("Latitude");
     expect(text).toContain("Flow retain");
     expect(text).toContain("Base speed");
+    expect(text).toContain("Food Dynamics");
+    expect(text).toContain("Food / troop");
+    expect(text).toContain("Stockpile rate");
 
     const attackInput = panel.shadowRoot?.querySelector(
       'input[min="1"][max="100"]',

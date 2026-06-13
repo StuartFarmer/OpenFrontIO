@@ -21,6 +21,10 @@ import {
   ConfirmGhostStructureEvent,
   MouseMoveEvent,
   MouseUpEvent,
+  PaintStrokeCancelEvent,
+  PaintStrokeEndEvent,
+  PaintStrokeMoveEvent,
+  PaintStrokeStartEvent,
 } from "../InputHandler";
 import { GameView as WebGLGameView, buildNukeTrajectory } from "../render/gl";
 import type { SAMInfo } from "../render/gl/utils/NukeTrajectory";
@@ -31,6 +35,7 @@ import {
   SendUpgradeStructureIntentEvent,
 } from "../Transport";
 import { UIState } from "../UIState";
+import { isPaintableBuildUnit } from "./PlacementMode";
 
 /** True for nuke types (AtomBomb, HydrogenBomb): ghost is preserved after placement so user can place multiple or keep selection (Enter/key confirm). */
 export function shouldPreserveGhostAfterBuild(unitType: UnitType): boolean {
@@ -50,6 +55,7 @@ export class BuildPreviewController implements Controller {
   // continuous instead of stepping tile-to-tile. cursorLoop re-emits each
   // frame with the current cursor world position.
   private lastGhostData: GhostPreviewData | null = null;
+  private readonly paintStrokeTiles: Set<TileRef> = new Set();
 
   constructor(
     private game: GameView,
@@ -62,6 +68,17 @@ export class BuildPreviewController implements Controller {
   init() {
     this.eventBus.on(MouseMoveEvent, (e) => this.moveGhost(e));
     this.eventBus.on(MouseUpEvent, (e) => this.requestConfirmStructure(e));
+    this.eventBus.on(PaintStrokeStartEvent, (e) => {
+      this.paintStrokeTiles.clear();
+      this.paintAt(e.x, e.y);
+    });
+    this.eventBus.on(PaintStrokeMoveEvent, (e) => this.paintAt(e.x, e.y));
+    this.eventBus.on(PaintStrokeEndEvent, () => {
+      this.paintStrokeTiles.clear();
+    });
+    this.eventBus.on(PaintStrokeCancelEvent, () =>
+      this.paintStrokeTiles.clear(),
+    );
     this.eventBus.on(ConfirmGhostStructureEvent, () =>
       this.requestConfirmStructure(
         new MouseUpEvent(this.mousePos.x, this.mousePos.y),
@@ -405,6 +422,43 @@ export class BuildPreviewController implements Controller {
     }
   }
 
+  private paintAt(x: number, y: number): void {
+    if (!this.ghostUnit) return;
+
+    const unitType = this.ghostUnit.buildableUnit.type;
+    if (!isPaintableBuildUnit(unitType)) return;
+
+    const tile = this.transformHandler.screenToWorldCoordinates(x, y);
+    if (!this.game.isValidCoord(tile.x, tile.y)) {
+      this.eventBus.emit(new PaintStrokeCancelEvent());
+      return;
+    }
+
+    const tileRef = this.game.ref(tile.x, tile.y);
+    if (this.paintStrokeTiles.has(tileRef)) return;
+    this.paintStrokeTiles.add(tileRef);
+
+    this.game
+      .myPlayer()
+      ?.buildables(tileRef, [unitType])
+      .then((buildables) => {
+        if (!this.ghostUnit || this.ghostUnit.buildableUnit.type !== unitType) {
+          return;
+        }
+        if (this.uiState.ghostStructure !== unitType) {
+          return;
+        }
+
+        const buildableUnit = buildables.find((u) => u.type === unitType);
+        if (!buildableUnit || buildableUnit.canBuild === false) {
+          this.eventBus.emit(new PaintStrokeCancelEvent());
+          return;
+        }
+
+        this.eventBus.emit(new BuildUnitIntentEvent(unitType, tileRef));
+      });
+  }
+
   private moveGhost(e: MouseMoveEvent) {
     this.mousePos.x = e.x;
     this.mousePos.y = e.y;
@@ -428,6 +482,7 @@ export class BuildPreviewController implements Controller {
 
   private clearGhostStructure() {
     this.pendingConfirm = null;
+    this.paintStrokeTiles.clear();
     this.ghostUnit = null;
     this.uiState.ghostRailPaths = [];
     this.lastGhostData = null;

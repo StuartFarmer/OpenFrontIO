@@ -57,8 +57,10 @@ float sdPolygon(vec2 p, float R, float n, float rot) {
 
 // Per-structure-type shape SDF.
 // Atlas indices: 0=City, 1=Port, 2=Factory, 3=DefensePost, 4=SAM,
-// 5=Missile Silo, 6=Rail Station, 7=Silo.
+// 5=Missile Silo, 6=Rail Station, 7=Silo, 8=Farmland.
 float shapeSDF(vec2 p, float R) {
+  if (vAtlasIdx > 7.5)
+    return sdPolygon(p, R * 0.82, 4.0, PI * 0.25); // Farmland -> diamond/square tile marker
   if (vAtlasIdx < 0.5 || (vAtlasIdx > 1.5 && vAtlasIdx < 2.5))
     return length(p) - R;                     // City / Factory → circle
   if (vAtlasIdx < 1.5)
@@ -116,7 +118,7 @@ void main() {
   // Sample icon from atlas (white on transparent)
   // Only show icon detail when zoomed in enough
   float iconAlpha = 0.0;
-  if (vZoom > uDotsThreshold) {
+  if (vZoom > uDotsThreshold && vAtlasIdx < 7.5) {
     // Clamp UV to this atlas column to prevent bleeding into neighbours
     // when uIconFill shrinks the icon (expanding UV range beyond column).
     float colStart = vAtlasIdx / float(ATLAS_COLS);

@@ -10,11 +10,26 @@ export function isFoundationDynamicsLocation(
   );
 }
 
+export function isFoundationDynamicLocation(
+  pathname = window.location.pathname,
+  search = window.location.search,
+): boolean {
+  const normalizedPathname = stripTrailingSlashes(pathname);
+  return (
+    normalizedPathname === "/foundation/dynamic" ||
+    normalizedPathname === "/foundation/dynamic.html" ||
+    search.includes("foundation-dynamic")
+  );
+}
+
 export function isFoundationLocation(
   pathname = window.location.pathname,
   search = window.location.search,
 ): boolean {
-  if (isFoundationDynamicsLocation(pathname, search)) {
+  if (
+    isFoundationDynamicsLocation(pathname, search) ||
+    isFoundationDynamicLocation(pathname, search)
+  ) {
     return false;
   }
   const normalizedPathname = stripTrailingSlashes(pathname);

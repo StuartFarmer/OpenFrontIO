@@ -38,6 +38,7 @@ import { FalloutBloomPass } from "./passes/FalloutBloomPass";
 import { FalloutLightPass } from "./passes/FalloutLightPass";
 import { FxPass } from "./passes/fx-pass";
 import { LightmapPass } from "./passes/LightmapPass";
+import { LocalTerritoryMaskPass } from "./passes/LocalTerritoryMaskPass";
 import { MoveIndicatorPass } from "./passes/MoveIndicatorPass";
 import { NamePass } from "./passes/name-pass";
 import { NightCompositePass } from "./passes/NightCompositePass";
@@ -125,6 +126,7 @@ export class GPURenderer {
   private affiliationPalette: AffiliationPalette;
   private coordinateGridPass: CoordinateGridPass;
   private spawnOverlayPass: SpawnOverlayPass;
+  private localTerritoryMaskPass: LocalTerritoryMaskPass;
 
   private paletteTex: WebGLTexture;
   private paletteData: Float32Array;
@@ -304,6 +306,13 @@ export class GPURenderer {
       mapH,
       this.res.tileTex,
       this.settings.spawnOverlay,
+    );
+    this.localTerritoryMaskPass = new LocalTerritoryMaskPass(
+      gl,
+      mapW,
+      mapH,
+      this.res.tileTex,
+      this.settings.localTerritoryMask,
     );
 
     // --- Trail (needs trailTex, paletteTex) ---
@@ -802,6 +811,14 @@ export class GPURenderer {
     this.spawnOverlayPass.update(inSpawnPhase, centers);
   }
 
+  updateLocalTerritoryMask(players: ReadonlyMap<number, PlayerState>): void {
+    const local =
+      this.localPlayerID > 0 ? players.get(this.localPlayerID) : undefined;
+    this.localTerritoryMaskPass.setActive(
+      local !== undefined && local.hasSpawned && local.tilesOwned > 0,
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
@@ -882,6 +899,8 @@ export class GPURenderer {
   setLocalPlayerID(id: number): void {
     if (id === this.localPlayerID) return;
     this.localPlayerID = id;
+    this.territoryPass.setLocalPlayerID(id);
+    this.localTerritoryMaskPass.setLocalPlayerID(id);
     this.samRadiusPass.setLocalPlayer(id);
     this.affiliationPalette.setLocalPlayer(id);
     this.unitPass.setLocalPlayer(id);
@@ -1155,6 +1174,7 @@ export class GPURenderer {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+    this.localTerritoryMaskPass.draw(cam);
     this.spawnOverlayPass.draw(cam);
     if (pe.mapOverlay) this.borderStampPass.draw(cam);
     if (pe.railroad) this.railroadPass.draw(cam, zoom);
@@ -1199,6 +1219,7 @@ export class GPURenderer {
     this.stopLoop();
     this.terrainPass.dispose();
     this.territoryPass.dispose();
+    this.localTerritoryMaskPass.dispose();
     this.trailPass.dispose();
     this.borderStampPass.dispose();
     this.borderPass.dispose();

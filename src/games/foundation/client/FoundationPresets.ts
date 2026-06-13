@@ -65,6 +65,7 @@ export type FoundationGameMechanicPresetData = Pick<
   | "troopRegenBase"
   | "troopRegenExponent"
   | "troopRegenDivisor"
+  | "wildernessMechanics"
   | "wildernessBaseSpeed"
   | "elevationSlopeScale"
   | "minToblerSpeedMultiplier"
@@ -139,6 +140,7 @@ export const FOUNDATION_GAME_MECHANIC_PRESET_KEYS = [
   "troopRegenBase",
   "troopRegenExponent",
   "troopRegenDivisor",
+  "wildernessMechanics",
   "wildernessBaseSpeed",
   "elevationSlopeScale",
   "minToblerSpeedMultiplier",

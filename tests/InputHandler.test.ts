@@ -1,7 +1,9 @@
 import {
   AutoUpgradeEvent,
   ConfirmGhostStructureEvent,
+  DragEvent,
   InputHandler,
+  PaintStrokeCancelEvent,
   WarshipSelectionBoxCancelEvent,
   WarshipSelectionBoxCompleteEvent,
   WarshipSelectionBoxUpdateEvent,
@@ -967,6 +969,38 @@ describe("Warship box selection (Shift+drag)", () => {
         startY: 100,
         endX: 200,
         endY: 200,
+      }),
+    );
+  });
+
+  test("paint cancel clears ghost and lets the same pointer continue dragging", () => {
+    const listener = vi.fn();
+    eventBus.on(DragEvent, listener);
+    uiState.ghostStructure = UnitType.Farmland;
+
+    inputHandler["onPointerDown"](
+      new PointerEvent("pointerdown", {
+        button: 0,
+        clientX: 100,
+        clientY: 100,
+        pointerId: 1,
+      }),
+    );
+    eventBus.emit(new PaintStrokeCancelEvent());
+    inputHandler["onPointerMove"](
+      new PointerEvent("pointermove", {
+        button: 0,
+        clientX: 130,
+        clientY: 140,
+        pointerId: 1,
+      }),
+    );
+
+    expect(uiState.ghostStructure).toBeNull();
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deltaX: 30,
+        deltaY: 40,
       }),
     );
   });

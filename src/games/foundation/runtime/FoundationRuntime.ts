@@ -4,6 +4,7 @@ import {
   createPlayer,
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
+  FoundationBuilding,
   FoundationFoodStockMetrics,
   FoundationSimulationParameters,
   normalizeFoundationSimulationParameters,
@@ -47,6 +48,7 @@ export interface FoundationRuntimeSnapshot {
     placed: boolean;
     selectedTile: number | null;
     claimedTileCount: number;
+    buildings: readonly FoundationBuilding[];
     troops: number;
     maxTroops: number;
     foodProduction: number;
@@ -137,6 +139,7 @@ export class FoundationRuntime {
         placed: placement !== null,
         selectedTile: placement?.selectedTile ?? null,
         claimedTileCount: placement?.claimedTileCount ?? 0,
+        buildings: this.player_.buildings,
         troops: this.player_.troops,
         maxTroops: metrics.maxTroops ?? 0,
         foodProduction: metrics.foodProduction ?? 0,

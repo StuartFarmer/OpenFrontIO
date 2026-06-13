@@ -1025,6 +1025,7 @@ export class PlayerImpl implements Player {
       case UnitType.Factory:
       case UnitType.RailStation:
       case UnitType.Silo:
+      case UnitType.Farmland:
         return false;
       default:
         return true;
@@ -1408,6 +1409,8 @@ export class PlayerImpl implements Player {
       case UnitType.Silo:
       case UnitType.Factory:
         return this.landBasedStructureSpawn(targetTile, validTiles);
+      case UnitType.Farmland:
+        return this.farmlandSpawn(targetTile);
       default:
         assertNever(unitType);
     }
@@ -1513,6 +1516,19 @@ export class PlayerImpl implements Player {
       return false;
     }
     return tiles[0];
+  }
+
+  farmlandSpawn(tile: TileRef): TileRef | false {
+    if (this.mg.owner(tile) !== this) {
+      return false;
+    }
+    if (!this.mg.isLand(tile)) {
+      return false;
+    }
+    const existingFarmland = this.units(UnitType.Farmland).find(
+      (unit) => unit.tile() === tile && !unit.isMarkedForDeletion(),
+    );
+    return existingFarmland === undefined ? tile : false;
   }
 
   private validStructureSpawnTiles(tile: TileRef): TileRef[] {

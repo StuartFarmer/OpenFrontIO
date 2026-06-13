@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ExplorationAttack,
   FOUNDATION_MODULE_ID,
+  createBuildStructureCommand,
   createFoundationMap,
   createFoundationRuntime,
   createGrowTerritoryCommand,
@@ -60,6 +61,30 @@ describe("Foundation runtime", () => {
     });
   });
 
+  it("builds a Foundation-owned structure command envelope", () => {
+    const command = createBuildStructureCommand({
+      clientId: "client-a",
+      playerId: "player-1",
+      turnNumber: 5,
+      commandId: "cmd-3",
+      buildingType: "grain-silo",
+      tileRef: 77,
+    });
+
+    expect(command).toEqual({
+      moduleId: FOUNDATION_MODULE_ID,
+      clientId: "client-a",
+      actor: { type: "player", id: "player-1" },
+      turnNumber: 5,
+      commandId: "cmd-3",
+      payload: {
+        type: "foundation.build_structure",
+        buildingType: "grain-silo",
+        tileRef: 77,
+      },
+    });
+  });
+
   it("can carry an explicit grow troop ratio", () => {
     const command = createGrowTerritoryCommand({
       targetTileRef: 64,
@@ -70,6 +95,21 @@ describe("Foundation runtime", () => {
       type: "foundation.grow_territory",
       targetTileRef: 64,
       troopRatio: 0.05,
+    });
+  });
+
+  it("can carry explicit grow front controls", () => {
+    const command = createGrowTerritoryCommand({
+      targetTileRef: 64,
+      frontMode: "focused",
+      frontFocus: 0.75,
+    });
+
+    expect(command.payload).toEqual({
+      type: "foundation.grow_territory",
+      targetTileRef: 64,
+      frontMode: "focused",
+      frontFocus: 0.75,
     });
   });
 
@@ -110,6 +150,97 @@ describe("Foundation runtime", () => {
       },
     });
     expect(runtime.snapshot().player.claimedTileCount).toBeGreaterThan(0);
+  });
+
+  it("builds a foundation structure on owned land", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+    const tileRef = map.ref(16, 16);
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef }));
+    const buildingTile = runtime.player().placement!.claimedTiles[0];
+    const result = runtime.dispatch(
+      createBuildStructureCommand({
+        buildingType: "grain-silo",
+        tileRef: buildingTile,
+        turnNumber: runtime.snapshot().tick,
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(runtime.snapshot().player.buildings).toEqual([
+      {
+        id: "building-1",
+        type: "grain-silo",
+        tileRef: buildingTile,
+        level: 1,
+        underConstruction: false,
+      },
+    ]);
+    expect(result.update.events).toEqual([
+      {
+        type: "foundation.structure_built",
+        payload: {
+          playerId: "player-1",
+          building: {
+            id: "building-1",
+            type: "grain-silo",
+            tileRef: buildingTile,
+            level: 1,
+            underConstruction: false,
+          },
+        },
+      },
+    ]);
+  });
+
+  it("rejects duplicate foundation structures on one anchor tile", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({ map });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    const buildingTile = runtime.player().placement!.claimedTiles[0];
+    runtime.dispatch(
+      createBuildStructureCommand({
+        buildingType: "grain-silo",
+        tileRef: buildingTile,
+      }),
+    );
+    const duplicate = runtime.dispatch(
+      createBuildStructureCommand({
+        buildingType: "oil-tank",
+        tileRef: buildingTile,
+      }),
+    );
+
+    expect(duplicate.ok).toBe(false);
+    expect(duplicate.error).toBe("tile_occupied");
+    expect(runtime.snapshot().player.buildings).toHaveLength(1);
+  });
+
+  it("adds completed grain silos to food stock capacity", () => {
+    const map = createFoundationMap({ width: 32, height: 32 });
+    const runtime = createFoundationRuntime({
+      map,
+      parameters: {
+        baseFoodStorageCapacity: 50,
+        baseSilosOwned: 0,
+        addedStorageCapacityPerSilo: 100,
+      },
+    });
+
+    runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+    expect(runtime.snapshot().player.foodStockCapacity).toBe(50);
+
+    const buildingTile = runtime.player().placement!.claimedTiles[0];
+    runtime.dispatch(
+      createBuildStructureCommand({
+        buildingType: "grain-silo",
+        tileRef: buildingTile,
+      }),
+    );
+
+    expect(runtime.snapshot().player.foodStockCapacity).toBe(150);
   });
 
   it("rejects placement on water without tile deltas", () => {
@@ -430,6 +561,8 @@ describe("Foundation runtime", () => {
         turnNumber: 1,
         targetTileRef: map.ref(58, 32),
         troopRatio: 0.2,
+        frontMode: "focused",
+        frontFocus: 1,
       }),
     );
     runtime.dispatch(
@@ -437,6 +570,8 @@ describe("Foundation runtime", () => {
         turnNumber: 2,
         targetTileRef: map.ref(6, 32),
         troopRatio: 0.2,
+        frontMode: "focused",
+        frontFocus: 1,
       }),
     );
 
@@ -461,11 +596,23 @@ describe("Foundation runtime", () => {
     runtime.dispatch(createPlacePlayerCommand({ tileRef: startTile }));
     const beforeCount = runtime.snapshot().player.claimedTileCount;
     runtime.dispatch(
-      createGrowTerritoryCommand({ turnNumber: 1, targetTileRef: targetTile }),
+      createGrowTerritoryCommand({
+        turnNumber: 1,
+        targetTileRef: targetTile,
+        frontMode: "focused",
+        frontFocus: 1,
+      }),
     );
     const committedTroops = runtime.snapshot().player.exploringTroops;
 
-    const tick = runtime.advanceTick();
+    let tick = runtime.advanceTick();
+    for (
+      let i = 0;
+      i < 8 && Array.from(tick.map?.changedTiles ?? []).length === 0;
+      i++
+    ) {
+      tick = runtime.advanceTick();
+    }
     const changedTiles = Array.from(tick.map?.changedTiles ?? []);
     const changedTileStates = Array.from(tick.map?.changedTileStates ?? []);
 
@@ -486,7 +633,7 @@ describe("Foundation runtime", () => {
       committedTroops,
     );
     expect(runtime.snapshot().player.exploringTroops).toBe(
-      committedTroops - changedTiles.length * 16,
+      committedTroops - changedTiles.length * 80,
     );
     expect(tick.events[0]).toEqual({
       type: "foundation.territory_grown",
@@ -529,15 +676,57 @@ describe("Foundation runtime", () => {
     expect(claimedOnFirstTick(2_000_000)).toBe(claimedOnFirstTick(1_000_000));
   });
 
-  it("concentrates the wilderness frontier near close clicked targets", () => {
+  it("uses uniform wilderness front shares for default click targets", () => {
     const runFirstExplorationTick = (targetTile: number): number[] => {
       const map = createFoundationMap({ width: 64, height: 64 });
-      const runtime = createFoundationRuntime({ map });
+      const runtime = createFoundationRuntime({
+        map,
+        parameters: {
+          startingTroops: 1_000_000,
+          wildernessAttackerLossPerTile: 0,
+        },
+      });
       runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
       runtime.dispatch(
         createGrowTerritoryCommand({
           turnNumber: 1,
           targetTileRef: targetTile,
+        }),
+      );
+      const changedTiles: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        changedTiles.push(
+          ...Array.from(runtime.advanceTick().map?.changedTiles ?? []),
+        );
+      }
+      return changedTiles;
+    };
+
+    const eastTargetTiles = runFirstExplorationTick(20 + 64 * 16);
+    const westTargetTiles = runFirstExplorationTick(11 + 64 * 16);
+
+    expect(eastTargetTiles.length).toBeGreaterThan(0);
+    expect(westTargetTiles.length).toBeGreaterThan(0);
+    expect(eastTargetTiles).toEqual(westTargetTiles);
+  });
+
+  it("concentrates focused wilderness fronts near the target", () => {
+    const runFirstExplorationTick = (targetTile: number): number[] => {
+      const map = createFoundationMap({ width: 64, height: 64 });
+      const runtime = createFoundationRuntime({
+        map,
+        parameters: {
+          wildernessAttackerLossPerTile: 0,
+          wildernessTilesPerTickMultiplier: 2,
+        },
+      });
+      runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+      runtime.dispatch(
+        createGrowTerritoryCommand({
+          turnNumber: 1,
+          targetTileRef: targetTile,
+          frontMode: "focused",
+          frontFocus: 1,
         }),
       );
       return Array.from(runtime.advanceTick().map?.changedTiles ?? []);
@@ -570,6 +759,8 @@ describe("Foundation runtime", () => {
         createGrowTerritoryCommand({
           turnNumber: 1,
           targetTileRef: targetTile,
+          frontMode: "focused",
+          frontFocus: 1,
         }),
       );
 
@@ -594,6 +785,51 @@ describe("Foundation runtime", () => {
     expect(southTiles.length).toBeGreaterThan(0);
     expect(averageX(eastTiles)).toBeGreaterThan(averageX(southTiles));
     expect(averageY(southTiles)).toBeGreaterThan(averageY(eastTiles));
+  });
+
+  it("makes focused wilderness exploration narrower and deeper than uniform exploration", () => {
+    const runExploration = (frontMode?: "uniform" | "focused"): number[] => {
+      const map = createFoundationMap({ width: 64, height: 64 });
+      const runtime = createFoundationRuntime({
+        map,
+        parameters: {
+          startingTroops: 1_000_000,
+          wildernessAttackerLossPerTile: 0,
+          wildernessTilesPerTickMultiplier: 8,
+        },
+      });
+      runtime.dispatch(createPlacePlayerCommand({ tileRef: map.ref(16, 16) }));
+      runtime.dispatch(
+        createGrowTerritoryCommand({
+          turnNumber: 1,
+          targetTileRef: map.ref(50, 16),
+          frontMode,
+          frontFocus: frontMode === "focused" ? 1 : 0,
+        }),
+      );
+
+      const claimedTiles: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        claimedTiles.push(
+          ...Array.from(runtime.advanceTick().map?.changedTiles ?? []),
+        );
+      }
+      return claimedTiles;
+    };
+
+    const uniformTiles = runExploration("uniform");
+    const focusedTiles = runExploration("focused");
+    const xMax = (tiles: number[]): number =>
+      Math.max(...tiles.map((tile) => tile % 64));
+    const yRange = (tiles: number[]): number => {
+      const ys = tiles.map((tile) => Math.floor(tile / 64));
+      return Math.max(...ys) - Math.min(...ys);
+    };
+
+    expect(focusedTiles.length).toBeGreaterThan(0);
+    expect(uniformTiles.length).toBeGreaterThan(0);
+    expect(xMax(focusedTiles)).toBeGreaterThan(xMax(uniformTiles));
+    expect(yRange(focusedTiles)).toBeLessThan(yRange(uniformTiles));
   });
 
   it("rejects growth before placement without tile deltas", () => {

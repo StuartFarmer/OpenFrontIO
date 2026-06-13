@@ -10,6 +10,7 @@ import { GameRenderer } from "src/client/hud/GameRenderer";
 import { AlertFrame } from "src/client/hud/layers/AlertFrame";
 import { AttackingTroopsOverlay } from "src/client/hud/layers/AttackingTroopsOverlay";
 import { AttacksDisplay } from "src/client/hud/layers/AttacksDisplay";
+import { BuildBar } from "src/client/hud/layers/BuildBar";
 import { BuildMenu } from "src/client/hud/layers/BuildMenu";
 import { ChatDisplay } from "src/client/hud/layers/ChatDisplay";
 import { ChatModal } from "src/client/hud/layers/ChatModal";
@@ -31,7 +32,6 @@ import { ReplayPanel } from "src/client/hud/layers/ReplayPanel";
 import { SettingsModal } from "src/client/hud/layers/SettingsModal";
 import { SpawnTimer } from "src/client/hud/layers/SpawnTimer";
 import { TeamStats } from "src/client/hud/layers/TeamStats";
-import { UnitDisplay } from "src/client/hud/layers/UnitDisplay";
 import { WinModal } from "src/client/hud/layers/WinModal";
 import { GameView as WebGLGameView } from "src/client/render/gl";
 import { EventBus } from "src/core/EventBus";
@@ -79,6 +79,14 @@ export function createOpenFrontRenderer(
   buildMenu.eventBus = eventBus;
   buildMenu.uiState = uiState;
   buildMenu.transformHandler = transformHandler;
+
+  const buildBar = document.querySelector("build-bar") as BuildBar;
+  if (!buildBar || !(buildBar instanceof BuildBar)) {
+    console.error("BuildBar element not found in the DOM");
+  }
+  buildBar.game = game;
+  buildBar.eventBus = eventBus;
+  buildBar.uiState = uiState;
 
   const leaderboard = document.querySelector("leader-board") as Leaderboard;
   if (!leaderboard || !(leaderboard instanceof Leaderboard)) {
@@ -180,14 +188,6 @@ export function createOpenFrontRenderer(
   settingsModal.userSettings = userSettings;
   settingsModal.eventBus = eventBus;
 
-  const unitDisplay = document.querySelector("unit-display") as UnitDisplay;
-  if (!(unitDisplay instanceof UnitDisplay)) {
-    console.error("unit display not found");
-  }
-  unitDisplay.game = game;
-  unitDisplay.eventBus = eventBus;
-  unitDisplay.uiState = uiState;
-
   const playerPanel = document.querySelector("player-panel") as PlayerPanel;
   if (!(playerPanel instanceof PlayerPanel)) {
     console.error("player panel not found");
@@ -269,6 +269,7 @@ export function createOpenFrontRenderer(
     eventsDisplay,
     attacksDisplay,
     chatDisplay,
+    buildBar,
     buildMenu,
     new MainRadialMenu(
       eventBus,
@@ -283,7 +284,6 @@ export function createOpenFrontRenderer(
     immunityTimer,
     leaderboard,
     gameLeftSidebar,
-    unitDisplay,
     gameRightSidebar,
     controlPanel,
     playerInfo,

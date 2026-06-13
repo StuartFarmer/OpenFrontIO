@@ -487,7 +487,7 @@ describe("resource capacity config", () => {
     expect(game.config().troopIncreaseRate(player, game)).toBeLessThan(0);
   });
 
-  test("City, Port, Factory, Rail Station, and Silo split their legacy gold price into resource costs", () => {
+  test("City, Port, Factory, Rail Station, Silo, and Farmland split their legacy gold price into resource costs", () => {
     player.conquer(game.ref(0, 0));
 
     expect(game.config().unitResourceCost(UnitType.City, game, player)).toEqual(
@@ -525,6 +525,13 @@ describe("resource capacity config", () => {
         materials: 62_500n,
       },
     );
+    expect(
+      game.config().unitResourceCost(UnitType.Farmland, game, player),
+    ).toEqual({
+      food: 1_250n,
+      energy: 2_500n,
+      materials: 1_250n,
+    });
   });
 
   test("player updates carry resource capacity and diff capacity changes", () => {

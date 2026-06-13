@@ -1,4 +1,4 @@
-import { TileRef } from "../domain";
+import { FoundationBuilding, FoundationBuildingType, TileRef } from "../domain";
 
 export const FOUNDATION_MODULE_ID = "foundation";
 
@@ -22,7 +22,8 @@ export interface FoundationCommandActor {
 
 export type FoundationCommandPayload =
   | FoundationPlacePlayerCommand
-  | FoundationGrowTerritoryCommand;
+  | FoundationGrowTerritoryCommand
+  | FoundationBuildStructureCommand;
 
 export interface FoundationPlacePlayerCommand {
   type: "foundation.place_player";
@@ -33,7 +34,17 @@ export interface FoundationGrowTerritoryCommand {
   type: "foundation.grow_territory";
   targetTileRef: TileRef;
   troopRatio?: number;
+  frontMode?: FoundationFrontMode;
+  frontFocus?: number;
 }
+
+export interface FoundationBuildStructureCommand {
+  type: "foundation.build_structure";
+  buildingType: FoundationBuildingType;
+  tileRef: TileRef;
+}
+
+export type FoundationFrontMode = "uniform" | "focused";
 
 export interface FoundationUpdateEnvelope {
   moduleId: FoundationModuleId;
@@ -60,6 +71,7 @@ export interface FoundationModuleEventEnvelope<
 
 export type FoundationModuleEventPayload =
   | FoundationPlayerPlacedEvent
+  | FoundationStructureBuiltEvent
   | FoundationWildernessExplorationStartedEvent
   | FoundationTerritoryGrownEvent
   | FoundationWildernessExplorationCompletedEvent
@@ -69,6 +81,11 @@ export interface FoundationPlayerPlacedEvent {
   playerId: string;
   selectedTile: TileRef;
   claimedTileCount: number;
+}
+
+export interface FoundationStructureBuiltEvent {
+  playerId: string;
+  building: FoundationBuilding;
 }
 
 export interface FoundationTerritoryGrownEvent {

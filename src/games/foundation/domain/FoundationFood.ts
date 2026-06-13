@@ -1,11 +1,11 @@
-import type { Player } from "./FoundationPlayer";
+import { countFoundationBuildings, type Player } from "./FoundationPlayer";
 import {
-  type FoundationTroopParameters,
   foodDemandForPlayer,
   foodProductionForPeopleForPlayer,
   foodProductionForPlayer,
   foodProductionForStorageForPlayer,
   troopIncreaseRate,
+  type FoundationTroopParameters,
 } from "./FoundationTroops";
 
 export const FOUNDATION_STARTING_FOOD_STOCK = 0;
@@ -147,12 +147,14 @@ export function createEmptyFoundationFoodStockMetrics(
 }
 
 export function foodStockCapacityForPlayer(
-  _player: Player,
+  player: Player,
   parameters: FoundationFoodParameters,
 ): number {
   return (
     parameters.baseFoodStorageCapacity +
-    parameters.baseSilosOwned * parameters.addedStorageCapacityPerSilo
+    (parameters.baseSilosOwned +
+      countFoundationBuildings(player, "grain-silo")) *
+      parameters.addedStorageCapacityPerSilo
   );
 }
 

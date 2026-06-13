@@ -1,8 +1,11 @@
 import {
   DEFAULT_FOUNDATION_SIMULATION_PARAMETERS,
   EngineTileMap,
+  FoundationBuilding,
+  FoundationBuildingType,
   FoundationSimulationParameters,
   isLandTile,
+  ownerIdFromState,
   placePlayer,
   Player,
   startWildernessExploration,
@@ -16,6 +19,7 @@ import {
   FoundationCommandResult,
   FoundationMapUpdate,
   FoundationPlayerPlacedEvent,
+  FoundationStructureBuiltEvent,
   FoundationUpdateEnvelope,
   FoundationWildernessExplorationStartedEvent,
 } from "./FoundationProtocol";
@@ -55,6 +59,14 @@ export class FoundationCommandRouter {
         return this.growTerritory(
           command.payload.targetTileRef,
           command.payload.troopRatio,
+          command.payload.frontMode,
+          command.payload.frontFocus,
+          state,
+        );
+      case "foundation.build_structure":
+        return this.buildStructure(
+          command.payload.buildingType,
+          command.payload.tileRef,
           state,
         );
     }
@@ -98,9 +110,79 @@ export class FoundationCommandRouter {
     };
   }
 
+  private buildStructure(
+    buildingType: FoundationBuildingType,
+    tileRef: TileRef,
+    state: FoundationCommandRouterState,
+  ): FoundationCommandRouterResult {
+    if (!state.player.placement) {
+      return rejectedUpdate(
+        state,
+        "foundation.build_structure",
+        "player_not_placed",
+      );
+    }
+    if (!state.map.isValidRef(tileRef)) {
+      return rejectedUpdate(
+        state,
+        "foundation.build_structure",
+        "invalid_tile",
+      );
+    }
+    if (!isLandTile(state.map, tileRef)) {
+      return rejectedUpdate(state, "foundation.build_structure", "water_tile");
+    }
+    if (
+      ownerIdFromState(state.map.stateBuffer()[tileRef]) !==
+      state.player.ownerId
+    ) {
+      return rejectedUpdate(
+        state,
+        "foundation.build_structure",
+        "tile_not_owned",
+      );
+    }
+    if (
+      state.player.buildings.some((building) => building.tileRef === tileRef)
+    ) {
+      return rejectedUpdate(
+        state,
+        "foundation.build_structure",
+        "tile_occupied",
+      );
+    }
+
+    const building: FoundationBuilding = {
+      id: `building-${state.player.buildings.length + 1}`,
+      type: buildingType,
+      tileRef,
+      level: 1,
+      underConstruction: false,
+    };
+    const player: Player = {
+      ...state.player,
+      buildings: [...state.player.buildings, building],
+    };
+    const event: FoundationStructureBuiltEvent = {
+      playerId: player.id,
+      building,
+    };
+
+    return {
+      ok: true,
+      player,
+      update: createUpdate(state, {
+        player,
+        events: [{ type: "foundation.structure_built", payload: event }],
+      }),
+    };
+  }
+
   private growTerritory(
     targetTileRef: TileRef,
     troopRatio: number | undefined,
+    frontMode: "uniform" | "focused" | undefined,
+    frontFocus: number | undefined,
     state: FoundationCommandRouterState,
   ): FoundationCommandRouterResult {
     if (!state.player.placement) {
@@ -125,7 +207,7 @@ export class FoundationCommandRouter {
         state.player,
         targetTileRef,
         state.tick,
-        { troopRatio, parameters: state.parameters },
+        { troopRatio, frontMode, frontFocus, parameters: state.parameters },
       );
     } catch (error) {
       const reason = explorationErrorReason(error);

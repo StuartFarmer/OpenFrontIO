@@ -348,6 +348,7 @@ export enum UnitType {
   RailStation = "Rail Station",
   Silo = "Silo",
   Factory = "Factory",
+  Farmland = "Farmland",
 }
 
 export enum TrainType {
@@ -379,15 +380,24 @@ export const Structures = unitTypeGroup([
   UnitType.RailStation,
   UnitType.Silo,
   UnitType.Factory,
+  UnitType.Farmland,
 ] as const);
 
 export const BuildMenus = unitTypeGroup([
-  ...Structures.types,
+  UnitType.City,
+  UnitType.DefensePost,
+  UnitType.SAMLauncher,
+  UnitType.MissileSilo,
+  UnitType.Port,
+  UnitType.RailStation,
+  UnitType.Silo,
+  UnitType.Factory,
   ...BuildableAttacks.types,
 ] as const);
 
 export const PlayerBuildable = unitTypeGroup([
   ...BuildMenus.types,
+  UnitType.Farmland,
   UnitType.TransportShip,
 ] as const);
 
@@ -439,6 +449,8 @@ export interface UnitParamsMap {
   };
 
   [UnitType.Factory]: Record<string, never>;
+
+  [UnitType.Farmland]: Record<string, never>;
 
   [UnitType.RailStation]: Record<string, never>;
 

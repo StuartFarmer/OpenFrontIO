@@ -60,6 +60,16 @@ export class FoundationTuningPanel extends LitElement {
       padding: 12px;
     }
 
+    .section-title {
+      color: #edf7f3;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
     label {
       display: grid;
       grid-template-columns: 1fr 82px;
@@ -167,6 +177,56 @@ export class FoundationTuningPanel extends LitElement {
           )}
           ${this.numberInput("Tick ms", "tickIntervalMs", 20, 1000, 10)}
           ${this.percentInput("Attack", "attackRatio", 1, 100, 1)}
+          <div class="section-title">Food Dynamics</div>
+          ${this.numberInput("Food / tile", "foodPerTile", 0, 5000, 50)}
+          ${this.numberInput("Food / troop", "foodPerTroop", 0.1, 10, 0.1)}
+          ${this.percentInput("Reserve", "foodReservePercentage", 0, 99, 1)}
+          ${this.numberInput(
+            "Pop growth",
+            "maxPopulationGrowthRate",
+            0,
+            0.25,
+            0.005,
+          )}
+          ${this.numberInput(
+            "Starting food",
+            "startingFoodStorage",
+            0,
+            100000,
+            500,
+          )}
+          ${this.numberInput(
+            "Base capacity",
+            "baseFoodStorageCapacity",
+            0,
+            200000,
+            1000,
+          )}
+          ${this.numberInput("Starter silos", "baseSilosOwned", 0, 10, 1)}
+          ${this.numberInput(
+            "Silo capacity",
+            "addedStorageCapacityPerSilo",
+            0,
+            200000,
+            1000,
+          )}
+          ${this.numberInput(
+            "Stockpile rate",
+            "stockpileGrowthRate",
+            0,
+            0.25,
+            0.005,
+          )}
+          <label>
+            Mechanics
+            <select
+              .value=${settings.wildernessMechanics}
+              @change=${this.handleWildernessMechanicsChange}
+            >
+              <option value="foundation">Foundation</option>
+              <option value="openfront">OpenFront</option>
+            </select>
+          </label>
           ${this.numberInput("Base speed", "wildernessBaseSpeed", 1, 80, 0.5)}
           ${this.numberInput("Slope scale", "elevationSlopeScale", 0, 2, 0.05)}
           ${this.numberInput(
@@ -191,7 +251,7 @@ export class FoundationTuningPanel extends LitElement {
             0.1,
           )}
           ${this.numberInput(
-            "Distance focus",
+            "Max concentration",
             "wildernessDistanceFocus",
             0.001,
             10000,
@@ -271,6 +331,14 @@ export class FoundationTuningPanel extends LitElement {
     this.emitSettings({
       mapGenerator:
         target.value === "foundation" ? "foundation" : "world-engine",
+    });
+  };
+
+  private readonly handleWildernessMechanicsChange = (event: Event): void => {
+    const target = event.currentTarget as HTMLSelectElement;
+    this.emitSettings({
+      wildernessMechanics:
+        target.value === "openfront" ? "openfront" : "foundation",
     });
   };
 

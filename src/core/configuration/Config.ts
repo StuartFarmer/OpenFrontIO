@@ -417,6 +417,15 @@ export class Config {
           upgradable: true,
         };
         break;
+      case UnitType.Farmland:
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) => Math.min(100_000, (numUnits + 1) * 5_000),
+            UnitType.Farmland,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 1 * 10,
+        };
+        break;
       case UnitType.RailStation:
         info = {
           cost: this.costWrapper(
@@ -537,6 +546,7 @@ export class Config {
       case UnitType.City:
         return this.splitResourceCost(goldCost, 2, 1, 1);
       case UnitType.Factory:
+      case UnitType.Farmland:
         return this.splitResourceCost(goldCost, 1, 2, 1);
       case UnitType.RailStation:
         return this.splitResourceCost(goldCost, 1, 1, 2);

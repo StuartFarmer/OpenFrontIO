@@ -116,6 +116,10 @@
       "Silo": {
         "scale": 1,
         "iconFill": 0.85
+      },
+      "Farmland": {
+        "scale": 0.82,
+        "iconFill": 0.85
       }
     },
     "highlightOutlineWidth": 0.04,
@@ -257,6 +261,12 @@
     "animSpeed": 0.0035,
     "gradientInnerEdge": 0.01,
     "gradientSolidEnd": 0.1
+  },
+  "localTerritoryMask": {
+    "alpha": 0.34,
+    "colorR": 0,
+    "colorG": 0,
+    "colorB": 0
   },
   "altView": {
     "gridFontSize": 16,

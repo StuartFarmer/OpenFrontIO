@@ -37,7 +37,9 @@ export class TerritoryPass {
   private uHighlightOwner: WebGLUniformLocation;
   private uHighlightBrighten: WebGLUniformLocation;
   private uShowPatterns: WebGLUniformLocation;
+  private uLocalPlayerID: WebGLUniformLocation;
   private highlightOwner = 0;
+  private localPlayerID = 0;
 
   private vao: WebGLVertexArrayObject;
   private tileTex: WebGLTexture;
@@ -121,6 +123,10 @@ export class TerritoryPass {
       "uHighlightBrighten",
     )!;
     this.uShowPatterns = gl.getUniformLocation(this.program, "uShowPatterns")!;
+    this.uLocalPlayerID = gl.getUniformLocation(
+      this.program,
+      "uLocalPlayerID",
+    )!;
 
     gl.useProgram(this.program);
     gl.uniform1i(gl.getUniformLocation(this.program, "uTileTex"), 0);
@@ -350,6 +356,10 @@ export class TerritoryPass {
     this.highlightOwner = ownerID;
   }
 
+  setLocalPlayerID(ownerID: number): void {
+    this.localPlayerID = ownerID;
+  }
+
   /** Draw territory fill + fallout charcoal. Blending must be enabled by caller. */
   draw(cameraMatrix: Float32Array): void {
     this.flushTileTexture();
@@ -367,6 +377,7 @@ export class TerritoryPass {
     gl.uniform1f(this.uCharcoalAlpha, mo.charcoalAlpha);
     gl.uniform1ui(this.uHighlightOwner, this.highlightOwner);
     gl.uniform1f(this.uHighlightBrighten, mo.highlightFillBrighten);
+    gl.uniform1ui(this.uLocalPlayerID, this.localPlayerID);
     gl.uniform1i(
       this.uShowPatterns,
       this.settings.passEnabled.territoryPatterns && this.showPatterns ? 1 : 0,

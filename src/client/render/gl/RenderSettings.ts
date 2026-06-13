@@ -234,6 +234,12 @@ export interface RenderSettings {
     gradientInnerEdge: number; // static gradient inner ramp end (0–1)
     gradientSolidEnd: number; // static gradient solid band end (0–1)
   };
+  localTerritoryMask: {
+    alpha: number;
+    colorR: number;
+    colorG: number;
+    colorB: number;
+  };
   altView: {
     gridFontSize: number;
     recolorStructures: boolean;

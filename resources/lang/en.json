@@ -135,8 +135,8 @@
     "option_exit": "Exit button.",
     "option_settings": "Settings - Open the settings menu. Inside you can toggle things like Alternate view, Emojis, Dark Mode, Hidden names, action on left click and more.",
     "radial_title": "Radial menu",
-    "radial_desc": "Right clicking (or touch on mobile) opens the Radial menu. Right click outside it to close it. From the menu you can:",
-    "radial_build": "Open the Build menu.",
+    "radial_desc": "Right clicking (or touch on mobile) opens the Radial menu for contextual actions. Use the bottom build bar to place buildings and buildable units. From the Radial menu you can:",
+    "radial_build": "Use the bottom build bar.",
     "radial_info": "Open the Info menu.",
     "radial_boat": "Send a Boat (transport ship) to attack at the selected location. Only available if you have access to water.",
     "radial_donate_troops": "Donate troops equivalent to your attack ratio slider percentage to the ally you opened the radial menu on.",
@@ -153,8 +153,8 @@
     "ally_betray": "Betray your ally, ending the alliance, halting trade, and weakening your defense. Trading between you is paused for 5 minutes (or until you become allies again) and others may stop trading too. And unless the other player was a traitor themselves, you'll be marked a traitor for 30 seconds. During this time an icon will be above your name and you will have a 50% defense debuff. Tribes are less likely to ally with you and players will think twice before doing so.",
     "ally_donate": "Donate some of your troops to your ally. Used when they're low on troops and are being attacked, or when they need that extra power to crush an enemy.",
     "ally_donate_gold": "Donate some of your gold to your ally. Used when they're low on gold and need it for buildings, or when your team member is saving for that MIRV.",
-    "build_menu_title": "Build menu",
-    "build_menu_desc": "Build these or see how many of each you already build:",
+    "build_menu_title": "Build bar",
+    "build_menu_desc": "Use the bottom build bar to select what to build, then click a valid location on the map:",
     "build_name": "Name",
     "build_icon": "Icon",
     "build_desc": "Description",
@@ -701,7 +701,8 @@
     "atom_bomb": "Atom Bomb",
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
-    "factory": "Factory"
+    "factory": "Factory",
+    "farmland": "Farmland"
   },
   "user_setting": {
     "title": "Settings",
@@ -929,6 +930,7 @@
       "defense_post": "Increases defenses of nearby borders",
       "city": "Increases max population",
       "factory": "Production building",
+      "farmland": "Paint farmland over owned land",
       "rail_station": "Connects buildings and friendly neighbors by rail",
       "silo": "Increases stockpile capacity"
     },
@@ -1218,6 +1220,7 @@
       "silo": "Missile Silo",
       "wshp": "Warship",
       "fact": "Factory",
+      "farm": "Farmland",
       "trade": "Trade Ship",
       "trans": "Transport Ship",
       "abomb": "Atom Bomb",

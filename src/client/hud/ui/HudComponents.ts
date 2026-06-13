@@ -3570,6 +3570,7 @@ export class HudTabs extends HudScopedElement {
 
       .tabs {
         display: flex;
+        flex-wrap: wrap;
         gap: 2px;
         border-bottom: 1px solid rgba(148, 163, 184, 0.34);
       }
